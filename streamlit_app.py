@@ -3,7 +3,7 @@ import pandas as pd
 import settings 
 
 logger = settings.init_logging()
-secrets = settings.get_secrets()
+bq_client = settings.get_bq_client()
 
 
 ## UI ##
