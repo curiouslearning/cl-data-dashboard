@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import settings
+import campaigns
 
 import ui_components as ui
 
@@ -14,4 +15,9 @@ st.title("Curious Learning Dashboard")
 ui.display_definitions_table()
 
 st.sidebar.markdown("***")
-ui.calendar_selector()
+selected_date = ui.calendar_selector()
+print (type(selected_date))
+st.text(selected_date)
+
+df = campaigns.get_campaign_data(bq_client)
+st.text(df)
