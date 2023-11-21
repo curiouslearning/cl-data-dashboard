@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import settings
 import campaigns
+from rich import print as rprint
 
 import ui_components as ui
 
@@ -15,9 +16,14 @@ st.title("Curious Learning Dashboard")
 ui.display_definitions_table()
 
 st.sidebar.markdown("***")
-selected_date = ui.calendar_selector()
-print (type(selected_date))
+selected_date, option = ui.calendar_selector()
 st.text(selected_date)
+range = ui.convert_date_to_range(selected_date,option)
+st.text(range)
 
-df = campaigns.get_campaign_data(bq_client)
-st.text(df)
+'''df = campaigns.get_google_campaign_data_totals(bq_client)
+st.table(df)
+
+df = campaigns.get_fb_campaign_data_totals(bq_client)
+st.table(df)
+'''

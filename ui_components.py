@@ -1,7 +1,11 @@
 import streamlit as st
 import pandas as pd
 import datetime as dt
-from calendar import month_abbr
+import calendar
+
+min_date = dt.datetime(2020,1,1)
+max_date = dt.date.today()
+
 
 def display_definitions_table():
     expander = st.expander("Definitions")
@@ -82,17 +86,13 @@ def month_selector():
 
         
 def custom_date_selection():
-    min_date = dt.datetime(2020,1,1)
-    max_date = dt.date(2022,1,1)
-
     date_range = st.sidebar.date_input("Pick a date", (min_date, max_date))
-    st.sidebar.text(f'{date_range}')
-
     return (date_range)
 
 def calendar_selector():
     option = st.sidebar.selectbox("Select a report date",
-        ("Select year",
+        ("All time",
+         "Select year",
          "Select month",
          "Select custom range"),
     index=None,
@@ -101,8 +101,29 @@ def calendar_selector():
     
     if (option == "Select year"):
         selected_date = year_selector()
+    elif (option == "All time"):
+        selected_date = [min_date,max_date]
     elif (option == "Select month"):
         selected_date = month_selector()
     else: 
         selected_date = custom_date_selection()
-    return selected_date
+    return selected_date, option
+
+def convert_date_to_range(selected_date,option):
+    
+    if (option == "Select year"):
+        first = dt.date(selected_date, 1, 1)
+        last = dt.date(selected_date, 12, 31)
+        return [first,last]
+    elif (option == "All time"):
+        return [min_date,max_date]
+    elif (option == "Select month"):
+        month = selected_date[0]
+        year = selected_date[1]
+        first = dt.date(year, month, 1)
+        yearmonth = calendar.monthrange(year, month)
+        last = dt.date(year,month,yearmonth[1])
+        return [first,last]
+    else: 
+        return selected_date
+    
