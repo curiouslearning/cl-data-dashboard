@@ -17,13 +17,14 @@ ui.display_definitions_table()
 
 st.sidebar.markdown("***")
 selected_date, option = ui.calendar_selector()
-st.text(selected_date)
-range = ui.convert_date_to_range(selected_date,option)
-st.text(range)
+daterange = ui.convert_date_to_range(selected_date,option)
 
-'''df = campaigns.get_google_campaign_data_totals(bq_client)
-st.table(df)
+st.header("Facebook Ads")
+df = campaigns.get_fb_campaign_data_totals(bq_client,daterange)
+#st.table(df)
+st.text( "rows = " + str(len(df)))
 
-df = campaigns.get_fb_campaign_data_totals(bq_client)
-st.table(df)
-'''
+st.header("Google Ads")
+df = campaigns.get_google_campaign_data_totals(bq_client,daterange)
+#st.table(df)
+st.text( "rows = " + str(len(df)))

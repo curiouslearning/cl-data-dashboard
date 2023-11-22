@@ -90,13 +90,13 @@ def custom_date_selection():
     return (date_range)
 
 def calendar_selector():
-    option = st.sidebar.selectbox("Select a report date",
+    option = st.sidebar.selectbox("Select a report date range",
         ("All time",
          "Select year",
          "Select month",
          "Select custom range"),
-    index=None,
-    placeholder="Select range",
+    index=1,
+    placeholder="Select date range",
     )
     
     if (option == "Select year"):
