@@ -6,6 +6,8 @@ from rich import print as print
 @st.cache_data
 def get_google_campaign_data_totals(_bq_client,daterange):
     date_start = daterange[0].strftime("%Y-%m-%d")
+    date_end= daterange[1].strftime("%Y-%m-%d")
+
     sql_query = f"""
         SELECT metrics.campaign_id,
         campaigns.campaign_name,
@@ -21,7 +23,7 @@ def get_google_campaign_data_totals(_bq_client,daterange):
        
         FROM dataexploration-193817.marketing_data.p_ads_CampaignStats_6687569935 as metrics
         inner join dataexploration-193817.marketing_data.ads_Campaign_6687569935 as campaigns on metrics.campaign_id = campaigns.campaign_id
-        WHERE  campaigns.campaign_start_date >= '{date_start}'
+        WHERE  campaigns.campaign_start_date >= '{date_start}' AND campaigns.campaign_start_date <= '{date_end}'
         group by metrics.campaign_id,campaigns.campaign_name,campaigns.campaign_start_date,campaigns.campaign_end_date
     """
     rows_raw = _bq_client.query(sql_query)
@@ -34,6 +36,7 @@ def get_google_campaign_data_totals(_bq_client,daterange):
 @st.cache_data
 def get_fb_campaign_data_totals(_bq_client,daterange):
     date_start = daterange[0].strftime("%Y-%m-%d")
+    date_end= daterange[1].strftime("%Y-%m-%d")
 
     sql_query = f"""
         SELECT campaign_id,
@@ -48,14 +51,14 @@ def get_fb_campaign_data_totals(_bq_client,daterange):
         sum(PARSE_NUMERIC(a.value)) as mobile_app_install,       
         FROM dataexploration-193817.marketing_data.facebook_ads_data
         JOIN UNNEST(actions) as a  
-        WHERE a.action_type = 'mobile_app_install' AND  start_time >= '{date_start}' 
+        WHERE a.action_type = 'mobile_app_install' AND  start_time >= '{date_start}' AND start_time <= '{date_end}'
         group by campaign_id,campaign_name,start_time,end_time,a.action_type;   """
 
     rows_raw = _bq_client.query(sql_query)
     rows = [dict(row) for row in rows_raw]
     df = pd.DataFrame(rows)
     df["start_time"] = pd.to_datetime(df.start_time,utc=True)
-    print(type(df["start_time"]))
+
 
     df["start_time"] = df['start_time'].dt.strftime('%Y/%m/%d')
 

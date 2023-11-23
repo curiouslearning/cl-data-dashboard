@@ -8,7 +8,7 @@ import ui_components as ui
 
 logger = settings.init_logging()
 bq_client = settings.get_bq_client()
-key = 0
+
 
 
 st.set_page_config(layout="wide") 
@@ -26,12 +26,14 @@ platform = ui.ads_platform_selector()
 
 if (platform == 'Facebook' or platform == 'Both'):
     st.header("Facebook Ads")
-    df = campaigns.get_fb_campaign_data_totals(bq_client,daterange)
-    ui.paginated_dataframe(df)
+    df_fb = campaigns.get_fb_campaign_data_totals(bq_client,daterange)
+    keys = [1,2,3,4,5]
+    ui.paginated_dataframe(df_fb,keys)
 
 
 if (platform == 'Google' or platform == 'Both'):
     st.header("Google Ads")
-    df = campaigns.get_google_campaign_data_totals(bq_client,daterange)
-    ui.paginated_dataframe(df)
+    df_goog = campaigns.get_google_campaign_data_totals(bq_client,daterange)
+    keys = [6,7,8,9,10]
+    ui.paginated_dataframe(df_goog,keys)
 
