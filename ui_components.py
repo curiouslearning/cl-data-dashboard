@@ -1,7 +1,15 @@
 import streamlit as st
 import pandas as pd
 import datetime as dt
-from calendar import month_abbr
+import calendar
+from rich import print as rprint
+import uuid
+
+
+min_date = dt.datetime(2020,1,1)
+max_date = dt.date.today()
+
+
 
 def display_definitions_table():
     expander = st.expander("Definitions")
@@ -82,27 +90,88 @@ def month_selector():
 
         
 def custom_date_selection():
-    min_date = dt.datetime(2020,1,1)
-    max_date = dt.date(2022,1,1)
-
     date_range = st.sidebar.date_input("Pick a date", (min_date, max_date))
-    st.sidebar.text(f'{date_range}')
-
     return (date_range)
 
+def ads_platform_selector():
+    platform = st.sidebar.radio(label="Ads Platform",
+                                options=["Facebook","Google", "Both"],
+                                horizontal=True,
+    )
+    return platform
+
 def calendar_selector():
-    option = st.sidebar.selectbox("Select a report date",
-        ("Select year",
+    option = st.sidebar.selectbox("Select a report date range",
+        ("All time",
+         "Select year",
          "Select month",
          "Select custom range"),
-    index=None,
-    placeholder="Select range",
+    index=1,
+    placeholder="Select date range",
     )
     
     if (option == "Select year"):
         selected_date = year_selector()
+    elif (option == "All time"):
+        selected_date = [min_date,max_date]
     elif (option == "Select month"):
         selected_date = month_selector()
     else: 
         selected_date = custom_date_selection()
-    return selected_date
+    return selected_date, option
+
+def convert_date_to_range(selected_date,option):
+    
+    if (option == "Select year"):
+        first = dt.date(selected_date, 1, 1)
+        last = dt.date(selected_date, 12, 31)
+        return [first,last]
+    elif (option == "All time"):
+        return [min_date,max_date]
+    elif (option == "Select month"):
+        month = selected_date[0]
+        year = selected_date[1]
+        first = dt.date(year, month, 1)
+        yearmonth = calendar.monthrange(year, month)
+        last = dt.date(year,month,yearmonth[1])
+        return [first,last]
+    else: 
+        return selected_date
+    
+@st.cache_data(show_spinner=False)
+def split_frame(input_df, rows):
+    df = [input_df.loc[i : i + rows - 1, :] for i in range(0, len(input_df), rows)]
+    return df
+
+def paginated_dataframe(df):
+    top_menu = st.columns(3)
+    with top_menu[0]:
+        sort = st.radio("Sort Data", options=["Yes", "No"], horizontal=1, index=1,key=uuid.uuid4())
+    if sort == "Yes":
+        with top_menu[1]:
+            sort_field = st.selectbox("Sort By", options=df.columns,key=uuid.uuid4())
+        with top_menu[2]:
+            sort_direction = st.radio(
+                "Direction", options=["⬆️", "⬇️"], horizontal=True,key=uuid.uuid4()
+            )
+        df = df.sort_values(
+            by=sort_field, ascending=sort_direction == "⬆️", ignore_index=True
+        )
+
+    
+    pagination = st.container()
+    bottom_menu = st.columns((4, 1, 1))
+    with bottom_menu[2]:
+        batch_size = st.selectbox("Page Size", options=[25, 50, 100],key=uuid.uuid4())
+    with bottom_menu[1]:
+        total_pages = (
+            int(len(df) / batch_size) if int(len(df) / batch_size) > 0 else 1
+        )
+        current_page = st.number_input(
+            "Page", min_value=1, max_value=total_pages, step=1
+        )
+    with bottom_menu[0]:
+        st.markdown(f"Page **{current_page}** of **{total_pages}** ")
+        
+    pages = split_frame(df, batch_size)
+    pagination.dataframe(data=pages[current_page - 1], use_container_width=True)
