@@ -30,3 +30,4 @@ def init_logging():
         # output logs to console - otherwise logs are only visible when running in GCP
         logger.addHandler(logging.StreamHandler())
     return logger
+
