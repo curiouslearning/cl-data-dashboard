@@ -28,10 +28,10 @@ if (platform == 'Facebook' or platform == 'Both'):
     st.header("Facebook Ads")
     df = campaigns.get_fb_campaign_data_totals(bq_client,daterange)
     ui.paginated_dataframe(df)
-    st.text( "rows = " + str(len(df)))
+
 
 if (platform == 'Google' or platform == 'Both'):
     st.header("Google Ads")
     df = campaigns.get_google_campaign_data_totals(bq_client,daterange)
     ui.paginated_dataframe(df)
-    st.text( "rows = " + str(len(df)))
+
