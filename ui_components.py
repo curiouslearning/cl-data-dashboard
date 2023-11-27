@@ -105,7 +105,7 @@ def calendar_selector():
          "Select year",
          "Select month",
          "Select custom range"),
-    index=1,
+    index=None,
     placeholder="Select date range",
     )
     
@@ -172,6 +172,6 @@ def paginated_dataframe(df,keys):
         )
     with bottom_menu[0]:
         st.markdown(f"Page **{current_page}** of **{total_pages}** ")
-        
+
     pages = split_frame(df, batch_size)
     pagination.dataframe(data=pages[current_page - 1], use_container_width=True)

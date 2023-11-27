@@ -27,13 +27,19 @@ platform = ui.ads_platform_selector()
 if (platform == 'Facebook' or platform == 'Both'):
     st.header("Facebook Ads")
     df_fb = campaigns.get_fb_campaign_data_totals(bq_client,daterange)
-    keys = [1,2,3,4,5]
-    ui.paginated_dataframe(df_fb,keys)
+    if (len(df_fb) > 0):
+        keys = [1,2,3,4,5]
+        ui.paginated_dataframe(df_fb,keys)
+    else:
+        st.header("No data for selected period")
 
 
 if (platform == 'Google' or platform == 'Both'):
     st.header("Google Ads")
     df_goog = campaigns.get_google_campaign_data_totals(bq_client,daterange)
-    keys = [6,7,8,9,10]
-    ui.paginated_dataframe(df_goog,keys)
+    if (len(df_goog) > 0):
+        keys = [6,7,8,9,10]
+        ui.paginated_dataframe(df_goog,keys)
+    else:
+        st.text("No data for selected period")
 
