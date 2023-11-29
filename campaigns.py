@@ -38,29 +38,47 @@ def get_fb_campaign_data_totals(_bq_client,daterange):
     date_start = daterange[0].strftime("%Y-%m-%d")
     date_end= daterange[1].strftime("%Y-%m-%d")
 
+    # This is a two query hack because I could not figure out how to work with the
+    # RECORD column and get the data the way I want
     sql_query = f"""
-        SELECT campaign_id,
-        campaign_name,
-        start_time,
-        end_time, 
-        sum(clicks) as clicks,
-        sum(impressions) as impressions,
-        sum(reach) as reach,
-        sum(spend) as cost,
-        avg(cpc) as cpc, 
-        sum(PARSE_NUMERIC(a.value)) as mobile_app_install,       
-        FROM dataexploration-193817.marketing_data.facebook_ads_data
-        JOIN UNNEST(actions) as a  
-        WHERE a.action_type = 'mobile_app_install' AND  start_time >= '{date_start}' AND start_time <= '{date_end}'
-        group by campaign_id,campaign_name,start_time,end_time,a.action_type;   """
+        SELECT 
+            campaign_id,
+            campaign_name,
+            start_time,
+            end_time,
+            sum(clicks) as clicks,
+            sum(impressions) as impressions,
+            sum(spend) as cost,
+            avg(cpc) as cpc, 
+            FROM dataexploration-193817.marketing_data.facebook_ads_data
+            WHERE  start_time >= '{date_start}' AND start_time <= '{date_end}'
+            group by campaign_id,campaign_name,start_time,end_time
+            order by campaign_id;    """
 
     rows_raw = _bq_client.query(sql_query)
     rows = [dict(row) for row in rows_raw]
-    df = pd.DataFrame(rows)
-    df["start_time"] = pd.to_datetime(df.start_time,utc=True)
+    df1 = pd.DataFrame(rows)
+    df1["start_time"] = pd.to_datetime(df1.start_time,utc=True)
+    df1["start_time"] = df1['start_time'].dt.strftime('%Y/%m/%d')
+    
+    sql_query = f"""
+       SELECT 
+        campaign_id,
+        sum(PARSE_NUMERIC(a.value)) as mobile_app_install,       
+        FROM dataexploration-193817.marketing_data.facebook_ads_data
+        JOIN UNNEST(actions) as a  
+        WHERE a.action_type = 'mobile_app_install'
+        AND start_time >= '{date_start}' AND start_time <= '{date_end}'
+        group by campaign_id
+        order by campaign_id;    """
 
-
-    df["start_time"] = df['start_time'].dt.strftime('%Y/%m/%d')
-
-    return df
+    rows_raw = _bq_client.query(sql_query)
+    rows = [dict(row) for row in rows_raw]
+    df2 = pd.DataFrame(rows)
+    
+    merged_df = pd.merge(df1, df2, on='campaign_id', how='left')
+    merged_df['mobile_app_install'].fillna(0, inplace=True)
+    
+    
+    return merged_df
 

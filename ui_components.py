@@ -139,7 +139,7 @@ def convert_date_to_range(selected_date,option):
     
 @st.cache_data(show_spinner=False)
 def split_frame(input_df, rows):
-    df = [input_df.loc[i : i + rows - 1, :] for i in range(0, len(input_df), rows)]
+    df = [input_df.iloc[i : i + rows - 1, :] for i in range(0, len(input_df), rows)]
     return df
 
 def paginated_dataframe(df,keys):
