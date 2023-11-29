@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from rich import print as print
+import numpy as np
 
 
 @st.cache_data
@@ -28,6 +29,10 @@ def get_google_campaign_data_totals(_bq_client,daterange):
     """
     rows_raw = _bq_client.query(sql_query)
     rows = [dict(row) for row in rows_raw]
+    
+    if (len(rows) == 0):
+        return pd.DataFrame()
+    
     df = pd.DataFrame(rows)
     df["Source"] = ("Google")
     return df
@@ -51,12 +56,16 @@ def get_fb_campaign_data_totals(_bq_client,daterange):
             sum(spend) as cost,
             avg(cpc) as cpc, 
             FROM dataexploration-193817.marketing_data.facebook_ads_data
-            WHERE  start_time >= '{date_start}' AND start_time <= '{date_end}'
+            WHERE  data_date_start >= '{date_start}' AND data_date_start <= '{date_end}'
             group by campaign_id,campaign_name,start_time,end_time
             order by campaign_id;    """
 
     rows_raw = _bq_client.query(sql_query)
     rows = [dict(row) for row in rows_raw]
+
+    if (len(rows) == 0):
+        return pd.DataFrame()
+
     df1 = pd.DataFrame(rows)
     df1["start_time"] = pd.to_datetime(df1.start_time,utc=True)
     df1["start_time"] = df1['start_time'].dt.strftime('%Y/%m/%d')
@@ -78,7 +87,9 @@ def get_fb_campaign_data_totals(_bq_client,daterange):
     
     merged_df = pd.merge(df1, df2, on='campaign_id', how='left')
     merged_df['mobile_app_install'].fillna(0, inplace=True)
-    
-    
+    pd.pivot_table(
+        merged_df,
+        index=['campaign_id'],
+        aggfunc={'clicks': np.sum, 'impressions': np.sum, 'cost': np.sum,'cpc': np.sum,'mobile_app_install': np.sum})
     return merged_df
 

@@ -31,7 +31,7 @@ if (platform == 'Facebook' or platform == 'Both'):
         keys = [1,2,3,4,5]
         ui.paginated_dataframe(df_fb,keys)
     else:
-        st.header("No data for selected period")
+        st.text("No data for selected period")
 
 
 if (platform == 'Google' or platform == 'Both'):
