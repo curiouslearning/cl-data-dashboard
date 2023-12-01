@@ -46,6 +46,7 @@ def get_google_campaign_data_totals(_bq_client,daterange):
 
     df = df.reset_index()
     df = df.set_index('campaign_name')
+    df.sort_values(by=['campaign_name'],ascending=True)
     return df
 
 
@@ -80,6 +81,7 @@ def get_fb_campaign_data_totals(_bq_client,daterange):
     df1 = pd.DataFrame(rows)
     df1["campaign_start_date"] = pd.to_datetime(df1.campaign_start_date,utc=True)
     df1["campaign_start_date"] = df1['campaign_start_date'].dt.strftime('%Y/%m/%d')
+    df1["Source"] = ("Facebook")
     
     sql_query = f"""
        SELECT 
@@ -93,17 +95,19 @@ def get_fb_campaign_data_totals(_bq_client,daterange):
 
     rows_raw = _bq_client.query(sql_query)
     rows = [dict(row) for row in rows_raw]
-    df2 = pd.DataFrame(rows)
-    
+    df2 = pd.DataFrame(rows)  
+    df2['mobile_app_install'].fillna(0, inplace=True)
+
     merged_df = pd.merge(df1, df2, on='campaign_id', how='left')
-    merged_df['mobile_app_install'].fillna(0, inplace=True)
+
     merged_df = pd.pivot_table(
         merged_df,
-        index=['campaign_id','campaign_name','campaign_start_date','campaign_end_date'],
-        aggfunc={'clicks': np.sum, 'impressions': np.sum, 'cost': np.sum,'cpc': np.sum,'mobile_app_install': np.sum})
-    
-    merged_df["Source"] = ("Facebook")
+        index=['campaign_id','campaign_name','campaign_start_date','campaign_end_date','mobile_app_install'],
+        aggfunc={'clicks': np.sum, 'impressions': np.sum, 'cost': np.sum,'cpc': np.sum})  
     merged_df = merged_df.reset_index()
     merged_df = merged_df.set_index('campaign_name')
+    merged_df.sort_values(by=['campaign_name'],ascending=True)
+
+
     return merged_df
 
