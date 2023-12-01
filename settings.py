@@ -40,8 +40,8 @@ def initialize():
     
     #Get all of the data and store it
     default_date_range = [dt.datetime(2020,1,1),dt.date.today()]
-    df_fb   = campaigns.get_fb_campaign_data_totals(bq_client,default_date_range)
-    df_goog = campaigns.get_google_campaign_data_totals(bq_client,default_date_range)
+    df_fb   = campaigns.get_fb_campaign_data(bq_client)
+    df_goog = campaigns.get_google_campaign_data(bq_client)
 
 
     if "df_goog" not in st.session_state:
