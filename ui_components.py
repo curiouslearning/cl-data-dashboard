@@ -96,6 +96,7 @@ def ads_platform_selector():
     platform = st.sidebar.radio(label="Ads Platform",
                                 options=["Facebook","Google", "Both"],
                                 horizontal=True,
+                                index=2
     )
     return platform
 
@@ -162,7 +163,7 @@ def paginated_dataframe(df,keys):
     pagination = st.container()
     bottom_menu = st.columns((4, 1, 1))
     with bottom_menu[2]:
-        batch_size = st.selectbox("Page Size", options=[25, 50, 100],key=keys[3])
+        batch_size = st.selectbox("Page Size", options=[25, 50, 100],key=keys[3],index=1)
     with bottom_menu[1]:
         total_pages = (
             int(len(df) / batch_size) if int(len(df) / batch_size) > 0 else 1

@@ -2,8 +2,11 @@ import google.cloud.logging
 import streamlit as st
 import logging
 import os
+import datetime as dt
 from google.oauth2 import service_account
 from google.cloud import bigquery
+import campaigns
+import rich
 
 st.cache_resource
 def get_bq_client():
@@ -31,3 +34,23 @@ def init_logging():
         logger.addHandler(logging.StreamHandler())
     return logger
 
+def initialize():
+    logger = init_logging()
+    bq_client = get_bq_client()
+    
+    #Get all of the data and store it
+    default_date_range = [dt.datetime(2020,1,1),dt.date.today()]
+    df_fb   = campaigns.get_fb_campaign_data_totals(bq_client,default_date_range)
+    df_goog = campaigns.get_google_campaign_data_totals(bq_client,default_date_range)
+
+
+    if "df_goog" not in st.session_state:
+        st.session_state["df_goog"] = df_goog
+    if "df_fb" not in st.session_state:
+        st.session_state["df_fb"] = df_fb
+    if "logger" not in st.session_state:
+        st.session_state["logger"] = logger
+    if "bq_client" not in st.session_state:
+        st.session_state["bq_client"] = bq_client
+
+    

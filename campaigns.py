@@ -4,26 +4,30 @@ from rich import print as print
 import numpy as np
 
 
-@st.cache_data
+@st.cache_data(show_spinner="Fetching Google Campaign Data")
 def get_google_campaign_data_totals(_bq_client,daterange):
+
     date_start = daterange[0].strftime("%Y-%m-%d")
     date_end= daterange[1].strftime("%Y-%m-%d")
-
+    test = 20732448932
     sql_query = f"""
-        SELECT metrics.campaign_id,
+         SELECT metrics.campaign_id,
+        metrics.segments_date as day,
         campaigns.campaign_name,
-        sum(metrics_clicks) as clicks,
-        sum(metrics_conversions) as conversions,
-        sum(metrics_impressions) as impressions,
-        sum(metrics_cost_micros) as cost,
-        avg(metrics_average_cpc) as cpc, 
-        sum(metrics_conversions) as conversions
-        
-       
+        campaigns.campaign_start_date,
+        campaigns.campaign_end_date, 
+        metrics_clicks as clicks,
+        metrics_conversions as conversions,
+        metrics_impressions as impressions,
+        metrics_cost_micros as cost,
+        metrics_average_cpc as cpc
         FROM dataexploration-193817.marketing_data.p_ads_CampaignStats_6687569935 as metrics
-        inner join dataexploration-193817.marketing_data.ads_Campaign_6687569935 as campaigns on metrics.campaign_id = campaigns.campaign_id
-        WHERE  campaigns.campaign_start_date >= '{date_start}' AND campaigns.campaign_start_date <= '{date_end}'
-        group by metrics.campaign_id,campaigns.campaign_name
+        inner join dataexploration-193817.marketing_data.ads_Campaign_6687569935 as campaigns
+        on metrics.campaign_id = campaigns.campaign_id
+        and segments_date >= '{date_start}' and segments_date <= '{date_end}' 
+ #       and campaigns.campaign_id = {test}
+        group by 1,2,3,4,5,6,7,8,9,10
+        order by segments_date desc        
     """
     rows_raw = _bq_client.query(sql_query)
     rows = [dict(row) for row in rows_raw]
@@ -34,11 +38,18 @@ def get_google_campaign_data_totals(_bq_client,daterange):
     df = pd.DataFrame(rows)
     df["Source"] = ("Google")
     df["campaign_id"]=df["campaign_id"].astype(str).str.replace(",", "")
+    
+    df = pd.pivot_table(
+    df,
+    index=['campaign_id','campaign_name','campaign_start_date','campaign_end_date'],
+    aggfunc={'clicks': np.sum, 'conversions': np.sum, 'impressions': np.sum, 'cost': np.sum,'cpc': np.average})
 
+    df = df.reset_index()
+    df = df.set_index('campaign_name')
     return df
 
 
-@st.cache_data
+@st.cache_data(show_spinner="Fetching Facebook Campaign Data")
 def get_fb_campaign_data_totals(_bq_client,daterange):
     date_start = daterange[0].strftime("%Y-%m-%d")
     date_end= daterange[1].strftime("%Y-%m-%d")
@@ -49,13 +60,15 @@ def get_fb_campaign_data_totals(_bq_client,daterange):
         SELECT 
             campaign_id,
             campaign_name,
-            sum(clicks) as clicks,
-            sum(impressions) as impressions,
-            sum(spend) as cost,
-            avg(cpc) as cpc, 
+            start_time as campaign_start_date, 
+            end_time as campaign_end_date,
+            data_date_start as day,
+            clicks,
+            impressions,
+            spend as cost,
+            cpc 
             FROM dataexploration-193817.marketing_data.facebook_ads_data
             WHERE  data_date_start >= '{date_start}' AND data_date_start <= '{date_end}'
-            group by campaign_id,campaign_name;
             """
 
     rows_raw = _bq_client.query(sql_query)
@@ -65,8 +78,8 @@ def get_fb_campaign_data_totals(_bq_client,daterange):
         return pd.DataFrame()
 
     df1 = pd.DataFrame(rows)
-   # df1["campaign_start_date"] = pd.to_datetime(df1.campaign_start_date,utc=True)
-   # df1["campaign_start_date"] = df1['campaign_start_date'].dt.strftime('%Y/%m/%d')
+    df1["campaign_start_date"] = pd.to_datetime(df1.campaign_start_date,utc=True)
+    df1["campaign_start_date"] = df1['campaign_start_date'].dt.strftime('%Y/%m/%d')
     
     sql_query = f"""
        SELECT 
@@ -84,11 +97,13 @@ def get_fb_campaign_data_totals(_bq_client,daterange):
     
     merged_df = pd.merge(df1, df2, on='campaign_id', how='left')
     merged_df['mobile_app_install'].fillna(0, inplace=True)
-    pd.pivot_table(
+    merged_df = pd.pivot_table(
         merged_df,
-        index=['campaign_id'],
+        index=['campaign_id','campaign_name','campaign_start_date','campaign_end_date'],
         aggfunc={'clicks': np.sum, 'impressions': np.sum, 'cost': np.sum,'cpc': np.sum,'mobile_app_install': np.sum})
     
     merged_df["Source"] = ("Facebook")
+    merged_df = merged_df.reset_index()
+    merged_df = merged_df.set_index('campaign_name')
     return merged_df
 
