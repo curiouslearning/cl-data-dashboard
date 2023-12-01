@@ -1,13 +1,12 @@
 import streamlit as st
 import pandas as pd
 import settings
-import campaigns
-import datetime as dt
 from rich import print as rprint
 
 import ui_components as ui
 
 st.set_page_config(layout="wide") 
+settings.initialize()
 
 
 
