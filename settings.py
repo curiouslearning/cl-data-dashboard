@@ -7,6 +7,7 @@ from google.oauth2 import service_account
 from google.cloud import bigquery
 import campaigns
 import rich
+import pandas as pd
 
 st.cache_resource
 def get_bq_client():
@@ -42,12 +43,15 @@ def initialize():
     default_date_range = [dt.datetime(2020,1,1),dt.date.today()]
     df_fb   = campaigns.get_fb_campaign_data(bq_client)
     df_goog = campaigns.get_google_campaign_data(bq_client)
+    df_all = pd.concat([df_fb, df_goog])
 
 
     if "df_goog" not in st.session_state:
         st.session_state["df_goog"] = df_goog
     if "df_fb" not in st.session_state:
-        st.session_state["df_fb"] = df_fb
+        st.session_state["df_fb"] = df_fb    
+    if "df_all" not in st.session_state:
+        st.session_state["df_all"] = df_all
     if "logger" not in st.session_state:
         st.session_state["logger"] = logger
     if "bq_client" not in st.session_state:

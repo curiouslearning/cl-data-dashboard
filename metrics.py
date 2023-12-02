@@ -4,18 +4,39 @@ import pandas as pd
 import numpy as np
 
 @st.cache_data()
+def get_ave_cost_per_action(daterange):
+    date_start = daterange[0].strftime("%Y-%m-%d")
+    date_end= daterange[1].strftime("%Y-%m-%d")
+
+
+    df_all = st.session_state.df_all
+
+    df = df_all.query('@daterange[0] <= day <= @daterange[1]')
+
+    df.query('mobile_app_install > 0',inplace=True) # Only calculate for campaigns with installs
+
+    total_downloads = df["mobile_app_install"].sum()
+    total_cost = df["cost"].sum()   
+    
+    if (total_downloads > 0):
+        return  float(total_cost) / float(total_downloads)
+    
+    return 0
+
+
+@st.cache_data()
 def get_download_totals(daterange):
     date_start = daterange[0].strftime("%Y-%m-%d")
     date_end= daterange[1].strftime("%Y-%m-%d")
 
+
     df_goog = st.session_state.df_goog
     df_fb = st.session_state.df_fb
 
-    df = df_fb.query('@date_start <= day <= @date_end')
+    df = df_fb.query('@daterange[0] <= day <= @daterange[1]')
     total_fb = df["mobile_app_install"].sum()
     total_goog = df_goog["mobile_app_install"].sum()
     
-
     return total_fb  + total_goog
 
 @st.cache_data()

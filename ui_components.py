@@ -5,10 +5,8 @@ import calendar
 from rich import print as rprint
 
 
-min_date = dt.datetime(2020,1,1)
+min_date = dt.datetime(2020,1,1).date()
 max_date = dt.date.today()
-
-
 
 def display_definitions_table():
     expander = st.expander("Definitions")
@@ -72,7 +70,7 @@ def quarter_start(month):
 def year_selector():
     this_year = dt.datetime.now().year
     report_year = st.sidebar.selectbox("", range(this_year, this_year - 3, -1))
-    st.sidebar.text(f'{report_year}')
+
     return report_year
 
 def month_selector():
@@ -84,7 +82,7 @@ def month_selector():
         month_abbr = month_abbr[1:]
         report_month_str = st.sidebar.radio("", month_abbr, index=this_month - 1, horizontal=True)
         report_month = month_abbr.index(report_month_str) + 1
-    st.sidebar.text(f'{report_year} {report_month_str}')
+
     return report_month, report_year
 
         
@@ -176,3 +174,4 @@ def paginated_dataframe(df,keys):
 
     pages = split_frame(df, batch_size)
     pagination.dataframe(data=pages[current_page - 1], use_container_width=True)
+    
