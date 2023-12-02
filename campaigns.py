@@ -31,6 +31,8 @@ def get_google_campaign_data(_bq_client):
     df = pd.DataFrame(rows)
     
     df["campaign_id"]=df["campaign_id"].astype(str).str.replace(",", "")
+    df["day"] = pd.to_datetime(df["day"]).dt.date
+   # df["cost"] = float(df["cost"]) / 1000000
     df["Source"] = ("Google")
     df["mobile_app_install"] = 0  #Holding place until that metric is available
     
@@ -46,7 +48,7 @@ def get_fb_campaign_data(_bq_client):
             campaign_name,
             start_time as campaign_start_date, 
             end_time as campaign_end_date,
-            data_date_start as day,
+            data_date_start as day ,
             clicks,
             impressions,
             spend as cost,
@@ -65,6 +67,7 @@ def get_fb_campaign_data(_bq_client):
 
     df1 = pd.DataFrame(rows)
     df1["campaign_start_date"] = pd.to_datetime(df1.campaign_start_date,utc=True)
+    df1["day"] = pd.to_datetime(df1["day"]).dt.date
     df1["campaign_start_date"] = df1['campaign_start_date'].dt.strftime('%Y/%m/%d')
     df1["Source"] = ("Facebook")
 
