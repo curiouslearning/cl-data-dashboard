@@ -3,6 +3,8 @@ import pandas as pd
 import datetime as dt
 import calendar
 from rich import print as rprint
+import plost
+import numpy as np
 
 
 min_date = dt.datetime(2020,1,1).date()
@@ -175,3 +177,25 @@ def paginated_dataframe(df,keys):
     pages = split_frame(df, batch_size)
     pagination.dataframe(data=pages[current_page - 1], use_container_width=True)
     
+def top_campaigns_by_downloads_barchart(n):
+    df_all = st.session_state.df_all
+    df = df_all.filter(['campaign_name','mobile_app_install'], axis=1)    
+    pivot_df = pd.pivot_table(
+        df,
+        index=['campaign_name'],        
+        aggfunc={'mobile_app_install': np.sum})  
+
+    df = pivot_df.sort_values(by=['mobile_app_install'],ascending=False)
+    df.reset_index(inplace=True)
+    df = df.rename(columns={"campaign_name": "Campaign", "mobile_app_install": "Installs"})
+    df = df.head(n)
+    df = df.convert_dtypes()
+    df["Installs"] = pd.to_numeric(df["Installs"])
+
+    plost.bar_chart(
+        data=df,
+        bar='Installs',
+        value='Campaign',
+        direction='vertical',
+        use_container_width=True,    
+        legend="bottom")
