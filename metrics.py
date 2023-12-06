@@ -3,11 +3,9 @@ from rich import print
 import pandas as pd
 import numpy as np
 
+
 @st.cache_data()
 def get_ave_cost_per_action(daterange):
-    date_start = daterange[0].strftime("%Y-%m-%d")
-    date_end= daterange[1].strftime("%Y-%m-%d")
-
 
     df_all = st.session_state.df_all
 
@@ -26,9 +24,6 @@ def get_ave_cost_per_action(daterange):
 
 @st.cache_data()
 def get_download_totals(daterange):
-    date_start = daterange[0].strftime("%Y-%m-%d")
-    date_end= daterange[1].strftime("%Y-%m-%d")
-
 
     df_goog = st.session_state.df_goog
     df_fb = st.session_state.df_fb
@@ -41,10 +36,11 @@ def get_download_totals(daterange):
 
 @st.cache_data()
 def get_fb_campaign_data_totals(daterange):
-    date_start = daterange[0].strftime("%Y-%m-%d")
-    date_end= daterange[1].strftime("%Y-%m-%d")
+
     df_fb = st.session_state.df_fb
-    df = df_fb.query('@daterange[0] <= day <= @daterange[1]')
+
+    df = df_fb.query('@daterange[0] <= day <= @daterange[1] ' )
+
     pivot_df = pd.pivot_table(
         df,
         index=['campaign_id','campaign_name','campaign_start_date','campaign_end_date'],
@@ -58,8 +54,6 @@ def get_fb_campaign_data_totals(daterange):
 @st.cache_data()
 def get_google_campaign_data_totals(daterange):
 
-    date_start = daterange[0].strftime("%Y-%m-%d")
-    date_end= daterange[1].strftime("%Y-%m-%d")
     df_goog = st.session_state.df_goog
     df = df_goog.query('@daterange[0] <= day <= @daterange[1]')
 
@@ -73,6 +67,3 @@ def get_google_campaign_data_totals(daterange):
     df.sort_values(by=['campaign_name'],ascending=True)
 
     return df
-
-
-
