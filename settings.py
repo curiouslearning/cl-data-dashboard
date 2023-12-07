@@ -40,11 +40,9 @@ def initialize():
     bq_client = get_bq_client()
     
     #Get all of the data and store it
-    default_date_range = [dt.datetime(2020,1,1),dt.date.today()]
     df_fb   = campaigns.get_fb_campaign_data(bq_client)
     df_goog = campaigns.get_google_campaign_data(bq_client)
     df_all = pd.concat([df_fb, df_goog])
-
 
     if "df_goog" not in st.session_state:
         st.session_state["df_goog"] = df_goog

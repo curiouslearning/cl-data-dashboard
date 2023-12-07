@@ -189,9 +189,6 @@ def top_campaigns_by_downloads_barchart(n):
     df.reset_index(inplace=True)
     df = df.rename(columns={"campaign_name": "Campaign", "mobile_app_install": "Installs"})
     df = df.head(n)
-    df = df.convert_dtypes()
-    df["Installs"] = pd.to_numeric(df["Installs"])
-
     plost.bar_chart(
         data=df,
         bar='Installs',

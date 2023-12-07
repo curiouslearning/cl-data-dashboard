@@ -32,7 +32,9 @@ def get_google_campaign_data(_bq_client):
     
     df["campaign_id"]=df["campaign_id"].astype(str).str.replace(",", "")
     df["day"] = pd.to_datetime(df["day"]).dt.date
-   # df["cost"] = float(df["cost"]) / 1000000
+    df = df.convert_dtypes()
+
+ 
     df["Source"] = ("Google")
     df["mobile_app_install"] = 0  #Holding place until that metric is available
     
@@ -65,11 +67,13 @@ def get_fb_campaign_data(_bq_client):
     if (len(rows) == 0):
         return pd.DataFrame()
 
-    df1 = pd.DataFrame(rows)
-    df1["campaign_start_date"] = pd.to_datetime(df1.campaign_start_date,utc=True)
-    df1["day"] = pd.to_datetime(df1["day"]).dt.date
-    df1["campaign_start_date"] = df1['campaign_start_date'].dt.strftime('%Y/%m/%d')
-    df1["Source"] = ("Facebook")
+    df = pd.DataFrame(rows)
+    df["campaign_start_date"] = pd.to_datetime(df.campaign_start_date,utc=True)
+    df["day"] = pd.to_datetime(df["day"]).dt.date
+    df["campaign_start_date"] = df['campaign_start_date'].dt.strftime('%Y/%m/%d')
+    df["Source"] = ("Facebook")
+    df = df.convert_dtypes()
+    df["mobile_app_install"] = pd.to_numeric(df["mobile_app_install"])
 
-    return df1
+    return df
 

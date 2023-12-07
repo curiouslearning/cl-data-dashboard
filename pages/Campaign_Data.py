@@ -18,7 +18,7 @@ platform = ui.ads_platform_selector()
 
 if (platform == 'Facebook' or platform == 'Both'):
     st.header("Facebook Ads")
-    df = metrics.get_fb_campaign_data_totals(daterange)
+    df = metrics.get_campaign_data_totals(daterange,'Facebook')
     if (len(df) > 0):
         keys = [1,2,3,4,5]
         ui.paginated_dataframe(df,keys)
@@ -28,7 +28,7 @@ if (platform == 'Facebook' or platform == 'Both'):
 
 if (platform == 'Google' or platform == 'Both'):
     st.header("Google Ads")
-    df = metrics.get_google_campaign_data_totals(daterange)
+    df = metrics.get_campaign_data_totals(daterange,'Google')
     if (len(df) > 0):
         keys = [6,7,8,9,10]
         ui.paginated_dataframe(df,keys)
