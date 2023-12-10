@@ -36,18 +36,20 @@ def init_logging():
     return logger
 
 def initialize():
+    pd.set_option('display.max_columns', 20); 
     logger = init_logging()
     bq_client = get_bq_client()
     
     #Get all of the data and store it
     df_fb   = campaigns.get_fb_campaign_data(bq_client)
     df_goog = campaigns.get_google_campaign_data(bq_client)
+    df_goog_conversions = campaigns.get_google_campaign_conversions(bq_client)
+    df_goog = pd.concat( [df_goog,df_goog_conversions])
     df_all = pd.concat([df_fb, df_goog])
 
-    if "df_goog" not in st.session_state:
-        st.session_state["df_goog"] = df_goog
-    if "df_fb" not in st.session_state:
-        st.session_state["df_fb"] = df_fb    
+
+    if "df_goog_conversions" not in st.session_state:
+        st.session_state["df_goog_conversions"] = df_goog_conversions
     if "df_all" not in st.session_state:
         st.session_state["df_all"] = df_all
     if "logger" not in st.session_state:

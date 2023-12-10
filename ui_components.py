@@ -106,7 +106,7 @@ def calendar_selector():
          "Select year",
          "Select month",
          "Select custom range"),
-    index=None,
+    index=0,
     placeholder="Select date range",
     )
     
