@@ -10,7 +10,6 @@ st.set_page_config(layout="wide")
 st.title("Curious Learning Dashboard")
 settings.initialize()
 
-st.sidebar.markdown("***")
 selected_date, option = ui.calendar_selector()
 daterange = ui.convert_date_to_range(selected_date,option)
 
@@ -31,6 +30,8 @@ if (platform == 'Google' or platform == 'Both'):
     df = metrics.get_campaign_data_totals(daterange,'Google')
     if (len(df) > 0):
         keys = [6,7,8,9,10]
+        df.sort_values(by="button_clicks")
+
         ui.paginated_dataframe(df,keys)
     else:
         st.text("No data for selected period")

@@ -33,18 +33,32 @@ def get_download_totals(daterange):
     return total
 
 @st.cache_data()
+def get_google_conversions(daterange):
+    df = st.session_state.df_goog_conversions
+
+    df1 = df.query('@daterange[0] <= day <= @daterange[1]')
+    total = df1["button_clicks"].sum()
+    return total
+
+
+@st.cache_data()
 def get_campaign_data_totals(daterange,source):
 
     df_all = st.session_state.df_all
+ 
+    df = df_all.query('@daterange[0] <= day <= @daterange[1]  and source == @source')
+    df = (df.groupby('campaign_id', as_index=True)
+            .agg({'campaign_name': 'first',
+                'campaign_start_date': 'first',
+                'campaign_end_date': 'first',
+                'mobile_app_install': 'sum',
+                'clicks': 'sum',
+                'button_clicks': 'sum',
+                'cost': 'sum',
+                'cpc': 'sum',
+                'impressions': 'sum'})
+            )
+    
+    df.sort_values(by=['campaign_start_date'],ascending=False)
 
-    df = df_all.query('@daterange[0] <= day <= @daterange[1]  and Source == @source')
-
-    pivot_df = pd.pivot_table(
-        df,
-        index=['campaign_id','campaign_name','campaign_start_date','campaign_end_date'],
-        aggfunc={'mobile_app_install': np.sum,'clicks': np.sum, 'impressions': np.sum, 'cost': np.sum,'cpc': np.sum})  
-    pivot_df = pivot_df.reset_index()
-    pivot_df = pivot_df.set_index('campaign_name')
-
-    pivot_df.sort_values(by=['campaign_name'],ascending=True)
-    return pivot_df
+    return df
