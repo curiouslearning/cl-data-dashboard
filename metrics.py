@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 
 
-@st.cache_data()
+@st.cache_data(ttl="1d")
 def get_ave_cost_per_action(daterange):
 
     df_all = st.session_state.df_all
@@ -22,17 +22,27 @@ def get_ave_cost_per_action(daterange):
     return 0
 
 
-@st.cache_data()
+@st.cache_data(ttl="1d")
+def get_first_open_totals(daterange):
+
+    df_events= st.session_state.df_events
+
+    df = df_events.query('@daterange[0] <= day <= @daterange[1]')
+    total = len(df)
+    
+    return total
+
+@st.cache_data(ttl="1d")
 def get_download_totals(daterange):
 
-    df_all= st.session_state.df_all
+    df_all = st.session_state.df_all
 
     df = df_all.query('@daterange[0] <= day <= @daterange[1]')
     total = df["mobile_app_install"].sum()
     
     return total
 
-@st.cache_data()
+@st.cache_data(ttl="1d")
 def get_google_conversions(daterange):
     df = st.session_state.df_goog_conversions
 
@@ -41,7 +51,7 @@ def get_google_conversions(daterange):
     return total
 
 
-@st.cache_data()
+@st.cache_data(ttl="1d")
 def get_campaign_data_totals(daterange,source):
 
     df_all = st.session_state.df_all

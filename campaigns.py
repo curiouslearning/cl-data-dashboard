@@ -3,7 +3,7 @@ import pandas as pd
 from rich import print as print
 
 
-@st.cache_data(show_spinner="Fetching Google Campaign Data")
+@st.cache_data(show_spinner="Fetching Google Campaign Data",ttl="1d")
 def get_google_campaign_data(_bq_client):
 
     sql_query = f"""
@@ -43,7 +43,7 @@ def get_google_campaign_data(_bq_client):
     return df
 
 
-@st.cache_data(show_spinner="Fetching Facebook Campaign Data")
+@st.cache_data(show_spinner="Fetching Facebook Campaign Data",ttl="1d")
 def get_fb_campaign_data(_bq_client):
 
     sql_query = f"""
@@ -72,20 +72,17 @@ def get_fb_campaign_data(_bq_client):
 
     df = pd.DataFrame(rows)
 
-    df["campaign_start_date"] = pd.to_datetime(df.campaign_start_date,utc=True)
-    df["campaign_end_date"] = pd.to_datetime(df.campaign_start_date,utc=True)
+    df["campaign_start_date"] = pd.to_datetime(df.campaign_start_date,utc=True).dt.strftime('%Y/%m/%d')
+    df["campaign_end_date"] = pd.to_datetime(df.campaign_start_date,utc=True).dt.strftime('%Y/%m/%d')
     df["day"] = pd.to_datetime(df["day"]).dt.date
-    df["campaign_start_date"] = df['campaign_start_date'].dt.strftime('%Y/%m/%d')
-    df["campaign_end_date"] = df['campaign_end_date'].dt.strftime('%Y/%m/%d')
     df["source"] = ("Facebook")
-    df = df.convert_dtypes()
     df["mobile_app_install"] = pd.to_numeric(df["mobile_app_install"])
     df.reset_index(drop=True,inplace=True)
     df.set_index("campaign_id")
 
     return df
 
-@st.cache_data(show_spinner="Fetching data")
+@st.cache_data(ttl="1d")
 def get_google_campaign_conversions(_bq_client):
     test = 20732448932
     sql_query = f"""

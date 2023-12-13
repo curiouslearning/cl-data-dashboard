@@ -183,7 +183,7 @@ def top_campaigns_by_downloads_barchart(n):
     pivot_df = pd.pivot_table(
         df,
         index=['campaign_name'],        
-        aggfunc={'mobile_app_install': np.sum})  
+        aggfunc={'mobile_app_install': "sum"})  
 
     df = pivot_df.sort_values(by=['mobile_app_install'],ascending=False)
     df.reset_index(inplace=True)
