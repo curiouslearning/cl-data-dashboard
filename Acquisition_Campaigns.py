@@ -5,13 +5,11 @@ from rich import print as rprint
 import metrics
 from millify import prettify
 
-
-
-
 import ui_components as ui
 
 st.set_page_config(layout="wide") 
 settings.initialize()
+
 
 
 
@@ -30,16 +28,19 @@ date_end= daterange[1].strftime("%Y-%m-%d")
 st.markdown("**Selected Range:**")
 st.text(date_start + " to " + date_end)
 
-col1, col2, col3 = st.columns(3)
+col1, col2, col3, col4 = st.columns(4)
 
 total = metrics.get_first_open_totals(daterange)
 col1.metric(label="FIRST OPEN", value=prettify(int(total)))
 
+total = metrics.get_download_totals(daterange)
+col2.metric(label="FACEBOOK DOWNLOADS", value=prettify(int(total)))
+
 cost_per_download = metrics.get_ave_cost_per_action(daterange)
-col2.metric(label="AVE COST PER INSTALL", value='${:,.2f}'.format(cost_per_download))
+col3.metric(label="AVE COST PER INSTALL", value='${:,.2f}'.format(cost_per_download))
 
 button_clicks = metrics.get_google_conversions(daterange)
-col3.metric(label="Google Button Clicks", value=prettify(int(button_clicks)))
+col4.metric(label="GOOGLE BUTTON CLICKS", value=prettify(int(button_clicks)))
 
 st.subheader("Top 10 Campaigns")
 ui.top_campaigns_by_downloads_barchart(10)

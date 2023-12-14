@@ -6,8 +6,7 @@ import datetime as dt
 from google.oauth2 import service_account
 from google.cloud import bigquery
 import campaigns
-import events
-import rich
+from rich import print
 import pandas as pd
 
 st.cache_resource
@@ -40,9 +39,12 @@ def initialize():
     pd.set_option('display.max_columns', 20); 
     logger = init_logging()
     bq_client = get_bq_client()
+    if "bq_client" not in st.session_state:
+        st.session_state["bq_client"] = bq_client
+
     
     #Get all of the data and store it
-    df_events = events.get_play_event_data(bq_client)
+  #  df_events = events.get_play_event_data(bq_client)
     df_fb   = campaigns.get_fb_campaign_data(bq_client)
     df_goog = campaigns.get_google_campaign_data(bq_client)
     df_goog_conversions = campaigns.get_google_campaign_conversions(bq_client)
@@ -50,8 +52,8 @@ def initialize():
     df_all = pd.concat([df_fb, df_goog])
 
 
-    if "df_events" not in st.session_state:
-        st.session_state["df_events"] = df_events
+  #  if "df_events" not in st.session_state:
+ #       st.session_state["df_events"] = df_events
     if "df_goog_conversions" not in st.session_state:
         st.session_state["df_goog_conversions"] = df_goog_conversions
     if "df_all" not in st.session_state:

@@ -1,7 +1,8 @@
 import streamlit as st
 from rich import print
 import pandas as pd
-import numpy as np
+import datetime as dt
+
 
 
 @st.cache_data(ttl="1d")
@@ -72,3 +73,28 @@ def get_campaign_data_totals(daterange,source):
     df.sort_values(by=['campaign_start_date'],ascending=False)
 
     return df
+
+@st.cache_data(show_spinner="Fetching Play Event Data", ttl="1d")
+def get_first_open_totals(daterange):
+    bq_client = st.session_state.bq_client
+    start_date = daterange[0].strftime('%Y/%m/%d')
+    end_date = daterange[1].strftime('%Y/%m/%d')
+
+
+
+    sql_query = f"""
+            SELECT 
+            count(*)
+            FROM dataexploration-193817.play_data.events
+            WHERE
+#           parse_date('%Y%m%d',event_date) BETWEEN '{start_date}' AND '{end_date}'  ;
+            parse_date('%Y%m%d',event_date) BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND PARSE_DATE('%Y/%m/%d','{end_date}')  ;
+
+             """
+
+    iterator = bq_client.query(sql_query).result()
+    first_row = next(iterator)
+    return first_row[0]
+
+
+
