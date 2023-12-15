@@ -10,9 +10,7 @@ def get_ave_cost_per_action(daterange):
 
     df_all = st.session_state.df_all
 
-    df = df_all.query('@daterange[0] <= day <= @daterange[1]')
-
-    df.query('mobile_app_install > 0',inplace=True) # Only calculate for campaigns with installs
+    df = df_all.query('@daterange[0] <= day <= @daterange[1] and mobile_app_install > 0')
 
     total_downloads = df["mobile_app_install"].sum()
     total_cost = df["cost"].sum()   
@@ -74,7 +72,7 @@ def get_campaign_data_totals(daterange,source):
 
     return df
 
-@st.cache_data(show_spinner="Fetching Play Event Data", ttl="1d")
+@st.cache_data(ttl="1d")
 def get_first_open_totals(daterange):
     bq_client = st.session_state.bq_client
     start_date = daterange[0].strftime('%Y/%m/%d')

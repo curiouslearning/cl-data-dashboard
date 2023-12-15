@@ -42,6 +42,11 @@ col3.metric(label="AVE COST PER INSTALL", value='${:,.2f}'.format(cost_per_downl
 button_clicks = metrics.get_google_conversions(daterange)
 col4.metric(label="GOOGLE BUTTON CLICKS", value=prettify(int(button_clicks)))
 
+st.subheader("First Play by Country")
+ui.actions_by_country_map(daterange)
+
 st.subheader("Top 10 Campaigns")
 ui.top_campaigns_by_downloads_barchart(10)
+
+
 

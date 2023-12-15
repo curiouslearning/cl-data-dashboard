@@ -5,6 +5,7 @@ import calendar
 from rich import print as rprint
 import plost
 import numpy as np
+import plotly.express as px
 
 
 min_date = dt.datetime(2020,1,1).date()
@@ -71,7 +72,7 @@ def quarter_start(month):
 
 def year_selector():
     this_year = dt.datetime.now().year
-    report_year = st.sidebar.selectbox("", range(this_year, this_year - 3, -1))
+    report_year = st.sidebar.selectbox("", range(this_year, this_year - 4, -1))
 
     return report_year
 
@@ -196,3 +197,29 @@ def top_campaigns_by_downloads_barchart(n):
         direction='vertical',
         use_container_width=True,    
         legend="bottom")
+    
+def actions_by_country_map(daterange):
+    df_events = st.session_state.df_events
+    df = df_events.query('@daterange[0] <= day <= @daterange[1]' )
+
+
+    df = df.groupby('country', as_index=False).agg({'event_name': 'count',})
+    df.rename(columns={"event_name": "First Play"},inplace=True)
+
+    country_fig = px.choropleth(
+        df,
+        locations='country',
+        color="First Play",
+        color_continuous_scale=[
+            "#1584A3",
+            "#DB830F",
+            "#E6DF15",
+        ],  
+        height=600,
+        projection='natural earth', 
+        locationmode="country names",
+#    title="First Play by Country",
+    )
+    country_fig.update_layout(geo=dict(bgcolor="rgba(0,0,0,0)"))
+    country_fig.update_geos(fitbounds="locations")
+    st.plotly_chart(country_fig)

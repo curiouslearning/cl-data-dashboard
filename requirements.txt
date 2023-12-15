@@ -9,3 +9,4 @@ rich
 numpy
 millify
 plost
+plotly
