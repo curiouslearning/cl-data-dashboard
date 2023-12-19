@@ -6,6 +6,7 @@ from rich import print as rprint
 import plost
 import numpy as np
 import plotly.express as px
+from dateutil.relativedelta import relativedelta
 
 
 min_date = dt.datetime(2020,1,1).date()
@@ -72,7 +73,7 @@ def quarter_start(month):
 
 def year_selector():
     this_year = dt.datetime.now().year
-    report_year = st.sidebar.selectbox("", range(this_year, this_year - 4, -1))
+    report_year = st.sidebar.radio("", range(this_year, this_year - 4, -1),horizontal=True)
 
     return report_year
 
@@ -81,16 +82,27 @@ def month_selector():
     with st.sidebar.expander('Report month'):
         this_year = dt.datetime.now().year
         this_month = dt.datetime.now().month
-        report_year = st.sidebar.selectbox("", range(this_year, this_year - 2, -1))
+        report_year = st.sidebar.selectbox("", range(this_year, this_year - 4, -1))
         month_abbr = month_abbr[1:]
-        report_month_str = st.sidebar.radio("", month_abbr, index=this_month - 1, horizontal=True)
+        report_month_str = st.sidebar.radio("", month_abbr, index=this_month - 2, horizontal=True)
         report_month = month_abbr.index(report_month_str) + 1
 
     return report_month, report_year
 
         
 def custom_date_selection():
-    date_range = st.sidebar.date_input("Pick a date", (min_date, max_date))
+   # date_range = st.sidebar.date_input("Pick a date", (min_date, max_date))
+    today = dt.datetime.now().date()
+    last_year = dt.date(today.year,1,1)- relativedelta(years=1)
+
+    date_range = st.sidebar.slider(
+        label="Select Range:",
+        min_value=dt.date(2021, 1, 1),
+        value=(last_year,today),
+
+        max_value=today,
+        )
+
     return (date_range)
 
 def ads_platform_selector():
@@ -102,13 +114,13 @@ def ads_platform_selector():
     return platform
 
 def calendar_selector():
-    option = st.sidebar.selectbox("Select a report date range",
+    option = st.sidebar.radio("Select a report date range",
         ("All time",
          "Select year",
          "Select month",
          "Select custom range"),
     index=0,
-    placeholder="Select date range",
+
     )
     
     if (option == "Select year"):

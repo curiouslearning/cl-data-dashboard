@@ -5,7 +5,7 @@ import datetime as dt
 
 
 
-@st.cache_data(ttl="1d")
+@st.cache_data(ttl="1d",show_spinner=False)
 def get_ave_cost_per_action(daterange):
 
     df_all = st.session_state.df_all
@@ -21,7 +21,7 @@ def get_ave_cost_per_action(daterange):
     return 0
 
 
-@st.cache_data(ttl="1d")
+@st.cache_data(ttl="1d",show_spinner=False)
 def get_first_open_totals(daterange):
 
     df_events= st.session_state.df_events
@@ -31,7 +31,7 @@ def get_first_open_totals(daterange):
     
     return total
 
-@st.cache_data(ttl="1d")
+@st.cache_data(ttl="1d",show_spinner=False)
 def get_download_totals(daterange):
 
     df_all = st.session_state.df_all
@@ -41,7 +41,7 @@ def get_download_totals(daterange):
     
     return total
 
-@st.cache_data(ttl="1d")
+@st.cache_data(ttl="1d",show_spinner=False)
 def get_google_conversions(daterange):
     df = st.session_state.df_goog_conversions
 
@@ -50,7 +50,7 @@ def get_google_conversions(daterange):
     return total
 
 
-@st.cache_data(ttl="1d")
+@st.cache_data(ttl="1d",show_spinner=False)
 def get_campaign_data_totals(daterange,source):
 
     df_all = st.session_state.df_all
@@ -72,7 +72,7 @@ def get_campaign_data_totals(daterange,source):
 
     return df
 
-@st.cache_data(ttl="1d")
+@st.cache_data(ttl="1d",show_spinner=False)
 def get_first_open_totals(daterange):
     bq_client = st.session_state.bq_client
     start_date = daterange[0].strftime('%Y/%m/%d')
@@ -94,6 +94,4 @@ def get_first_open_totals(daterange):
     first_row = next(iterator)
     return first_row[0]
 
-def get_campaigns():    
-    df_all = st.session_state.df_all
     
