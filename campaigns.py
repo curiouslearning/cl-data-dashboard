@@ -85,7 +85,7 @@ def get_fb_campaign_data(_bq_client):
 
     return df
 
-@st.cache_data(ttl="1d")
+@st.cache_data(ttl="1d",show_spinner=False)
 def get_google_campaign_conversions(_bq_client):
     sql_query = f"""
                 SELECT campaign_id,
