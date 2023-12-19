@@ -14,7 +14,7 @@ def get_play_event_data(_bq_client):
             country
             FROM dataexploration-193817.play_data.events
             WHERE
-            parse_date('%Y%m%d',event_date) BETWEEN '2020-01-01' AND CURRENT_DATE()  ;
+            parse_date('%Y%m%d',event_date) BETWEEN '2023-01-01' AND CURRENT_DATE() ;
              """
 
     rows_raw = _bq_client.query(sql_query)

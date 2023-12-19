@@ -21,6 +21,7 @@ def get_google_campaign_data(_bq_client):
         FROM dataexploration-193817.marketing_data.p_ads_CampaignStats_6687569935 as metrics
         inner join dataexploration-193817.marketing_data.ads_Campaign_6687569935 as campaigns
         on metrics.campaign_id = campaigns.campaign_id
+        and campaigns.campaign_start_date >= '2023-01-01'
         group by 1,2,3,4,5,6,7,8,9,10
         order by segments_date desc        
     """
@@ -58,9 +59,11 @@ def get_fb_campaign_data(_bq_client):
             start_time as campaign_start_date, 
             end_time as campaign_end_date,
             data_date_start as day 
-            FROM dataexploration-193817.marketing_data.facebook_ads_data
+            FROM dataexploration-193817.marketing_data.facebook_ads_data as d
             JOIN UNNEST(actions) as a
-            WHERE a.action_type = 'mobile_app_install';
+            WHERE a.action_type = 'mobile_app_install'
+            and
+            d.start_time >= '2023-01-01';
 
              """
 
@@ -84,7 +87,6 @@ def get_fb_campaign_data(_bq_client):
 
 @st.cache_data(ttl="1d")
 def get_google_campaign_conversions(_bq_client):
-    test = 20732448932
     sql_query = f"""
                 SELECT campaign_id,
                 metrics_conversions as button_clicks,
