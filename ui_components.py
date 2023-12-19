@@ -202,14 +202,13 @@ def actions_by_country_map(daterange):
     df_events = st.session_state.df_events
     df = df_events.query('@daterange[0] <= day <= @daterange[1]' )
 
-
     df = df.groupby('country', as_index=False).agg({'event_name': 'count',})
-    df.rename(columns={"event_name": "First Play"},inplace=True)
+    df.rename(columns={"event_name": "First Open"},inplace=True)
 
     country_fig = px.choropleth(
         df,
         locations='country',
-        color="First Play",
+        color="First Open",
         color_continuous_scale=[
             "#1584A3",
             "#DB830F",
@@ -223,3 +222,77 @@ def actions_by_country_map(daterange):
     country_fig.update_layout(geo=dict(bgcolor="rgba(0,0,0,0)"))
     country_fig.update_geos(fitbounds="locations")
     st.plotly_chart(country_fig)
+
+@st.cache_data(ttl="1d")
+def campaign_gantt_chart():
+    df_all = st.session_state.df_all
+    df_events = st.session_state.df_events
+    df1 = pd.DataFrame (df_all)
+    
+    #We only need any row for each campaign
+    df1.drop_duplicates(subset = "campaign_name",inplace=True)
+    
+    df2 = pd.DataFrame(df_events)
+
+    # Converting columns to datetime format
+    df1["start_date"] = pd.to_datetime(df1["campaign_start_date"])
+    df1["end_date"] = pd.to_datetime(df1["campaign_end_date"])
+
+    # If campaign end dates are past today, set it to today for the chart
+    d = pd.to_datetime(dt.date.today())
+    df1.loc[df1["end_date"] > d, "end_date"] = d    
+    
+    df1["campaign_name"] = df1['campaign_name'].str[:20] # cut the title to fit the chart
+    df2["day"] = pd.to_datetime(df2["day"])
+
+    # Initializing the count column with zeros
+    df1["count"] = 0
+
+    # Iterating over df1 rows and updating the count column
+    for index, row in df1.iterrows():
+        mask = df2.query('(@df2.day >= @row.start_date) & (@df2.day <= @row.end_date)')
+        df1.at[index, "count"] = len(mask)
+   
+    
+    df1 = df1[df1['count'] > 0] #Eliminate campaigns that didn't get any opens
+    
+    df1 = df1[(df1['end_date'] - df1['start_date']).dt.days > 1] #eliminate campaigns that didn't run longer than a day
+       
+    fig = px.timeline(
+                        df1, 
+                        x_start="start_date", 
+                        x_end="end_date",
+                        y="campaign_name",
+                        color="count",
+                        
+                        )
+
+    fig.update_yaxes(autorange="reversed")          
+        
+    fig.update_layout(
+                        title='',
+                        hoverlabel_bgcolor='#DAEEED',   
+                        bargap=0.2,
+                        height=600,              
+                        xaxis_title="", 
+                        yaxis_title="",                   
+                        title_x=0.5,                    #Make title centered                     
+                        xaxis=dict(
+                                tickfont_size=10,
+                                tickangle = 270,
+                                rangeslider_visible=False,
+                                side ="top",            #Place the tick labels on the top of the chart
+                                showgrid = True,
+                                zeroline = True,
+                                showline = True,
+                                showticklabels = True,
+                                tickformat="%x\n",      
+                                )
+                    )
+        
+    fig.update_xaxes(tickangle=0, tickfont=dict(family='Rockwell', color='#A9A9A9', size=12))
+
+    st.plotly_chart(fig, use_container_width=True)  #Display the plotly chart in Streamlit
+
+
+

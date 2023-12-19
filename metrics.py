@@ -94,5 +94,6 @@ def get_first_open_totals(daterange):
     first_row = next(iterator)
     return first_row[0]
 
-
-
+def get_campaigns():    
+    df_all = st.session_state.df_all
+    
