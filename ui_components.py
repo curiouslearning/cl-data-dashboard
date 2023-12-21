@@ -99,7 +99,6 @@ def custom_date_selection():
         label="Select Range:",
         min_value=dt.date(2021, 1, 1),
         value=(last_year,today),
-
         max_value=today,
         )
 
