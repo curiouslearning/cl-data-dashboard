@@ -84,7 +84,7 @@ def month_selector():
         this_month = dt.datetime.now().month
         report_year = st.sidebar.selectbox("", range(this_year, this_year - 4, -1))
         month_abbr = month_abbr[1:]
-        report_month_str = st.sidebar.radio("", month_abbr, index=this_month - 2, horizontal=True)
+        report_month_str = st.sidebar.radio("", month_abbr, index=this_month - 1, horizontal=True)
         report_month = month_abbr.index(report_month_str) + 1
 
     return report_month, report_year
