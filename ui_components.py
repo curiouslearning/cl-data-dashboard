@@ -9,7 +9,7 @@ import plotly.express as px
 from dateutil.relativedelta import relativedelta
 
 
-min_date = dt.datetime(2020,1,1).date()
+min_date = dt.datetime(2021,1,1).date()
 max_date = dt.date.today()
 
 def display_definitions_table():
@@ -25,6 +25,12 @@ def display_definitions_table():
     st.markdown(hide_table_row_index, unsafe_allow_html=True)
     def_df = pd.DataFrame(
         [
+            [
+                "LR",
+                "Learner Reached",
+                "The number of users that downloaded and opened the app",
+                "COUNT(Learners Reached)",
+            ],
             [
                 "LA",
                 "Learner Acquisition",
@@ -210,16 +216,16 @@ def top_campaigns_by_downloads_barchart(n):
         legend="bottom")
     
 def actions_by_country_map(daterange):
-    df_events = st.session_state.df_events
-    df = df_events.query('@daterange[0] <= day <= @daterange[1]' )
+    df_user_list = st.session_state.df_user_list
+    df = df_user_list.query('@daterange[0] <= first_open <= @daterange[1]' )
 
-    df = df.groupby('country', as_index=False).agg({'event_name': 'count',})
-    df.rename(columns={"event_name": "First Open"},inplace=True)
+    df = df.groupby('country', as_index=False).agg({'user_pseudo_id': 'count',})
+    df.rename(columns={"user_pseudo_id": "LR"},inplace=True)
 
     country_fig = px.choropleth(
         df,
         locations='country',
-        color="First Open",
+        color="LR",
         color_continuous_scale=[
             "#1584A3",
             "#DB830F",
@@ -235,15 +241,15 @@ def actions_by_country_map(daterange):
     st.plotly_chart(country_fig)
 
 @st.cache_data(ttl="1d")
-def campaign_gantt_chart():
+def campaign_gantt_chart(daterange):
     df_all = st.session_state.df_all
-    df_events = st.session_state.df_events
-    df1 = pd.DataFrame (df_all)
+    df_user_list = st.session_state.df_user_list
+    df1 = df_all.query('@daterange[0] <= day <= @daterange[1]' )
     
     #We only need any row for each campaign
     df1.drop_duplicates(subset = "campaign_name",inplace=True)
-    
-    df2 = pd.DataFrame(df_events)
+    df2 = df_user_list.query('@daterange[0] <= first_open <= @daterange[1]' )
+
 
     # Converting columns to datetime format
     df1["start_date"] = pd.to_datetime(df1["campaign_start_date"])
@@ -254,14 +260,14 @@ def campaign_gantt_chart():
     df1.loc[df1["end_date"] > d, "end_date"] = d    
     
     df1["campaign_name"] = df1['campaign_name'].str[:20] # cut the title to fit the chart
-    df2["day"] = pd.to_datetime(df2["day"])
+    df2["first_open"] = pd.to_datetime(df2["first_open"])
 
     # Initializing the count column with zeros
     df1["count"] = 0
 
     # Iterating over df1 rows and updating the count column
     for index, row in df1.iterrows():
-        mask = df2.query('(@df2.day >= @row.start_date) & (@df2.day <= @row.end_date)')
+        mask = df2.query('(@df2.first_open >= @row.start_date) & (@df2.first_open <= @row.end_date)')
         df1.at[index, "count"] = len(mask)
    
     

@@ -8,7 +8,8 @@ from google.cloud import bigquery
 import campaigns
 from rich import print
 import pandas as pd
-import events
+import users
+
 
 st.cache_resource
 def get_bq_client():
@@ -44,17 +45,15 @@ def initialize():
         st.session_state["bq_client"] = bq_client
 
     
-    #Get all of the data and store it
-    df_events = events.get_play_event_data(bq_client)
     df_fb   = campaigns.get_fb_campaign_data(bq_client)
+    df_user_list = users.get_user_list(bq_client)
     df_goog = campaigns.get_google_campaign_data(bq_client)
     df_goog_conversions = campaigns.get_google_campaign_conversions(bq_client)
     df_goog = pd.concat( [df_goog,df_goog_conversions])
     df_all = pd.concat([df_fb, df_goog])
 
-
-    if "df_events" not in st.session_state:
-        st.session_state["df_events"] = df_events
+    if "df_user_list" not in st.session_state:
+        st.session_state["df_user_list"] = df_user_list
     if "df_goog_conversions" not in st.session_state:
         st.session_state["df_goog_conversions"] = df_goog_conversions
     if "df_all" not in st.session_state:

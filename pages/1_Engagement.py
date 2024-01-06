@@ -1,6 +1,4 @@
 import streamlit as st
-import settings
-import metrics
 
 import ui_components as ui
 

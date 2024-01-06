@@ -73,12 +73,32 @@ def get_campaign_data_totals(daterange,source):
     return df
 
 @st.cache_data(ttl="1d",show_spinner=False)
-def get_first_open_totals(daterange):
+def get_LR_totals(daterange):
     bq_client = st.session_state.bq_client
     start_date = daterange[0].strftime('%Y/%m/%d')
     end_date = daterange[1].strftime('%Y/%m/%d')
 
+    sql_query = f"""
+            SELECT
+                (SELECT count(distinct(user_pseudo_id)) FROM `dataexploration-193817.user_data.cr_users` 
+                 WHERE CAST(DATE(first_open) AS DATE) BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}')
+                 AND PARSE_DATE('%Y/%m/%d','{end_date}') )
+                +
+                (SELECT count(distinct(user_pseudo_id)) FROM `dataexploration-193817.user_data.unity_users`
+                 WHERE CAST(DATE(first_open) AS DATE)  BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}')
+                 AND PARSE_DATE('%Y/%m/%d','{end_date}') ) 
+                 AS lr_total;
+             """
 
+    iterator = bq_client.query(sql_query).result()
+    first_row = next(iterator)
+    return first_row[0]
+
+@st.cache_data(ttl="1d",show_spinner=False)
+def get_learners_acquired_totals(daterange):
+    bq_client = st.session_state.bq_client
+    start_date = daterange[0].strftime('%Y/%m/%d')
+    end_date = daterange[1].strftime('%Y/%m/%d')
 
     sql_query = f"""
             SELECT 
@@ -93,5 +113,6 @@ def get_first_open_totals(daterange):
     iterator = bq_client.query(sql_query).result()
     first_row = next(iterator)
     return first_row[0]
+
 
     
