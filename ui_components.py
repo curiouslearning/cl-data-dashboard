@@ -39,9 +39,9 @@ def display_definitions_table():
             ],
             [
                 "GC",
-                "Game Completion",
+                "Game Level Completion Percent",
                 "The average percentage of FTM levels completed per learner over a period of time ",
-                "AVG Max Level Reached / Total Levels",
+                "Max Level Reached / Total Levels",
             ],
             [
                 "GCC",

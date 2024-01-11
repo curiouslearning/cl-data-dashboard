@@ -43,26 +43,29 @@ def initialize():
     pd.set_option('display.max_columns', 20); 
     logger = init_logging()
     bq_client = get_bq_client()
-    if "bq_client" not in st.session_state:
-        st.session_state["bq_client"] = bq_client
 
-    
-    df_fb   = campaigns.get_fb_campaign_data(bq_client)
-    df_user_list = users.get_users_list(bq_client)
-    df_goog = campaigns.get_google_campaign_data(bq_client)
-    df_goog_conversions = campaigns.get_google_campaign_conversions(bq_client)
-    df_goog = pd.concat( [df_goog,df_goog_conversions])
-    df_all = pd.concat([df_fb, df_goog])
-
-    if "df_user_list" not in st.session_state:
-        st.session_state["df_user_list"] = df_user_list
-    if "df_goog_conversions" not in st.session_state:
-        st.session_state["df_goog_conversions"] = df_goog_conversions
-    if "df_all" not in st.session_state:
-        st.session_state["df_all"] = df_all
     if "logger" not in st.session_state:
         st.session_state["logger"] = logger
     if "bq_client" not in st.session_state:
         st.session_state["bq_client"] = bq_client
+        
+def init_user_list():
+    df_user_list = users.get_users_list()
+    if "df_user_list" not in st.session_state:
+        st.session_state["df_user_list"] = df_user_list
+        
+def init_campaign_data():
+    df_fb   = campaigns.get_fb_campaign_data()
+    df_goog = campaigns.get_google_campaign_data()
+    df_goog_conversions = campaigns.get_google_campaign_conversions()
+    df_goog = pd.concat( [df_goog,df_goog_conversions])
+    df_all = pd.concat([df_fb, df_goog])
+    if "df_goog_conversions" not in st.session_state:
+        st.session_state["df_goog_conversions"] = df_goog_conversions
+    if "df_all" not in st.session_state:
+        st.session_state["df_all"] = df_all
+
+
+
 
     

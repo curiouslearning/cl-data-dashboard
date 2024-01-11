@@ -4,8 +4,8 @@ from rich import print as print
 
 
 @st.cache_data(show_spinner="Fetching Google Campaign Data",ttl="1d")
-def get_google_campaign_data(_bq_client):
-
+def get_google_campaign_data():
+    bq_client = st.session_state.bq_client
     sql_query = f"""
         SELECT
         metrics.campaign_id,
@@ -25,7 +25,7 @@ def get_google_campaign_data(_bq_client):
         group by 1,2,3,4,5,6,7,8,9,10
         order by segments_date desc        
     """
-    rows_raw = _bq_client.query(sql_query)
+    rows_raw = bq_client.query(sql_query)
     rows = [dict(row) for row in rows_raw]
     
     df = pd.DataFrame(rows)
@@ -45,8 +45,8 @@ def get_google_campaign_data(_bq_client):
 
 
 @st.cache_data(show_spinner="Fetching Facebook Campaign Data",ttl="1d")
-def get_fb_campaign_data(_bq_client):
-
+def get_fb_campaign_data():
+    bq_client = st.session_state.bq_client
     sql_query = f"""
             SELECT 
             campaign_id,
@@ -67,7 +67,7 @@ def get_fb_campaign_data(_bq_client):
 
              """
 
-    rows_raw = _bq_client.query(sql_query)
+    rows_raw = bq_client.query(sql_query)
     rows = [dict(row) for row in rows_raw]
 
     if (len(rows) == 0):
@@ -86,7 +86,8 @@ def get_fb_campaign_data(_bq_client):
     return df
 
 @st.cache_data(ttl="1d",show_spinner=False)
-def get_google_campaign_conversions(_bq_client):
+def get_google_campaign_conversions():
+    bq_client = st.session_state.bq_client
     sql_query = f"""
                 SELECT campaign_id,
                 metrics_conversions as button_clicks,
@@ -94,7 +95,7 @@ def get_google_campaign_conversions(_bq_client):
                 FROM `dataexploration-193817.marketing_data.ads_CampaignConversionStats_6687569935`
                 where segments_conversion_action_name like '%CTA_Gplay%';
                 """
-    rows_raw = _bq_client.query(sql_query)
+    rows_raw = bq_client.query(sql_query)
     rows = [dict(row) for row in rows_raw]
     if (len(rows) == 0):
         return pd.DataFrame()

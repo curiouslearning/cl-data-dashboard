@@ -30,7 +30,8 @@ if (len(daterange) == 2):
     total = metrics.get_LA_totals(daterange)
     col2.metric(label="Learners Acquired", value=prettify(int(total)))
 
-    total = metrics.get_GC_avg(daterange)
-    col3.metric(label="Game Completion Average", value=prettify(int(total)))
+    total = metrics. get_GC_avg_by_date(daterange)
+    col3.metric(label="Game Completion Average", value=f"{total:.2f}%")
 
+settings.init_user_list()
 ui.actions_by_country_map(daterange)

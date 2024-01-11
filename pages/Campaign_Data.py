@@ -8,7 +8,7 @@ st.set_page_config(layout="wide")
 
 ## UI ##
 st.title("Curious Learning Dashboard")
-settings.initialize()
+settings.init_campaign_data()
 
 selected_date, option = ui.calendar_selector()
 daterange = ui.convert_date_to_range(selected_date,option)
