@@ -20,27 +20,6 @@ def get_ave_cost_per_action(daterange):
     
     return 0
 
-
-@st.cache_data(ttl="1d",show_spinner=False)
-def get_first_open_totals(daterange):
-
-    df_events= st.session_state.df_events
-
-    df = df_events.query('@daterange[0] <= day <= @daterange[1]')
-    total = len(df)
-    
-    return total
-
-@st.cache_data(ttl="1d",show_spinner=False)
-def get_download_totals(daterange):
-
-    df_all = st.session_state.df_all
-
-    df = df_all.query('@daterange[0] <= day <= @daterange[1]')
-    total = df["mobile_app_install"].sum()
-    
-    return total
-
 @st.cache_data(ttl="1d",show_spinner=False)
 def get_google_conversions(daterange):
     df = st.session_state.df_goog_conversions
@@ -71,6 +50,26 @@ def get_campaign_data_totals(daterange,source):
     df.sort_values(by=['campaign_start_date'],ascending=False)
 
     return df
+ 
+@st.cache_data(ttl="1d",show_spinner=False)
+def get_LA_totals(daterange):
+    bq_client = st.session_state.bq_client
+    start_date = daterange[0].strftime('%Y/%m/%d')
+    end_date = daterange[1].strftime('%Y/%m/%d')
+
+    sql_query = f"""
+            SELECT 
+            count(*)
+            FROM `dataexploration-193817.user_data.learner_aquired`
+            WHERE
+            event_date BETWEEN '{start_date}' AND '{end_date}'  ;
+
+             """
+
+    iterator = bq_client.query(sql_query).result()
+    first_row = next(iterator)
+    return first_row[0]
+
 
 @st.cache_data(ttl="1d",show_spinner=False)
 def get_LR_totals(daterange):
@@ -79,40 +78,59 @@ def get_LR_totals(daterange):
     end_date = daterange[1].strftime('%Y/%m/%d')
 
     sql_query = f"""
-            SELECT
-                (SELECT count(distinct(user_pseudo_id)) FROM `dataexploration-193817.user_data.cr_users` 
-                 WHERE CAST(DATE(first_open) AS DATE) BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}')
-                 AND PARSE_DATE('%Y/%m/%d','{end_date}') )
-                +
-                (SELECT count(distinct(user_pseudo_id)) FROM `dataexploration-193817.user_data.unity_users`
-                 WHERE CAST(DATE(first_open) AS DATE)  BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}')
-                 AND PARSE_DATE('%Y/%m/%d','{end_date}') ) 
-                 AS lr_total;
+            SELECT 
+            count(*)
+            FROM `dataexploration-193817.user_data.user_first_open_list`
+            WHERE
+            first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND PARSE_DATE('%Y/%m/%d','{end_date}')  ;
+
              """
 
     iterator = bq_client.query(sql_query).result()
     first_row = next(iterator)
     return first_row[0]
 
-@st.cache_data(ttl="1d",show_spinner=False)
-def get_learners_acquired_totals(daterange):
+@st.cache_data(ttl="1d",show_spinner="Calculating GC")
+def get_GC_avg(daterange):
     bq_client = st.session_state.bq_client
     start_date = daterange[0].strftime('%Y/%m/%d')
     end_date = daterange[1].strftime('%Y/%m/%d')
 
     sql_query = f"""
-            SELECT 
-            count(*)
-            FROM dataexploration-193817.play_data.events
-            WHERE
-#           parse_date('%Y%m%d',event_date) BETWEEN '{start_date}' AND '{end_date}'  ;
-            parse_date('%Y%m%d',event_date) BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND PARSE_DATE('%Y/%m/%d','{end_date}')  ;
-
-             """
-
-    iterator = bq_client.query(sql_query).result()
-    first_row = next(iterator)
-    return first_row[0]
+        SELECT
+            user_pseudo_id,
+            event_date,
+            MAX(a.level) AS max_user_level,
+            ROUND(SAFE_DIVIDE(MAX(a.level), b.max_level) * 100 )AS gc,
+            b.max_level AS max_game_level
+        FROM
+         `dataexploration-193817.user_data.all_users` a
+        LEFT JOIN (
+        SELECT
+            app_language,
+            max_level
+        FROM
+            `dataexploration-193817.user_data.language_max_level`
+        GROUP BY
+            app_language,
+            max_level ) b
+        ON
+            b.app_language = a.app_language
+        AND
+            event_date BETWEEN '{start_date}') AND '{end_date}' 
+        GROUP BY
+            a.user_pseudo_id,
+            a.event_date,
+            b.max_level      
+        """
+    rows_raw = bq_client.query(sql_query)
+    rows = [dict(row) for row in rows_raw]
+    
+    df = pd.DataFrame(rows)
+    m = df.mean('gc',numeric_only=True)
+    return m
+    
+    
 
 
     

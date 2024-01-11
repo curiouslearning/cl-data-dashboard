@@ -21,7 +21,9 @@ st.cache_resource
 def get_gcp_credentials():
     # Create BigQuery API client.
     gcp_credentials = service_account.Credentials.from_service_account_info(
-        st.secrets["gcp_service_account"])
+        st.secrets["gcp_service_account"],scopes=['https://www.googleapis.com/auth/cloud-platform',            
+                                                                                       "https://www.googleapis.com/auth/drive",
+                                                                                       "https://www.googleapis.com/auth/bigquery",])
     return gcp_credentials
 
 st.cache_resource
@@ -46,7 +48,7 @@ def initialize():
 
     
     df_fb   = campaigns.get_fb_campaign_data(bq_client)
-    df_user_list = users.get_user_list(bq_client)
+    df_user_list = users.get_users_list(bq_client)
     df_goog = campaigns.get_google_campaign_data(bq_client)
     df_goog_conversions = campaigns.get_google_campaign_conversions(bq_client)
     df_goog = pd.concat( [df_goog,df_goog_conversions])

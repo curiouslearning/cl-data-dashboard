@@ -1,0 +1,36 @@
+import streamlit as st
+import settings
+from rich import print as rprint
+import metrics
+from millify import prettify
+import ui_components as ui
+
+st.title("Curious Learning Dashboard")
+
+ui.display_definitions_table()
+
+settings.initialize()
+
+selected_date, option = ui.calendar_selector()
+daterange = ui.convert_date_to_range(selected_date,option)
+
+# In the case of datepicker, don't do anything until both start and end dates are picked
+if (len(daterange) == 2):
+    date_start = daterange[0].strftime("%Y-%m-%d")
+    date_end= daterange[1].strftime("%Y-%m-%d")
+
+    st.markdown("**Selected Range:**")
+    st.text(date_start + " to " + date_end)
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    total = metrics.get_LR_totals(daterange)
+    col1.metric(label="Learners Reached", value=prettify(int(total)))
+    
+    total = metrics.get_LA_totals(daterange)
+    col2.metric(label="Learners Acquired", value=prettify(int(total)))
+
+    total = metrics.get_GC_avg(daterange)
+    col3.metric(label="Game Completion Average", value=prettify(int(total)))
+
+ui.actions_by_country_map(daterange)

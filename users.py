@@ -3,10 +3,10 @@ import pandas as pd
 from rich import print as print
 
 @st.cache_data(ttl="1d",show_spinner="Gathering User List")
-def get_user_list(_bq_client):
+def get_users_list(_bq_client):
     sql_query = f"""
                 SELECT *
-                FROM `dataexploration-193817.user_data.users_first_open`
+                FROM `dataexploration-193817.user_data.users_data`
                 ;
                 """
     rows_raw = _bq_client.query(sql_query)
