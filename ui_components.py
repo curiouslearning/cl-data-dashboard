@@ -7,10 +7,12 @@ import plost
 import numpy as np
 import plotly.express as px
 from dateutil.relativedelta import relativedelta
+import users
 
 
 min_date = dt.datetime(2021,1,1).date()
 max_date = dt.date.today()
+
 
 def display_definitions_table():
     expander = st.expander("Definitions")
@@ -312,4 +314,30 @@ def campaign_gantt_chart(daterange):
     st.plotly_chart(fig, use_container_width=True)  #Display the plotly chart in Streamlit
 
 
+def options_select(available_options):
+    if "selected_options" in st. session_state:
+        if "All" in st.session_state ["selected_options" ]:
+            st.session_state["selected _options"] = available_options [0]
+            st. session_state[ "max_selections"] = 1
+        else:
+            st.session_state["max_selections"] = len(available_options)
+
+def multi_select_all():
+    st.sidebar.markdown("***")
+    df = users.get_language_list()
+    available_options = df.values.tolist()
+    available_options.insert(0,"All")
+    
+    if "max_selections" not in st. session_state:
+        st.session_state ["max_selections"] = len (available_options)
+
+    st.sidebar.multiselect(
+                    label="Select an Option",
+                    options=available_options,
+                    key="selected_options",
+                    max_selections=st.session_state[ "max_selections"], on_change=options_select(available_options),
+                    format_func=lambda x: "All" if x == -1 else f"{x}",)
+    st.write(
+                available_options [1:] if st.session_state[ "max_selections"] == 1
+                else st.session_state ["selected_options"])                
 
