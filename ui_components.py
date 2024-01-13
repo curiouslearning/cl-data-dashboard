@@ -217,17 +217,20 @@ def top_campaigns_by_downloads_barchart(n):
         use_container_width=True,    
         legend="bottom")
     
-def actions_by_country_map(daterange):
+def LA_by_country_map(daterange,countries_list):
     df_user_list = st.session_state.df_user_list
     df = df_user_list.query('@daterange[0] <= first_open <= @daterange[1]' )
 
     df = df.groupby('country', as_index=False).agg({'user_pseudo_id': 'count',})
-    df.rename(columns={"user_pseudo_id": "LR"},inplace=True)
+    df.rename(columns={"user_pseudo_id": "LA"},inplace=True)
+    
+    mask = df['country'].isin(countries_list)
+    df = df[mask]
 
     country_fig = px.choropleth(
         df,
         locations='country',
-        color="LR",
+        color="LA",
         color_continuous_scale=[
             "#1584A3",
             "#DB830F",
@@ -313,31 +316,43 @@ def campaign_gantt_chart(daterange):
 
     st.plotly_chart(fig, use_container_width=True)  #Display the plotly chart in Streamlit
 
-
+'''
 def options_select(available_options):
-    if "selected_options" in st. session_state:
-        if "All" in st.session_state ["selected_options" ]:
-            st.session_state["selected _options"] = available_options [0]
-            st. session_state[ "max_selections"] = 1
+    if "selected_options" in st.session_state:
+      if "All" in st.session_state["selected_options"]:
+        st.session_state["selected_options"] = available_options[0]
+        st.session_state["max_selections"] = 1
+      else:
+        st.session_state["max_selections"] = len(available_options)
+'''
+def options_select(available_options):
+    if "selected_options" in st.session_state:
+        if "All" in st.session_state["selected_options"]:
+            st.session_state["selected_options"] = [available_options[0]]  # Update selected options to only the first item
+            st.session_state["max_selections"] = 1
         else:
             st.session_state["max_selections"] = len(available_options)
 
-def multi_select_all():
+
+def multi_select_all(available_options):
     st.sidebar.markdown("***")
-    df = users.get_language_list()
-    available_options = df.values.tolist()
+
     available_options.insert(0,"All")
     
-    if "max_selections" not in st. session_state:
+    if "max_selections" not in st.session_state:
         st.session_state ["max_selections"] = len (available_options)
 
     st.sidebar.multiselect(
                     label="Select an Option",
                     options=available_options,
                     key="selected_options",
-                    max_selections=st.session_state[ "max_selections"], on_change=options_select(available_options),
-                    format_func=lambda x: "All" if x == -1 else f"{x}",)
-    st.write(
-                available_options [1:] if st.session_state[ "max_selections"] == 1
-                else st.session_state ["selected_options"])                
+                    max_selections=st.session_state[ "max_selections"],
+                    on_change=options_select(available_options),
+                    format_func=lambda x: "All" if x == "All" else f"{x}",)
+
+    st.sidebar.write(available_options [1:] if st.session_state[ "max_selections"] == 1
+                else st.session_state["selected_options"])
+    
+    return (available_options [1:] if st.session_state[ "max_selections"] == 1
+                else st.session_state["selected_options"])  
 

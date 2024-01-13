@@ -1,9 +1,10 @@
 import streamlit as st
 import settings
-from rich import print as rprint
+from rich import print
 import metrics
 from millify import prettify
 import ui_components as ui
+import users
 
 st.title("Curious Learning Dashboard")
 
@@ -32,9 +33,8 @@ if (len(daterange) == 2):
 
  #   total = metrics. get_GC_avg_by_date(daterange)
  #   col3.metric(label="Game Completion Average", value=f"{total:.2f}%")
+countries_list = users.get_country_list()
 
-ui.multi_select_all()
-#settings.init_user_list()
-#ui.actions_by_country_map(daterange)
-
-
+countries_list = ui.multi_select_all(countries_list)
+settings.init_user_list()
+ui.LA_by_country_map(daterange,countries_list)
