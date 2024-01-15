@@ -14,7 +14,8 @@ settings.initialize()
 
 selected_date, option = ui.calendar_selector()
 daterange = ui.convert_date_to_range(selected_date,option)
-
+countries_list = users.get_country_list()
+countries_list = ui.multi_select_all(countries_list)
 # In the case of datepicker, don't do anything until both start and end dates are picked
 if (len(daterange) == 2):
     date_start = daterange[0].strftime("%Y-%m-%d")
@@ -25,16 +26,14 @@ if (len(daterange) == 2):
 
     col1, col2, col3, col4 = st.columns(4)
 
-    total = metrics.get_LR_totals(daterange)
+    total = metrics.get_LR_totals(daterange,countries_list)
     col1.metric(label="Learners Reached", value=prettify(int(total)))
     
-    total = metrics.get_LA_totals(daterange)
+    total = metrics.get_LA_totals(daterange,countries_list)
     col2.metric(label="Learners Acquired", value=prettify(int(total)))
 
- #   total = metrics. get_GC_avg_by_date(daterange)
- #   col3.metric(label="Game Completion Average", value=f"{total:.2f}%")
-countries_list = users.get_country_list()
+    total = metrics. get_GC_avg_by_date(daterange,countries_list)
+    col3.metric(label="Game Completion Average", value=f"{total:.2f}%")
 
-countries_list = ui.multi_select_all(countries_list)
 settings.init_user_list()
 ui.LA_by_country_map(daterange,countries_list)

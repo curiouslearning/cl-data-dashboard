@@ -316,15 +316,6 @@ def campaign_gantt_chart(daterange):
 
     st.plotly_chart(fig, use_container_width=True)  #Display the plotly chart in Streamlit
 
-'''
-def options_select(available_options):
-    if "selected_options" in st.session_state:
-      if "All" in st.session_state["selected_options"]:
-        st.session_state["selected_options"] = available_options[0]
-        st.session_state["max_selections"] = 1
-      else:
-        st.session_state["max_selections"] = len(available_options)
-'''
 def options_select(available_options):
     if "selected_options" in st.session_state:
         if "All" in st.session_state["selected_options"]:
@@ -333,19 +324,21 @@ def options_select(available_options):
         else:
             st.session_state["max_selections"] = len(available_options)
 
-
 def multi_select_all(available_options):
     st.sidebar.markdown("***")
 
     available_options.insert(0,"All")
     
     if "max_selections" not in st.session_state:
-        st.session_state ["max_selections"] = len (available_options)
+        st.session_state["max_selections"] = len(available_options)  # Set max_selections initially
+        st.session_state["selected_options"] = ["All"]  # Set default selection to "All"
+
 
     st.sidebar.multiselect(
                     label="Select an Option",
                     options=available_options,
                     key="selected_options",
+                    default=st.session_state["selected_options"],
                     max_selections=st.session_state[ "max_selections"],
                     on_change=options_select(available_options),
                     format_func=lambda x: "All" if x == "All" else f"{x}",)
