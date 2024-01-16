@@ -140,6 +140,16 @@ def calendar_selector():
         selected_date = custom_date_selection()
     return selected_date, option
 
+def statistic_selector():
+    option = st.sidebar.radio("Select a statistic",
+        ("All",
+         "LR",
+         "LA",
+         "GC"),
+    index=0,)
+    return option
+
+
 def convert_date_to_range(selected_date,option):
     
     if (option == "Select year"):
@@ -333,7 +343,7 @@ def multi_select_all(available_options):
         st.session_state["max_selections"] = len(available_options)  # Set max_selections initially
         st.session_state["selected_options"] = ["All"]  # Set default selection to "All"
 
-
+    st.sidebar.text("Country Selection")
     st.sidebar.multiselect(
                     label="Select an Option",
                     options=available_options,

@@ -26,5 +26,3 @@ WHERE
   AND language_params.key = 'ftm_language'
   AND PARSE_DATE('%Y%m%d', event_date) BETWEEN '2021-01-01'
   AND CURRENT_DATE()
-ORDER BY
-  event_date DESC
