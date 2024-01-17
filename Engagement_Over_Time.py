@@ -11,6 +11,7 @@ st.title("Curious Learning Dashboard")
 ui.display_definitions_table()
 
 settings.initialize()
+settings.init_user_list()
 
 selected_date, option = ui.calendar_selector()
 daterange = ui.convert_date_to_range(selected_date,option)
@@ -35,5 +36,5 @@ if (len(daterange) == 2):
     total = metrics. get_GC_avg_by_date(daterange,countries_list)
     col3.metric(label="Game Completion Average", value=f"{total:.2f}%")
 
-settings.init_user_list()
+
 ui.LA_by_country_map(daterange,countries_list)

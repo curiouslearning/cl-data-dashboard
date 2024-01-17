@@ -2,6 +2,7 @@ import streamlit as st
 from rich import print
 import pandas as pd
 import datetime as dt
+import numpy as np
 
 
 
@@ -53,70 +54,22 @@ def get_campaign_data_totals(daterange,source):
  
 @st.cache_data(ttl="1d",show_spinner="Getting LA")
 def get_LA_totals(daterange,countries_list):
-    bq_client = st.session_state.bq_client
-    start_date = daterange[0].strftime('%Y/%m/%d')
-    end_date = daterange[1].strftime('%Y/%m/%d')
- 
-    if len(countries_list) == 0:
-        countries_list = ['']
-    countries_list = str(countries_list).replace('[', '').replace(']', '')
-
-    sql_query = f"""
-            SELECT 
-            count(distinct(user_pseudo_id))
-            FROM `dataexploration-193817.user_data.all_users`
-            WHERE
-            event_date BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND PARSE_DATE('%Y/%m/%d','{end_date}') 
-            and country in ({countries_list});
-
-             """
-    iterator = bq_client.query(sql_query).result()
-    first_row = next(iterator)
-    return first_row[0]
+    df_user_list = st.session_state.df_user_list
+    df_user_list = df_user_list.query('@daterange[0] <= first_open <= @daterange[1] and country.isin(@countries_list) and max_user_level >= 1')
+    return len(df_user_list)
 
 
 @st.cache_data(ttl="1d",show_spinner=False)
 def get_LR_totals(daterange,countries_list):
-    bq_client = st.session_state.bq_client
-    start_date = daterange[0].strftime('%Y/%m/%d')
-    end_date = daterange[1].strftime('%Y/%m/%d')
-    if len(countries_list) == 0:
-        countries_list = ['']
-    countries_list = str(countries_list).replace('[', '').replace(']', '')
-
-    sql_query = f"""
-            SELECT 
-            count(*)
-            FROM `dataexploration-193817.user_data.user_first_open_list`
-            WHERE
-            first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND PARSE_DATE('%Y/%m/%d','{end_date}')  
-            AND country in ({countries_list});
-             """
-    iterator = bq_client.query(sql_query).result()
-    first_row = next(iterator)
-    return first_row[0]
+    df_user_list = st.session_state.df_user_list
+    df_user_list = df_user_list.query('@daterange[0] <= first_open <= @daterange[1] and country.isin(@countries_list)')
+    return len(df_user_list)
 
 @st.cache_data(ttl="1d",show_spinner="Calculating GC")
 def get_GC_avg_by_date(daterange,countries_list):
-    bq_client = st.session_state.bq_client
-    start_date = daterange[0].strftime('%Y/%m/%d')
-    end_date = daterange[1].strftime('%Y/%m/%d')
-    if len(countries_list) == 0:
-        countries_list = ['']
-    countries_list = str(countries_list).replace('[', '').replace(']', '')
-
-    sql_query = f"""
-        SELECT AVG(gc)
-        FROM
-         `dataexploration-193817.user_data.users_data`
-        where
-            first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND PARSE_DATE('%Y/%m/%d','{end_date}')   
-        AND country in ({countries_list});
-        """
-    iterator = bq_client.query(sql_query).result()
-    first_row = next(iterator)
-    return first_row[0]
-    
+    df_user_list = st.session_state.df_user_list
+    df_user_list = df_user_list.query('@daterange[0] <= first_open <= @daterange[1] and country.isin(@countries_list)')
+    return  np.average(df_user_list.gc)
     
 
 
