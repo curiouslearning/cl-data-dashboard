@@ -55,6 +55,15 @@ def get_campaign_data_totals(daterange, source):
     return df
 
 
+def get_download_totals(daterange):
+    df_all = st.session_state.df_all
+
+    df = df_all.query("@daterange[0] <= day <= @daterange[1]")
+    total = df["mobile_app_install"].sum()
+
+    return total
+
+
 @st.cache_data(ttl="1d", show_spinner="Getting LA")
 def get_LA_totals(daterange, countries_list):
     df_user_list = st.session_state.df_user_list

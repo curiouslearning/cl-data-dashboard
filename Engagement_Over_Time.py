@@ -6,6 +6,8 @@ from millify import prettify
 import ui_components as ui
 import users
 import plotly.graph_objects as go
+import plotly.express as px
+
 
 st.set_page_config(layout="wide")
 st.title("Curious Learning Dashboard")
@@ -55,11 +57,8 @@ if len(daterange) == 2:
     with c2:
         st.subheader("Top 10 Countries by GC %")
         df = metrics.get_country_counts(daterange, countries_list, "GC").head(10)
-        fig = go.Figure(
-            data=[
-                go.Bar(name="GC", x=df["country"], y=df["GC"]),
-            ]
-        )
+        fig = px.bar(df, x="country", y="GC", color="GC")
+
         st.plotly_chart(fig, use_container_width=True)
 
     st.divider()
