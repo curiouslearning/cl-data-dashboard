@@ -88,7 +88,8 @@ def get_GC_avg_by_date(daterange, countries_list):
     df_user_list = df_user_list.query(
         "@daterange[0] <= first_open <= @daterange[1] and country.isin(@countries_list)"
     )
-    return np.average(df_user_list.gc)
+    df_user_list = df_user_list.fillna(0)
+    return 0 if len(df_user_list) == 0 else np.average(df_user_list.gc)
 
 
 def count_rows(df):
@@ -99,6 +100,10 @@ def count_rows(df):
 def get_country_counts(daterange, countries_list, metric="LA"):
     df = st.session_state.df_user_list
     df = df.query("@daterange[0] <= first_open <= @daterange[1]")
+
+    mask = df["country"].isin(countries_list)
+    df = df[mask]
+
     if metric == "LA":
         country_counts = (
             df[df["max_user_level"] >= 1]
