@@ -45,6 +45,7 @@ def get_country_list():
     sql_query = f"""
                 SELECT *
                 FROM `dataexploration-193817.user_data.active_countries`
+                order by country asc
                 ;
                 """
     rows_raw = bq_client.query(sql_query)

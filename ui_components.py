@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import datetime as dt
 import calendar
-from rich import print as rprint
+from rich import print
 import plost
 import numpy as np
 import plotly.express as px
@@ -232,7 +232,7 @@ def top_campaigns_by_downloads_barchart(n):
     )
 
 
-def LA_by_country_map(daterange, countries_list):
+def stats_by_country_map(daterange, countries_list):
     option = st.radio(
         "Select a statistic", ("LR", "LA", "GC"), index=0, horizontal=True
     )
@@ -335,47 +335,47 @@ def campaign_gantt_chart(daterange):
     )  # Display the plotly chart in Streamlit
 
 
-def options_select(available_options):
-    if "selected_options" in st.session_state:
-        if "All" in st.session_state["selected_options"]:
-            st.session_state["selected_options"] = [
-                available_options[0]
-            ]  # Update selected options to only the first item
-            st.session_state["max_selections"] = 1
-        else:
-            st.session_state["max_selections"] = len(available_options)
-
-
-def multi_select_all(available_options):
+def multi_select_all(available_options, title):
     st.sidebar.markdown("***")
 
     available_options.insert(0, "All")
 
     if "max_selections" not in st.session_state:
-        st.session_state["max_selections"] = len(
-            available_options
-        )  # Set max_selections initially
-        st.session_state["selected_options"] = ["All"]  # Set default selection to "All"
+        st.session_state["max_selections"] = 1  # Enforce single selection
+        st.session_state["selected_options"] = ["All"]  # Set default to "All"
 
-    st.sidebar.text("Country Selection")
+    def options_select():  # Define options_select inside multi_select_all
+        if "selected_options" in st.session_state:
+            if "All" in st.session_state["selected_options"]:
+                st.session_state["selected_options"] = [
+                    "All"
+                ]  # Reset to "All" if deselected
+                st.session_state["max_selections"] = 1  # Enforce single selection again
+            else:
+                st.session_state["max_selections"] = len(
+                    available_options
+                )  # Allow multiple selections
+
     st.sidebar.multiselect(
-        label="Select an Option",
+        label=title,
         options=available_options,
         key="selected_options",
-        #                    default=st.session_state["selected_options"],
         max_selections=st.session_state["max_selections"],
-        on_change=options_select(available_options),
+        on_change=options_select,  # Pass the function without calling it
         format_func=lambda x: "All" if x == "All" else f"{x}",
     )
 
-    st.sidebar.write(
-        available_options[1:]
-        if st.session_state["max_selections"] == 1
-        else st.session_state["selected_options"]
-    )
+    # Display options based on selection state
+    if "All" in st.session_state["selected_options"]:
+        st.sidebar.write("You selected all options.")
+    else:
+        st.sidebar.write(
+            f"You selected {len(st.session_state['selected_options'])} options: "
+        )
+        st.sidebar.write(st.session_state["selected_options"])
 
     return (
         available_options[1:]
-        if st.session_state["max_selections"] == 1
+        if "All" in st.session_state["selected_options"]
         else st.session_state["selected_options"]
-    )
+    )  # Return full list if "All" is selected
