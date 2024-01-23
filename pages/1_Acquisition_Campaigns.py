@@ -13,6 +13,7 @@ ui.display_definitions_table()
 settings.initialize()
 settings.init_campaign_data()
 settings.init_user_list()
+settings.clear_selector_session_state()
 selected_date, option = ui.calendar_selector()
 daterange = ui.convert_date_to_range(selected_date, option)
 

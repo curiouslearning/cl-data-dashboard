@@ -12,21 +12,33 @@ import users
 
 
 st.cache_resource
+
+
 def get_bq_client():
     credentials = get_gcp_credentials()
     bq_client = bigquery.Client(credentials=credentials)
     return bq_client
 
+
 st.cache_resource
+
+
 def get_gcp_credentials():
     # Create BigQuery API client.
     gcp_credentials = service_account.Credentials.from_service_account_info(
-        st.secrets["gcp_service_account"],scopes=['https://www.googleapis.com/auth/cloud-platform',            
-                                                                                       "https://www.googleapis.com/auth/drive",
-                                                                                       "https://www.googleapis.com/auth/bigquery",])
+        st.secrets["gcp_service_account"],
+        scopes=[
+            "https://www.googleapis.com/auth/cloud-platform",
+            "https://www.googleapis.com/auth/drive",
+            "https://www.googleapis.com/auth/bigquery",
+        ],
+    )
     return gcp_credentials
 
+
 st.cache_resource
+
+
 def init_logging():
     credentials = get_gcp_credentials()
     logging_client = google.cloud.logging.Client(credentials=credentials)
@@ -39,8 +51,9 @@ def init_logging():
         logger.addHandler(logging.StreamHandler())
     return logger
 
+
 def initialize():
-    pd.set_option('display.max_columns', 20); 
+    pd.set_option("display.max_columns", 20)
     logger = init_logging()
     bq_client = get_bq_client()
 
@@ -48,17 +61,19 @@ def initialize():
         st.session_state["logger"] = logger
     if "bq_client" not in st.session_state:
         st.session_state["bq_client"] = bq_client
-        
+
+
 def init_user_list():
     df_user_list = users.get_users_list()
     if "df_user_list" not in st.session_state:
         st.session_state["df_user_list"] = df_user_list
-        
+
+
 def init_campaign_data():
-    df_fb   = campaigns.get_fb_campaign_data()
+    df_fb = campaigns.get_fb_campaign_data()
     df_goog = campaigns.get_google_campaign_data()
     df_goog_conversions = campaigns.get_google_campaign_conversions()
-    df_goog = pd.concat( [df_goog,df_goog_conversions])
+    df_goog = pd.concat([df_goog, df_goog_conversions])
     df_all = pd.concat([df_fb, df_goog])
     if "df_goog_conversions" not in st.session_state:
         st.session_state["df_goog_conversions"] = df_goog_conversions
@@ -66,6 +81,7 @@ def init_campaign_data():
         st.session_state["df_all"] = df_all
 
 
-
-
-    
+# Ensure that the selector sessions are reset when moving from page to page and back
+def clear_selector_session_state():
+    del st.session_state["max_selections"]
+    del st.session_state["selected_options"]

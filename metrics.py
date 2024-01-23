@@ -57,7 +57,6 @@ def get_campaign_data_totals(daterange, source):
 
 def get_download_totals(daterange):
     df_all = st.session_state.df_all
-
     df = df_all.query("@daterange[0] <= day <= @daterange[1]")
     total = df["mobile_app_install"].sum()
 
