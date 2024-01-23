@@ -6,11 +6,11 @@ from rich import print
 import plost
 import numpy as np
 import plotly.express as px
+import plotly.graph_objects as go
 import metrics
 
 from dateutil.relativedelta import relativedelta
 import users
-
 
 min_date = dt.datetime(2021, 1, 1).date()
 max_date = dt.date.today()
@@ -379,3 +379,62 @@ def multi_select_all(available_options, title):
         if "All" in st.session_state["selected_options"]
         else st.session_state["selected_options"]
     )  # Return full list if "All" is selected
+
+
+def top_gc_bar_chart(daterange, countries_list):
+    df = metrics.get_country_counts(daterange, countries_list, "GC").head(10)
+    df.rename(columns={"country": "Country"}, inplace=True)
+    fig = px.bar(df, x="Country", y="GC", color="GC", title="Top 10 Countries by GC %")
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def top_LR_LC_bar_chart(daterange, countries_list):
+    option = st.radio("Select a statistic", ("LR", "LA"), index=0, horizontal=True)
+    df = metrics.get_country_counts(daterange, countries_list, str(option)).head(10)
+
+    title = "Top 10 Countries by " + str(option)
+    fig = go.Figure(
+        data=[
+            go.Bar(name="LR", x=df["country"], y=df["LR"]),
+            go.Bar(name="LA", x=df["country"], y=df["LA"]),
+        ]
+    )
+    fig.update_layout(title_text=title)
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def LR_LA_line_chart_over_time(daterange, countries_list):
+    option = st.radio(
+        "Select a statistic", ("LR", "LA"), index=0, horizontal=True, key="A"
+    )
+    df = st.session_state.df_user_list
+    if option == "LA":
+        query = "@daterange[0] <= la_date <= @daterange[1]  and max_user_level >= 1"
+        groupby = "la_date"
+        title = "Learners Acquired"
+    else:
+        query = "@daterange[0] <= first_open <= @daterange[1]"
+        groupby = "first_open"
+        title = "Learners Reached"
+
+    df = df.query(query)
+    # df["first_open"] = pd.to_datetime(df["first_open"])
+
+    mask = df["country"].isin(countries_list)
+    df = df[mask]
+
+    # Group by date and country, then count the users
+    grouped_df = df.groupby([groupby, "country"]).size().reset_index(name=option)
+
+    # Plotly line graph
+    fig = px.line(
+        grouped_df,
+        x=groupby,
+        y=option,
+        color="country",
+        markers=True,
+        title=title,
+    )
+    fig.update_yaxes(title="x", visible=False, showticklabels=False)
+
+    st.plotly_chart(fig, use_container_width=True)

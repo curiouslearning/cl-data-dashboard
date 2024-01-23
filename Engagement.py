@@ -27,40 +27,34 @@ countries_list = ui.multi_select_all(countries_list, title="Country Selection")
 if len(daterange) == 2 and len(countries_list) > 0:
     date_start = daterange[0].strftime("%Y-%m-%d")
     date_end = daterange[1].strftime("%Y-%m-%d")
-
+    st.subheader("General Engagement")
     st.markdown("**Selected Range:**")
     st.text(date_start + " to " + date_end)
 
     col1, col2, col3 = st.columns(3)
 
-    total = metrics.get_LR_totals(daterange, countries_list)
+    total = metrics.get_totals_by_metric(daterange, countries_list, "LR")
     col1.metric(label="Learners Reached", value=prettify(int(total)))
 
-    total = metrics.get_LA_totals(daterange, countries_list)
+    total = metrics.get_totals_by_metric(daterange, countries_list, "LA")
     col2.metric(label="Learners Acquired", value=prettify(int(total)))
 
     total = metrics.get_GC_avg_by_date(daterange, countries_list)
     col3.metric(label="Game Completion Average", value=f"{total:.2f}%")
 
     st.divider()
-    option = st.radio("Select a statistic", ("LR", "LA"), index=0, horizontal=True)
-    df = metrics.get_country_counts(daterange, countries_list, str(option)).head(10)
     c1, c2 = st.columns(2)
     with c1:
-        st.subheader("Top 10 Countries by " + str(option))
-        fig = go.Figure(
-            data=[
-                go.Bar(name="LR", x=df["country"], y=df["LR"]),
-                go.Bar(name="LA", x=df["country"], y=df["LA"]),
-            ]
-        )
-        st.plotly_chart(fig, use_container_width=True)
+        ui.top_LR_LC_bar_chart(daterange, countries_list)
     with c2:
-        st.subheader("Top 10 Countries by GC %")
-        df = metrics.get_country_counts(daterange, countries_list, "GC").head(10)
-        fig = px.bar(df, x="country", y="GC", color="GC")
-
-        st.plotly_chart(fig, use_container_width=True)
+        st.markdown("***")
+        st.markdown("***")
+        ui.top_gc_bar_chart(daterange, countries_list)
 
     st.divider()
+    st.subheader("Engagement across the world")
     ui.stats_by_country_map(daterange, countries_list)
+
+    st.divider()
+    st.subheader("Engagement over time")
+    ui.LR_LA_line_chart_over_time(daterange, countries_list)
