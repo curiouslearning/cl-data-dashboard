@@ -336,31 +336,24 @@ def campaign_gantt_chart(daterange):
 
 
 def multi_select_all(available_options, title):
+
     available_options.insert(0, "All")
 
     if "max_selections" not in st.session_state:
-        print("E")
         st.session_state["max_selections"] = 1  # Enforce single selection
         st.session_state["selected_options"] = ["All"]  # Set default to "All"
-    else:
-        print("F")
 
     def options_select():  # Define options_select inside multi_select_all
         if "selected_options" in st.session_state:
-            print("A")
             if "All" in st.session_state["selected_options"]:
-                print("B")
                 st.session_state["selected_options"] = [
                     "All"
                 ]  # Reset to "All" if deselected
                 st.session_state["max_selections"] = 1  # Enforce single selection again
             else:
-                print("C")
                 st.session_state["max_selections"] = len(
                     available_options
                 )  # Allow multiple selections
-        else:
-            print("D")
 
     st.sidebar.multiselect(
         label=title,
