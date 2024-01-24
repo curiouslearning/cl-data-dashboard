@@ -20,9 +20,10 @@ settings.init_user_list()
 
 selected_date, option = ui.calendar_selector()
 daterange = ui.convert_date_to_range(selected_date, option)
-st.sidebar.divider()
-language = ui.language_selector()
-st.sidebar.divider()
+
+# language = ui.language_selector()
+language = "All"
+
 countries_list = users.get_country_list()
 countries_list = ui.multi_select_all(countries_list, title="Country Selection")
 
@@ -50,6 +51,10 @@ if len(daterange) == 2 and len(countries_list) > 0:
     col3.metric(label="Game Completion Average", value=f"{total:.2f}%")
 
     st.divider()
+
+    st.subheader("Engagement across the world")
+    ui.stats_by_country_map(daterange, countries_list, language)
+    st.divider()
     c1, c2 = st.columns(2)
     with c1:
         ui.top_LR_LC_bar_chart(daterange, countries_list, language)
@@ -58,8 +63,6 @@ if len(daterange) == 2 and len(countries_list) > 0:
         st.markdown("***")
         ui.top_gc_bar_chart(daterange, countries_list, language)
 
-    st.subheader("Engagement across the world")
-    ui.stats_by_country_map(daterange, countries_list, language)
-
+    st.divider()
     st.subheader("Engagement over time")
     ui.LR_LA_line_chart_over_time(daterange, countries_list)

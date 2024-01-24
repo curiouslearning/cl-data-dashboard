@@ -83,6 +83,7 @@ def filter_user_data(daterange, countries_list, stat="LR", language="All"):
         conditions.append("max_user_level >= 1")
 
     query = " and ".join(conditions)
+    print("query = " + str(query))
     df_user_list = df_user_list.query(query)
     return df_user_list
 
@@ -103,6 +104,8 @@ def get_GC_avg_by_date(daterange, countries_list, language):
 @st.cache_data(ttl="1d", show_spinner=False)
 def get_country_counts(daterange, countries_list, metric, language):
     df = filter_user_data(daterange, countries_list, language)
+    print("language = " + language)
+    print(df)
 
     if metric == "LA":
         country_counts = (
