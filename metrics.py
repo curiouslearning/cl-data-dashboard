@@ -64,44 +64,45 @@ def get_download_totals(daterange):
 
 
 @st.cache_data(ttl="1d", show_spinner=False)
-def get_totals_by_metric(daterange, countries_list, stat="LR"):
-    df_user_list = st.session_state.df_user_list
-    if stat == "LA":
-        query = "@daterange[0] <= first_open <= @daterange[1] and country.isin(@countries_list) and max_user_level >= 1"
-    else:
-        query = "@daterange[0] <= first_open <= @daterange[1] and country.isin(@countries_list)"
-    df_user_list = df_user_list.query(query)
+def get_totals_by_metric(daterange, countries_list, stat="LR", language="All"):
+    df_user_list = filter_user_data(daterange, countries_list, stat, language)
     return len(df_user_list)
 
 
 @st.cache_data(ttl="1d", show_spinner=False)
-def get_users_by_metric(daterange, countries_list, stat="LR"):
+def filter_user_data(daterange, countries_list, stat="LR", language="All"):
     df_user_list = st.session_state.df_user_list
+    conditions = [
+        f"@daterange[0] <= first_open <= @daterange[1]",
+        f"country.isin(@countries_list)",
+    ]
+    if language != "All":
+        conditions.append("app_language == @language")
+
     if stat == "LA":
-        query = "@daterange[0] <= first_open <= @daterange[1] and country.isin(@countries_list) and max_user_level >= 1"
-    else:
-        query = "@daterange[0] <= first_open <= @daterange[1] and country.isin(@countries_list)"
+        conditions.append("max_user_level >= 1")
+
+    query = " and ".join(conditions)
     df_user_list = df_user_list.query(query)
+    return df_user_list
+
+
+@st.cache_data(ttl="1d", show_spinner=False)
+def get_users_by_metric(daterange, countries_list, stat="LR"):
+    df_user_list = filter_user_data(daterange, countries_list, stat)
     return df_user_list if len(df_user_list) > 0 else pd.DataFrame()
 
 
 @st.cache_data(ttl="1d", show_spinner="Calculating GC")
-def get_GC_avg_by_date(daterange, countries_list):
-    df_user_list = st.session_state.df_user_list
-    df_user_list = df_user_list.query(
-        "@daterange[0] <= first_open <= @daterange[1] and country.isin(@countries_list)"
-    )
+def get_GC_avg_by_date(daterange, countries_list, language):
+    df_user_list = filter_user_data(daterange, countries_list, language=language)
     df_user_list = df_user_list.fillna(0)
     return 0 if len(df_user_list) == 0 else np.average(df_user_list.gc)
 
 
 @st.cache_data(ttl="1d", show_spinner=False)
-def get_country_counts(daterange, countries_list, metric="LA"):
-    df = st.session_state.df_user_list
-    df = df.query("@daterange[0] <= first_open <= @daterange[1]")
-
-    mask = df["country"].isin(countries_list)
-    df = df[mask]
+def get_country_counts(daterange, countries_list, metric, language):
+    df = filter_user_data(daterange, countries_list, language)
 
     if metric == "LA":
         country_counts = (
