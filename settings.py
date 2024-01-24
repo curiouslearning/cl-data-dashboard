@@ -83,5 +83,7 @@ def init_campaign_data():
 
 # Ensure that the selector sessions are reset when moving from page to page and back
 def clear_selector_session_state():
-    del st.session_state["max_selections"]
-    del st.session_state["selected_options"]
+    if "max_selections" in st.session_state:
+        del st.session_state["max_selections"]
+    if "selected_options" in st.session_state:
+        del st.session_state["selected_options"]
