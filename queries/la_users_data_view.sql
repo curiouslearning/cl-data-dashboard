@@ -5,7 +5,7 @@ SELECT
     c.la_date as la_date,
     a.app_language,
     MAX(a.level) as max_user_level,
-    SAFE_DIVIDE(MAX(a.level), b.max_level) * 100 as gc,
+    SAFE_DIVIDE(MAX(a.level), b.max_level) * 100 as gpc,
     b.max_level as max_game_level
 FROM
     `dataexploration-193817.user_data.all_users` a

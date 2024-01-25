@@ -4,7 +4,7 @@ SELECT
    t1.app_language, 
    t1.app_id,
    ifnull(COALESCE(t2.max_user_level, NULL),0) as max_user_level,
-   ifnull(COALESCE(t2.gc, NULL), 0) as gc,
+   ifnull(COALESCE(t2.gpc, NULL), 0) as gpc,
    ifnull(COALESCE(t2.max_game_level, NULL),0) as max_game_level,
    COALESCE(t2.la_date, NULL) as la_date,
    t1.first_open

@@ -92,16 +92,16 @@ def get_users_by_metric(daterange, countries_list, stat="LR"):
     return df_user_list if len(df_user_list) > 0 else pd.DataFrame()
 
 
-def get_GC_avg_by_date(daterange, countries_list):
-    df_user_list = filter_user_data(daterange, countries_list)
+def get_GPC_avg_by_date(daterange, countries_list):
+    df_user_list = filter_user_data(daterange, countries_list, stat="LA")
     df_user_list = df_user_list.fillna(0)
-    return 0 if len(df_user_list) == 0 else np.average(df_user_list.gc)
+    return 0 if len(df_user_list) == 0 else np.average(df_user_list.gpc)
 
 
-def get_country_counts(daterange, countries_list, metric):
+def get_country_counts(daterange, countries_list, stat):
     df = filter_user_data(daterange, countries_list)
 
-    if metric == "LA":
+    if stat == "LA":
         country_counts = (
             df[df["max_user_level"] >= 1]
             .groupby("country")
@@ -116,7 +116,7 @@ def get_country_counts(daterange, countries_list, metric):
             )
             .fillna(0)
         )
-    elif metric == "LR":
+    elif stat == "LR":
         country_counts = (
             df.groupby("country")
             .size()
@@ -135,14 +135,17 @@ def get_country_counts(daterange, countries_list, metric):
             .fillna(0)
         )
     else:
-        # Calculate the average GC per country
-        avg_gc_per_country = df.groupby("country")["gc"].mean().round(2)
-        # Create a new DataFrame with the average GC per country
+        # Calculate the average GPC per country
+        avg_gpc_per_country = df.groupby("country")["gpc"].mean().round(2)
+        # Create a new DataFrame with the average GPC per country
         country_counts = (
             pd.DataFrame(
-                {"country": avg_gc_per_country.index, "GC": avg_gc_per_country.values}
+                {
+                    "country": avg_gpc_per_country.index,
+                    "GPC": avg_gpc_per_country.values,
+                }
             )
-            .sort_values(by="GC", ascending=False)
+            .sort_values(by="GPC", ascending=False)
             .fillna(0)
         )
 

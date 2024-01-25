@@ -42,15 +42,15 @@ def display_definitions_table():
                 "COUNT(Learners)",
             ],
             [
-                "GC",
-                "Game Level Completion Percent",
-                "The average percentage of FTM levels completed per learner over a period of time ",
+                "GPC",
+                "Game Percent Complete",
+                "The percentage of FTM levels completed from total levels",
                 "Max Level Reached / Total Levels",
             ],
             [
                 "GCC",
                 "Game Completion Cost",
-                "The cost (USD) associated with one learner completing the average percentage of FTM levels (GC).",
+                "The cost (USD) associated with one learner completing over 90% of FTM levels.",
                 "Total Spend / EstRA * LA",
             ],
             [
@@ -255,7 +255,7 @@ def top_campaigns_by_downloads_barchart(n):
 
 def stats_by_country_map(daterange, countries_list):
     option = st.radio(
-        "Select a statistic", ("LR", "LA", "GC"), index=0, horizontal=True
+        "Select a statistic", ("LR", "LA", "GPC"), index=0, horizontal=True
     )
     df = metrics.get_country_counts(daterange, countries_list, option)
 
@@ -400,10 +400,12 @@ def multi_select_all(available_options, title):
     )  # Return full list if "All" is selected
 
 
-def top_gc_bar_chart(daterange, countries_list):
-    df = metrics.get_country_counts(daterange, countries_list, "GC").head(10)
+def top_gpc_bar_chart(daterange, countries_list):
+    df = metrics.get_country_counts(daterange, countries_list, "GPC").head(10)
     df.rename(columns={"country": "Country"}, inplace=True)
-    fig = px.bar(df, x="Country", y="GC", color="GC", title="Top 10 Countries by GC %")
+    fig = px.bar(
+        df, x="Country", y="GPC", color="GPC", title="Top 10 Countries by GPC %"
+    )
     st.plotly_chart(fig, use_container_width=True)
 
 
