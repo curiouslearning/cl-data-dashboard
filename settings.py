@@ -11,14 +11,12 @@ import pandas as pd
 import users
 
 
-@st.cache_resource
 def get_bq_client():
     credentials = get_gcp_credentials()
     bq_client = bigquery.Client(credentials=credentials)
     return bq_client
 
 
-@st.cache_resource
 def get_gcp_credentials():
     # Create BigQuery API client.
     gcp_credentials = service_account.Credentials.from_service_account_info(
@@ -32,7 +30,6 @@ def get_gcp_credentials():
     return gcp_credentials
 
 
-@st.cache_resource
 def init_logging():
     credentials = get_gcp_credentials()
     logging_client = google.cloud.logging.Client(credentials=credentials)
@@ -46,7 +43,7 @@ def init_logging():
     return logger
 
 
-@st.cache_data(show_spinner="False", ttl="1d")
+@st.cache_data(show_spinner=False, ttl="1d")
 def initialize():
     pd.set_option("display.max_columns", 20)
     logger = init_logging()
