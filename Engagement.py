@@ -21,8 +21,7 @@ settings.init_user_list()
 selected_date, option = ui.calendar_selector()
 daterange = ui.convert_date_to_range(selected_date, option)
 
-# language = ui.language_selector()
-language = "All"
+ui.language_selector()  # puts selection in session state
 
 countries_list = users.get_country_list()
 countries_list = ui.multi_select_all(countries_list, title="Country Selection")
@@ -37,31 +36,27 @@ if len(daterange) == 2 and len(countries_list) > 0:
 
     col1, col2, col3 = st.columns(3)
 
-    total = metrics.get_totals_by_metric(
-        daterange, countries_list, stat="LR", language=language
-    )
+    total = metrics.get_totals_by_metric(daterange, countries_list, stat="LR")
     col1.metric(label="Learners Reached", value=prettify(int(total)))
 
-    total = metrics.get_totals_by_metric(
-        daterange, countries_list, "LA", language=language
-    )
+    total = metrics.get_totals_by_metric(daterange, countries_list, "LA")
     col2.metric(label="Learners Acquired", value=prettify(int(total)))
 
-    total = metrics.get_GC_avg_by_date(daterange, countries_list, language=language)
+    total = metrics.get_GC_avg_by_date(daterange, countries_list)
     col3.metric(label="Game Completion Average", value=f"{total:.2f}%")
 
     st.divider()
 
     st.subheader("Engagement across the world")
-    ui.stats_by_country_map(daterange, countries_list, language)
+    ui.stats_by_country_map(daterange, countries_list)
     st.divider()
     c1, c2 = st.columns(2)
     with c1:
-        ui.top_LR_LC_bar_chart(daterange, countries_list, language)
+        ui.top_LR_LC_bar_chart(daterange, countries_list)
     with c2:
-        st.markdown("***")
-        st.markdown("***")
-        ui.top_gc_bar_chart(daterange, countries_list, language)
+        st.markdown("")
+        st.markdown("")
+        ui.top_gc_bar_chart(daterange, countries_list)
 
     st.divider()
     st.subheader("Engagement over time")

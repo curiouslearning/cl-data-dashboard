@@ -132,11 +132,25 @@ def ads_platform_selector():
     return platform
 
 
+# this is a callback for language_selector
+def update_session_state():
+    if st.session_state.lang_key:
+        st.session_state.language = st.session_state.lang_key
+
+
+# This method uses the key parameter of the selectbox
+# to automatically ad the selection to session state.
 def language_selector():
     df = users.get_language_list()
     df.insert(0, "All")
-    option = st.sidebar.selectbox("Select a language", df, index=0)
-    return option
+
+    st.session_state.selectbox_value = st.sidebar.selectbox(
+        "Select a language",
+        df,
+        index=0,
+        key="lang_key",
+        on_change=update_session_state,
+    )
 
 
 def calendar_selector():
@@ -239,13 +253,11 @@ def top_campaigns_by_downloads_barchart(n):
     )
 
 
-def stats_by_country_map(daterange, countries_list, language):
+def stats_by_country_map(daterange, countries_list):
     option = st.radio(
         "Select a statistic", ("LR", "LA", "GC"), index=0, horizontal=True
     )
-    df = metrics.get_country_counts(
-        daterange, countries_list, option, language=language
-    )
+    df = metrics.get_country_counts(daterange, countries_list, option)
 
     country_fig = px.choropleth(
         df,
@@ -388,18 +400,16 @@ def multi_select_all(available_options, title):
     )  # Return full list if "All" is selected
 
 
-def top_gc_bar_chart(daterange, countries_list, language):
-    df = metrics.get_country_counts(daterange, countries_list, "GC", language).head(10)
+def top_gc_bar_chart(daterange, countries_list):
+    df = metrics.get_country_counts(daterange, countries_list, "GC").head(10)
     df.rename(columns={"country": "Country"}, inplace=True)
     fig = px.bar(df, x="Country", y="GC", color="GC", title="Top 10 Countries by GC %")
     st.plotly_chart(fig, use_container_width=True)
 
 
-def top_LR_LC_bar_chart(daterange, countries_list, language):
+def top_LR_LC_bar_chart(daterange, countries_list):
     option = st.radio("Select a statistic", ("LR", "LA"), index=0, horizontal=True)
-    df = metrics.get_country_counts(
-        daterange, countries_list, str(option), language
-    ).head(10)
+    df = metrics.get_country_counts(daterange, countries_list, str(option)).head(10)
 
     title = "Top 10 Countries by " + str(option)
     fig = go.Figure(
@@ -416,21 +426,20 @@ def LR_LA_line_chart_over_time(daterange, countries_list):
     option = st.radio(
         "Select a statistic", ("LR", "LA"), index=0, horizontal=True, key="A"
     )
-    df = st.session_state.df_user_list
+    df_user_list = metrics.filter_user_data(daterange, countries_list, option)
     if option == "LA":
-        query = "@daterange[0] <= la_date <= @daterange[1]  and max_user_level >= 1"
-        groupby = "la_date"
-        title = "Learners Acquired"
+        groupby = "LA Date"
+        title = "Daily Learners Acquired"
+        df_user_list.rename({"la_date": "LA Date"}, axis=1, inplace=True)
     else:
-        query = "@daterange[0] <= first_open <= @daterange[1]"
-        groupby = "first_open"
-        title = "Learners Reached"
+        groupby = "LR Date"
+        title = "Daily Learners Reached"
+        df_user_list.rename({"first_open": "LR Date"}, axis=1, inplace=True)
 
-    df = df.query(query)
-    mask = df["country"].isin(countries_list)
-    df = df[mask]
     # Group by date and country, then count the users
-    grouped_df = df.groupby([groupby, "country"]).size().reset_index(name=option)
+    grouped_df = (
+        df_user_list.groupby([groupby, "country"]).size().reset_index(name=option)
+    )
 
     # Plotly line graph
     fig = px.line(
@@ -441,6 +450,5 @@ def LR_LA_line_chart_over_time(daterange, countries_list):
         markers=True,
         title=title,
     )
-    fig.update_xaxes(title="x", visible=False, showticklabels=False)
 
     st.plotly_chart(fig, use_container_width=True)

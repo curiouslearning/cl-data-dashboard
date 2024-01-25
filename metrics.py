@@ -63,15 +63,15 @@ def get_download_totals(daterange):
     return total
 
 
-@st.cache_data(ttl="1d", show_spinner=False)
-def get_totals_by_metric(daterange, countries_list, stat="LR", language="All"):
-    df_user_list = filter_user_data(daterange, countries_list, stat, language)
+def get_totals_by_metric(daterange, countries_list, stat="LR"):
+    df_user_list = filter_user_data(daterange, countries_list, stat)
     return len(df_user_list)
 
 
-@st.cache_data(ttl="1d", show_spinner=False)
-def filter_user_data(daterange, countries_list, stat="LR", language="All"):
+def filter_user_data(daterange, countries_list, stat="LR"):
     df_user_list = st.session_state.df_user_list
+    language = st.session_state["language"]
+
     conditions = [
         f"@daterange[0] <= first_open <= @daterange[1]",
         f"country.isin(@countries_list)",
@@ -83,29 +83,23 @@ def filter_user_data(daterange, countries_list, stat="LR", language="All"):
         conditions.append("max_user_level >= 1")
 
     query = " and ".join(conditions)
-    print("query = " + str(query))
     df_user_list = df_user_list.query(query)
     return df_user_list
 
 
-@st.cache_data(ttl="1d", show_spinner=False)
 def get_users_by_metric(daterange, countries_list, stat="LR"):
     df_user_list = filter_user_data(daterange, countries_list, stat)
     return df_user_list if len(df_user_list) > 0 else pd.DataFrame()
 
 
-@st.cache_data(ttl="1d", show_spinner="Calculating GC")
-def get_GC_avg_by_date(daterange, countries_list, language):
-    df_user_list = filter_user_data(daterange, countries_list, language=language)
+def get_GC_avg_by_date(daterange, countries_list):
+    df_user_list = filter_user_data(daterange, countries_list)
     df_user_list = df_user_list.fillna(0)
     return 0 if len(df_user_list) == 0 else np.average(df_user_list.gc)
 
 
-@st.cache_data(ttl="1d", show_spinner=False)
-def get_country_counts(daterange, countries_list, metric, language):
-    df = filter_user_data(daterange, countries_list, language)
-    print("language = " + language)
-    print(df)
+def get_country_counts(daterange, countries_list, metric):
+    df = filter_user_data(daterange, countries_list)
 
     if metric == "LA":
         country_counts = (

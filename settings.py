@@ -61,6 +61,8 @@ def initialize():
         st.session_state["logger"] = logger
     if "bq_client" not in st.session_state:
         st.session_state["bq_client"] = bq_client
+    if "language" not in st.session_state:
+        st.session_state.language = "All"
 
 
 def init_user_list():
