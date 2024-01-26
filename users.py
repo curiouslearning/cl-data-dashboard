@@ -11,7 +11,7 @@ def get_users_list():
                 SELECT *
                     FROM `dataexploration-193817.user_data.users_data`
                 WHERE
-                    first_open BETWEEN PARSE_DATE('%Y/%m/%d','2024/01/01') AND CURRENT_DATE() 
+                    first_open BETWEEN PARSE_DATE('%Y/%m/%d','2021/01/01') AND CURRENT_DATE() 
                 """
     rows_raw = bq_client.query(sql_query)
     rows = [dict(row) for row in rows_raw]
