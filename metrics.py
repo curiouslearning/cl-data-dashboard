@@ -1,7 +1,6 @@
 import streamlit as st
 from rich import print
 import pandas as pd
-import datetime as dt
 import numpy as np
 
 
@@ -69,9 +68,12 @@ def get_totals_by_metric(daterange, countries_list, stat="LR"):
 
 
 def filter_user_data(daterange, countries_list, stat="LR"):
-
+    language = "All"
+    if "df_user_list" not in st.session_state:
+        return pd.DataFrame()
     df_user_list = st.session_state.df_user_list
-    language = st.session_state["language"]
+    if "language" in st.session_state:
+        language = st.session_state.language
 
     conditions = [
         f"@daterange[0] <= first_open <= @daterange[1]",
