@@ -11,14 +11,11 @@ import pandas as pd
 import users
 
 
-@st.cache_resource
 def get_bq_client():
     credentials = get_gcp_credentials()
     bq_client = bigquery.Client(credentials=credentials)
     return bq_client
 
-
-@st.cache_resource
 def get_gcp_credentials():
     # Create BigQuery API client.
     gcp_credentials = service_account.Credentials.from_service_account_info(
@@ -46,7 +43,6 @@ def get_logger():
     return logger
 
 
-@st.cache_data(show_spinner=False, ttl="1d")
 def initialize():
     pd.set_option("display.max_columns", 20)
     logger = get_logger()
@@ -61,7 +57,6 @@ def initialize():
     logger.info("initialization complete")
 
 
-@st.cache_data(show_spinner="Loading user data", ttl="1d")
 def init_user_list():
     df_user_list = users.get_users_list()
     if "df_user_list" not in st.session_state:
@@ -70,7 +65,6 @@ def init_user_list():
     logger.info("user load complete")
 
 
-@st.cache_data(show_spinner=False, ttl="1d")
 def init_campaign_data():
     df_fb = campaigns.get_fb_campaign_data()
     df_goog = campaigns.get_google_campaign_data()
@@ -83,9 +77,3 @@ def init_campaign_data():
         st.session_state["df_all"] = df_all
 
 
-# Ensure that the selector sessions are reset when moving from page to page and back
-def clear_selector_session_state():
-    if "max_selections" in st.session_state:
-        del st.session_state["max_selections"]
-    if "selected_options" in st.session_state:
-        del st.session_state["selected_options"]
