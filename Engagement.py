@@ -5,9 +5,6 @@ import metrics
 from millify import prettify
 import ui_components as ui
 import users
-import plotly.graph_objects as go
-import plotly.express as px
-
 
 st.set_page_config(layout="wide")
 st.title("Curious Learning Dashboard")
@@ -15,7 +12,7 @@ st.title("Curious Learning Dashboard")
 ui.display_definitions_table()
 
 settings.initialize()
-
+settings.init_user_list()
 selected_date, option = ui.calendar_selector()
 daterange = ui.convert_date_to_range(selected_date, option)
 
@@ -24,7 +21,6 @@ ui.language_selector()  # puts selection in session state
 countries_list = users.get_country_list()
 countries_list = ui.multi_select_all(countries_list, title="Country Selection")
 
-settings.init_user_list()
 
 # In the case of datepicker, don't do anything until both start and end dates are picked
 if len(daterange) == 2 and len(countries_list) > 0:
