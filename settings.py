@@ -33,7 +33,7 @@ def get_gcp_credentials():
 
 
 @st.cache_resource
-def init_logging():
+def get_logger():
     credentials = get_gcp_credentials()
     logging_client = google.cloud.logging.Client(credentials=credentials)
     logging_client.setup_logging(log_level=logging.DEBUG)
@@ -49,7 +49,7 @@ def init_logging():
 @st.cache_data(show_spinner=False, ttl="1d")
 def initialize():
     pd.set_option("display.max_columns", 20)
-    logger = init_logging()
+    logger = get_logger()
     bq_client = get_bq_client()
 
     if "logger" not in st.session_state:
@@ -66,6 +66,8 @@ def init_user_list():
     df_user_list = users.get_users_list()
     if "df_user_list" not in st.session_state:
         st.session_state["df_user_list"] = df_user_list
+    logger = get_logger()
+    logger.info("user load complete")
 
 
 @st.cache_data(show_spinner=False, ttl="1d")
