@@ -449,7 +449,7 @@ def LR_LA_line_chart_over_time(daterange, countries_list):
     grouped_df = (
         df_user_list.groupby([groupby, "country"]).size().reset_index(name=option)
     )
-    grouped_df["7 Day Rolling Mean"] = grouped_df["LR"].rolling(7).mean()
+    grouped_df["7 Day Rolling Mean"] = grouped_df[option].rolling(7).mean()
 
     # Plotly line graph
     fig = px.line(
