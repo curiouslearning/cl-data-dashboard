@@ -103,7 +103,7 @@ def get_GPC_avg_by_date(daterange, countries_list):
 
 def get_country_counts(daterange, countries_list, stat):
     df = filter_user_data(daterange, countries_list)
-
+    df.info()
     if stat == "LA":
         country_counts = (
             df[df["max_user_level"] >= 1]
