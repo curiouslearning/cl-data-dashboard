@@ -45,7 +45,7 @@ def get_language_list():
 
 @st.cache_data(ttl="1d", show_spinner=False)
 def get_country_list():
-    countries_list = ["All"]
+    countries_list = []
     if "bq_client" in st.session_state:
         bq_client = st.session_state.bq_client
         sql_query = f"""
@@ -60,6 +60,5 @@ def get_country_list():
             return pd.DataFrame()
 
         df = pd.DataFrame(rows)
-        df.dropna(inplace=True)
         countries_list = np.array(df.values).flatten().tolist()
     return countries_list
