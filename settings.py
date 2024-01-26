@@ -58,9 +58,10 @@ def initialize():
         st.session_state["bq_client"] = bq_client
     if "language" not in st.session_state:
         st.session_state.language = "All"
+    logger.info("initialization complete")
 
 
-@st.cache_data(show_spinner=False, ttl="1d")
+@st.cache_data(show_spinner="Loading user data", ttl="1d")
 def init_user_list():
     df_user_list = users.get_users_list()
     if "df_user_list" not in st.session_state:
