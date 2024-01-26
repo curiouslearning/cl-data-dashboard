@@ -2,6 +2,7 @@ import streamlit as st
 from rich import print
 import pandas as pd
 import numpy as np
+import settings
 
 
 @st.cache_data(ttl="1d", show_spinner=False)
@@ -103,7 +104,8 @@ def get_GPC_avg_by_date(daterange, countries_list):
 
 def get_country_counts(daterange, countries_list, stat):
     df = filter_user_data(daterange, countries_list)
-    df.info()
+    logger = settings.get_logger()
+    logger.info(df.info())
     if stat == "LA":
         country_counts = (
             df[df["max_user_level"] >= 1]
