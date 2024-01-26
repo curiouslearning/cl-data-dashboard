@@ -155,10 +155,10 @@ def language_selector():
 
 def multi_select_all(available_options, title):
     available_options.insert(0, "All")
-    
+
     # If a user switches to another page and comes back, selected options is dropped from session state
     # but max_selections still exists.  This has to do with how streamlit handles the key option in widgets
-    # This will ensure All is selected when coming back to the page    
+    # This will ensure All is selected when coming back to the page
     if "selected_options" not in st.session_state:
         st.session_state["selected_options"] = ["All"]
     if "max_selections" not in st.session_state:
@@ -449,6 +449,7 @@ def LR_LA_line_chart_over_time(daterange, countries_list):
     grouped_df = (
         df_user_list.groupby([groupby, "country"]).size().reset_index(name=option)
     )
+    grouped_df["7 Day Rolling Mean"] = grouped_df["LR"].rolling(7).mean()
 
     # Plotly line graph
     fig = px.line(
@@ -456,7 +457,7 @@ def LR_LA_line_chart_over_time(daterange, countries_list):
         x=groupby,
         y=option,
         color="country",
-        markers=True,
+        markers=False,
         title=title,
     )
 

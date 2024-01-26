@@ -60,5 +60,6 @@ def get_country_list():
             return pd.DataFrame()
 
         df = pd.DataFrame(rows)
+        df.dropna(inplace=True)
         countries_list = np.array(df.values).flatten().tolist()
     return countries_list
