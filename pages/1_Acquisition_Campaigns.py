@@ -13,7 +13,7 @@ ui.display_definitions_table()
 settings.initialize()
 settings.init_campaign_data()
 settings.init_user_list()
-settings.clear_selector_session_state()
+# settings.clear_selector_session_state()
 selected_date, option = ui.calendar_selector()
 daterange = ui.convert_date_to_range(selected_date, option)
 
@@ -28,5 +28,5 @@ if len(daterange) == 2:
     st.subheader("Campaign Timelines and Performance")
     ui.campaign_gantt_chart(daterange)
 
-    st.subheader("Top 10 Campaigns")
-    ui.top_campaigns_by_downloads_barchart(10)
+#    st.subheader("Top 10 Campaigns")
+#    ui.top_campaigns_by_downloads_barchart(10)

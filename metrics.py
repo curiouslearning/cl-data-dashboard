@@ -69,6 +69,7 @@ def get_totals_by_metric(daterange, countries_list, stat="LR"):
 
 
 def filter_user_data(daterange, countries_list, stat="LR"):
+
     df_user_list = st.session_state.df_user_list
     language = st.session_state["language"]
 

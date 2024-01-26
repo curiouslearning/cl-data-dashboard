@@ -133,7 +133,7 @@ def ads_platform_selector():
 
 
 # this is a callback for language_selector
-def update_session_state():
+def update_language_session_state():
     if st.session_state.lang_key:
         st.session_state.language = st.session_state.lang_key
 
@@ -149,8 +149,59 @@ def language_selector():
         df,
         index=0,
         key="lang_key",
-        on_change=update_session_state,
+        on_change=update_language_session_state,
     )
+
+
+def multi_select_all(available_options, title):
+    available_options.insert(0, "All")
+    
+    # If a user switches to another page and comes back, selected options is dropped from session state
+    # but max_selections still exists.  This has to do with how streamlit handles the key option in widgets
+    # This will ensure All is selected when coming back to the page    
+    if "selected_options" not in st.session_state:
+        st.session_state["selected_options"] = ["All"]
+    if "max_selections" not in st.session_state:
+        st.session_state["max_selections"] = 1  # Enforce single selection
+        st.session_state["selected_options"] = ["All"]  # Set default to "All"
+
+    def options_select():  # Define options_select inside multi_select_all
+        if "selected_options" in st.session_state:
+            if "All" in st.session_state["selected_options"]:
+                st.session_state["selected_options"] = [
+                    "All"
+                ]  # Reset to "All" if deselected
+                st.session_state["max_selections"] = 1  # Enforce single selection again
+            else:
+                st.session_state["max_selections"] = len(
+                    available_options
+                )  # Allow multiple selections
+        else:
+            print("A")
+
+    st.sidebar.multiselect(
+        label=title,
+        options=available_options,
+        key="selected_options",
+        max_selections=st.session_state["max_selections"],
+        on_change=options_select,  # Pass the function without calling it
+        format_func=lambda x: "All" if x == "All" else f"{x}",
+    )
+
+    # Display options based on selection state
+    if "All" in st.session_state["selected_options"]:
+        st.sidebar.write("You selected all options.")
+    else:
+        st.sidebar.write(
+            f"You selected {len(st.session_state['selected_options'])} options: "
+        )
+        st.sidebar.write(st.session_state["selected_options"])
+
+    return (
+        available_options[1:]
+        if "All" in st.session_state["selected_options"]
+        else st.session_state["selected_options"]
+    )  # Return full list if "All" is selected
 
 
 def calendar_selector():
@@ -321,7 +372,7 @@ def campaign_gantt_chart(daterange):
         x_start="start_date",
         x_end="end_date",
         y="campaign_name",
-        color="count",
+        #        color="count",
     )
 
     fig.update_yaxes(autorange="reversed")
@@ -354,50 +405,6 @@ def campaign_gantt_chart(daterange):
     st.plotly_chart(
         fig, use_container_width=True
     )  # Display the plotly chart in Streamlit
-
-
-def multi_select_all(available_options, title):
-    available_options.insert(0, "All")
-
-    if "max_selections" not in st.session_state:
-        st.session_state["max_selections"] = 1  # Enforce single selection
-        st.session_state["selected_options"] = ["All"]  # Set default to "All"
-
-    def options_select():  # Define options_select inside multi_select_all
-        if "selected_options" in st.session_state:
-            if "All" in st.session_state["selected_options"]:
-                st.session_state["selected_options"] = [
-                    "All"
-                ]  # Reset to "All" if deselected
-                st.session_state["max_selections"] = 1  # Enforce single selection again
-            else:
-                st.session_state["max_selections"] = len(
-                    available_options
-                )  # Allow multiple selections
-
-    st.sidebar.multiselect(
-        label=title,
-        options=available_options,
-        key="selected_options",
-        max_selections=st.session_state["max_selections"],
-        on_change=options_select,  # Pass the function without calling it
-        format_func=lambda x: "All" if x == "All" else f"{x}",
-    )
-
-    # Display options based on selection state
-    if "All" in st.session_state["selected_options"]:
-        st.sidebar.write("You selected all options.")
-    else:
-        st.sidebar.write(
-            f"You selected {len(st.session_state['selected_options'])} options: "
-        )
-        st.sidebar.write(st.session_state["selected_options"])
-
-    return (
-        available_options[1:]
-        if "All" in st.session_state["selected_options"]
-        else st.session_state["selected_options"]
-    )  # Return full list if "All" is selected
 
 
 def top_gpc_bar_chart(daterange, countries_list):
