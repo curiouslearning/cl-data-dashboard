@@ -22,6 +22,7 @@ def get_users_list():
     return df
 
 
+@st.cache_data(ttl="1d", show_spinner=False)
 def get_language_list():
     lang_list = ["All"]
     if "bq_client" in st.session_state:
@@ -42,6 +43,7 @@ def get_language_list():
     return lang_list
 
 
+@st.cache_data(ttl="1d", show_spinner=False)
 def get_country_list():
     countries_list = []
     if "bq_client" in st.session_state:

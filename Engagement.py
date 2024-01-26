@@ -15,8 +15,6 @@ st.title("Curious Learning Dashboard")
 ui.display_definitions_table()
 
 settings.initialize()
-settings.init_user_list()
-
 
 selected_date, option = ui.calendar_selector()
 daterange = ui.convert_date_to_range(selected_date, option)
@@ -25,6 +23,8 @@ ui.language_selector()  # puts selection in session state
 
 countries_list = users.get_country_list()
 countries_list = ui.multi_select_all(countries_list, title="Country Selection")
+
+settings.init_user_list()
 
 # In the case of datepicker, don't do anything until both start and end dates are picked
 if len(daterange) == 2 and len(countries_list) > 0:
