@@ -46,9 +46,11 @@ if len(daterange) == 2 and len(countries_list) > 0:
     st.subheader("Engagement across the world")
     ui.stats_by_country_map(daterange, countries_list)
     st.divider()
+    option = st.radio("Select a statistic", ("LR", "LA"), index=0, horizontal=True)
+
     c1, c2 = st.columns(2)
     with c1:
-        ui.top_LR_LC_bar_chart(daterange, countries_list)
+        ui.top_LR_LC_bar_chart(daterange, countries_list, option)
     with c2:
         st.markdown("")
         st.markdown("")
@@ -56,4 +58,8 @@ if len(daterange) == 2 and len(countries_list) > 0:
 
     st.divider()
     st.subheader("Engagement over time")
-    ui.LR_LA_line_chart_over_time(daterange, countries_list)
+    option = st.radio(
+        "Select a statistic", ("LR", "LA"), index=0, horizontal=True, key="A"
+    )
+
+    ui.LR_LA_line_chart_over_time(daterange, countries_list, option)

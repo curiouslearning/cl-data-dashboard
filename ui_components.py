@@ -411,13 +411,12 @@ def top_gpc_bar_chart(daterange, countries_list):
     df = metrics.get_country_counts(daterange, countries_list, "GPC").head(10)
     df.rename(columns={"country": "Country"}, inplace=True)
     fig = px.bar(
-        df, x="Country", y="GPC", color="GPC", title="Top 10 Countries by GPC %"
+        df, x="Country", y="GPC", color="Country", title="Top 10 Countries by GPC %"
     )
     st.plotly_chart(fig, use_container_width=True)
 
 
-def top_LR_LC_bar_chart(daterange, countries_list):
-    option = st.radio("Select a statistic", ("LR", "LA"), index=0, horizontal=True)
+def top_LR_LC_bar_chart(daterange, countries_list, option):
     df = metrics.get_country_counts(daterange, countries_list, str(option)).head(10)
 
     title = "Top 10 Countries by " + str(option)
@@ -431,10 +430,7 @@ def top_LR_LC_bar_chart(daterange, countries_list):
     st.plotly_chart(fig, use_container_width=True)
 
 
-def LR_LA_line_chart_over_time(daterange, countries_list):
-    option = st.radio(
-        "Select a statistic", ("LR", "LA"), index=0, horizontal=True, key="A"
-    )
+def LR_LA_line_chart_over_time(daterange, countries_list, option):
     df_user_list = metrics.filter_user_data(daterange, countries_list, option)
     if option == "LA":
         groupby = "LA Date"
@@ -449,7 +445,7 @@ def LR_LA_line_chart_over_time(daterange, countries_list):
     grouped_df = (
         df_user_list.groupby([groupby, "country"]).size().reset_index(name=option)
     )
-    grouped_df["7 Day Rolling Mean"] = grouped_df[option].rolling(7).mean()
+    grouped_df["7 Day Rolling Mean"] = grouped_df[option].rolling(14).mean()
 
     # Plotly line graph
     fig = px.line(
