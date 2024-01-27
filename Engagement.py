@@ -30,7 +30,7 @@ if len(daterange) == 2 and len(countries_list) > 0:
     st.markdown("**Selected Range:**")
     st.text(date_start + " to " + date_end)
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
 
     total = metrics.get_totals_by_metric(daterange, countries_list, stat="LR")
     col1.metric(label="Learners Reached", value=prettify(int(total)))
@@ -38,8 +38,11 @@ if len(daterange) == 2 and len(countries_list) > 0:
     total = metrics.get_totals_by_metric(daterange, countries_list, "LA")
     col2.metric(label="Learners Acquired", value=prettify(int(total)))
 
-    total = metrics.get_GPC_avg_by_date(daterange, countries_list)
+    total = metrics.get_GPC_avg(daterange, countries_list)
     col3.metric(label="Game Percent Complete Average", value=f"{total:.2f}%")
+
+    total = metrics.get_GC_avg(daterange, countries_list)
+    col4.metric(label="Game Completion Average", value=f"{total:.2f}%")
 
     st.divider()
 
@@ -52,8 +55,6 @@ if len(daterange) == 2 and len(countries_list) > 0:
     with c1:
         ui.top_LR_LC_bar_chart(daterange, countries_list, option)
     with c2:
-        st.markdown("")
-        st.markdown("")
         ui.top_gpc_bar_chart(daterange, countries_list)
 
     st.divider()

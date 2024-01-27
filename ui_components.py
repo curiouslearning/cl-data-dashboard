@@ -176,8 +176,6 @@ def multi_select_all(available_options, title):
                 st.session_state["max_selections"] = len(
                     available_options
                 )  # Allow multiple selections
-        else:
-            print("A")
 
     st.sidebar.multiselect(
         label=title,
