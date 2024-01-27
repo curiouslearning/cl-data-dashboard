@@ -104,8 +104,7 @@ def get_GC_avg(daterange, countries_list):
     df_user_list = df_user_list.fillna(0)
 
     cohort_count = len(df_user_list)
-    gc_count = (df_user_list["gpc"] >= 90).count()
-    print("gc_count = " + str(gc_count))
+    gc_count = df_user_list[(df_user_list["gpc"] >= 90)].shape[0]
 
     return 0 if cohort_count == 0 else gc_count / cohort_count
 
