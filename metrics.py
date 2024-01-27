@@ -91,21 +91,28 @@ def filter_user_data(daterange, countries_list, stat="LR"):
     return df_user_list
 
 
-def get_users_by_metric(daterange, countries_list, stat="LR"):
-    df_user_list = filter_user_data(daterange, countries_list, stat)
-    return df_user_list if len(df_user_list) > 0 else pd.DataFrame()
-
-
-def get_GPC_avg_by_date(daterange, countries_list):
+def get_GPC_avg(daterange, countries_list):
+    # Use LA as the baseline
     df_user_list = filter_user_data(daterange, countries_list, stat="LA")
     df_user_list = df_user_list.fillna(0)
     return 0 if len(df_user_list) == 0 else np.average(df_user_list.gpc)
 
 
+def get_GC_avg(daterange, countries_list):
+    # Use LA as the baseline
+    df_user_list = filter_user_data(daterange, countries_list, stat="LA")
+    df_user_list = df_user_list.fillna(0)
+
+    cohort_count = len(df_user_list)
+    gc_count = (df_user_list["gpc"] >= 90).count()
+    print("gc_count = " + str(gc_count))
+
+    return 0 if cohort_count == 0 else gc_count / cohort_count
+
+
 def get_country_counts(daterange, countries_list, stat):
     df = filter_user_data(daterange, countries_list)
     logger = settings.get_logger()
-    logger.info(df.info())
     if stat == "LA":
         country_counts = (
             df[df["max_user_level"] >= 1]
