@@ -50,12 +50,12 @@ if len(daterange) == 2 and len(countries_list) > 0:
     ui.stats_by_country_map(daterange, countries_list)
     st.divider()
     option = st.radio("Select a statistic", ("LR", "LA"), index=0, horizontal=True)
-
+    ui.top_LR_LC_bar_chart(daterange, countries_list, option)
     c1, c2 = st.columns(2)
     with c1:
-        ui.top_LR_LC_bar_chart(daterange, countries_list, option)
-    with c2:
         ui.top_gpc_bar_chart(daterange, countries_list)
+    with c2:
+        ui.top_gca_bar_chart(daterange, countries_list)
 
     st.divider()
     st.subheader("Engagement over time")
