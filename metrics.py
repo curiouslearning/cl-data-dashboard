@@ -111,6 +111,8 @@ def get_GC_avg(daterange, countries_list):
 
 def get_country_counts(daterange, countries_list, stat):
     df = filter_user_data(daterange, countries_list)
+    # default dataset from filter is LR which we want here as baseline
+    # and will apply filters accordingly below
     logger = settings.get_logger()
     if stat == "LA":
         country_counts = (
@@ -145,7 +147,7 @@ def get_country_counts(daterange, countries_list, stat):
             )
             .fillna(0)
         )
-    else:
+    elif stat == "GPC":
         # Calculate the average GPC per country
         avg_gpc_per_country = df.groupby("country")["gpc"].mean().round(2)
         # Create a new DataFrame with the average GPC per country
@@ -159,5 +161,27 @@ def get_country_counts(daterange, countries_list, stat):
             .sort_values(by="GPC", ascending=False)
             .fillna(0)
         )
+    else:
+        gpc_gt_90_counts = (
+            df[df["gpc"] >= 90].groupby("country")["user_pseudo_id"].count()
+        )
+        total_user_counts = df.groupby("country")["user_pseudo_id"].count()
+
+        # Reset index to bring "country" back as a column
+        gpc_gt_90_counts = gpc_gt_90_counts.reset_index()
+        total_user_counts = total_user_counts.reset_index()
+
+        # Merge the counts into a single DataFrame
+        country_counts = pd.merge(
+            gpc_gt_90_counts.rename(columns={"user_pseudo_id": "gpc_gt_90_users"}),
+            total_user_counts.rename(columns={"user_pseudo_id": "total_users"}),
+            on="country",
+        )
+
+        # Calculate the percentage and add it as a new column
+        country_counts["GCA"] = (
+            country_counts["gpc_gt_90_users"] / country_counts["total_users"]
+        )
+        country_counts.sort_values(by="GCA", ascending=False, inplace=True)
 
     return country_counts
