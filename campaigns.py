@@ -80,7 +80,7 @@ def get_fb_campaign_data():
         df.campaign_start_date, utc=True
     ).dt.strftime("%Y/%m/%d")
     df["campaign_end_date"] = pd.to_datetime(
-        df.campaign_start_date, utc=True
+        df.campaign_end_date, utc=True
     ).dt.strftime("%Y/%m/%d")
     df["day"] = pd.to_datetime(df["day"]).dt.date
     df["source"] = "Facebook"
