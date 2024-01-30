@@ -32,7 +32,7 @@ def get_google_campaign_data():
 
     df["campaign_id"] = df["campaign_id"].astype(str).str.replace(",", "")
     df["day"] = pd.to_datetime(df["day"]).dt.date
-    df["cost"] = df["cost"].divide(1000000)
+    df["cost"] = df["cost"].divide(1000000).round(2)
     df["cpc"] = df["cpc"].divide(1000000)
     df = df.convert_dtypes()
 
@@ -40,6 +40,8 @@ def get_google_campaign_data():
     df["mobile_app_install"] = 0  # Holding place until that metric is available
     df.reset_index(drop=True, inplace=True)
     df.set_index("campaign_id")
+
+    df = add_campaign_country(df)
     return df
 
 
@@ -85,6 +87,33 @@ def get_fb_campaign_data():
     df["mobile_app_install"] = pd.to_numeric(df["mobile_app_install"])
     df.reset_index(drop=True, inplace=True)
     df.set_index("campaign_id")
+
+    df = add_campaign_country(df)
+
+    return df
+
+
+@st.cache_data(ttl="1d", show_spinner=False)
+def add_campaign_country(df):
+    bq_client = st.session_state.bq_client
+    sql_query = f"""
+                SELECT *
+                FROM `dataexploration-193817.user_data.campaign_gsheet`;
+                """
+    rows_raw = bq_client.query(sql_query)
+    rows = [dict(row) for row in rows_raw]
+
+    dfcountry = pd.DataFrame(rows)
+    if len(rows) == 0:
+        return pd.DataFrame()
+
+    merged_df = pd.merge(df, dfcountry, on="campaign_id", how="left")
+
+    # Step 2: Drop rows from DataFrame A where there's no match in DataFrame B
+    df = df[df["campaign_id"].isin(dfcountry["campaign_id"].dropna())]
+
+    # Step 3: Update DataFrame A with the values from the merged column
+    df["country"] = merged_df["country"]
 
     return df
 
