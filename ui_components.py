@@ -101,6 +101,7 @@ def month_selector():
     return report_month, report_year
 
 
+"""
 def custom_date_selection():
     # date_range = st.sidebar.date_input("Pick a date", (min_date, max_date))
     today = dt.datetime.now().date()
@@ -112,6 +113,12 @@ def custom_date_selection():
         value=(last_year, today),
         max_value=today,
     )
+"""
+
+
+def custom_date_selection():
+    date_range = st.sidebar.date_input("Pick a date", (min_date, max_date))
+    return date_range
 
     return date_range
 
