@@ -39,6 +39,7 @@ def get_campaign_data_totals(daterange, source):
     df = df.groupby("campaign_id", as_index=True).agg(
         {
             "campaign_name": "first",
+            "country": "first",
             "campaign_start_date": "first",
             "campaign_end_date": "first",
             "mobile_app_install": "sum",
