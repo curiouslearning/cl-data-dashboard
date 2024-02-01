@@ -49,6 +49,7 @@ def get_campaign_data_totals(daterange, source):
             "campaign_end_date": "first",
             "mobile_app_install": "sum",
             "clicks": "sum",
+            "reach": "first",
             "button_clicks": "sum",
             "cost": "sum",
             "cpc": "sum",
@@ -191,5 +192,3 @@ def get_country_counts(daterange, countries_list, stat):
         country_counts.sort_values(by="GCA", ascending=False, inplace=True)
 
     return country_counts
-
-    

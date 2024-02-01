@@ -37,7 +37,8 @@ def get_google_campaign_data():
     df = df.convert_dtypes()
 
     df["source"] = "Google"
-    df["mobile_app_install"] = 0  # Holding place until that metric is available
+    df["mobile_app_install"] = 0  # Facebook only metric
+    df["reach"] = 0  # Facebook only metric
     df.reset_index(drop=True, inplace=True)
     df.set_index("campaign_id")
 
@@ -59,7 +60,8 @@ def get_fb_campaign_data():
             cpc,
             start_time as campaign_start_date, 
             end_time as campaign_end_date,
-            data_date_start as day 
+            data_date_start as day,
+            reach
             FROM dataexploration-193817.marketing_data.facebook_ads_data as d
             JOIN UNNEST(actions) as a
             WHERE a.action_type = 'mobile_app_install'

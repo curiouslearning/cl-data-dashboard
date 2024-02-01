@@ -246,6 +246,7 @@ def split_frame(input_df, rows):
 
 
 def paginated_dataframe(df, keys):
+    df.info()
     top_menu = st.columns(3)
     with top_menu[0]:
         sort = st.radio(
@@ -266,7 +267,7 @@ def paginated_dataframe(df, keys):
     bottom_menu = st.columns((4, 1, 1))
     with bottom_menu[2]:
         batch_size = st.selectbox(
-            "Page Size", options=[25, 50, 100], key=keys[3], index=1
+            "Page Size", options=[50, 100, 500], key=keys[3], index=1
         )
     with bottom_menu[1]:
         total_pages = int(len(df) / batch_size) if int(len(df) / batch_size) > 0 else 1
