@@ -330,12 +330,10 @@ def stats_by_country_map(daterange, countries_list):
 @st.cache_data(ttl="1d")
 def campaign_gantt_chart(daterange):
     df_all = st.session_state.df_all
-    df_user_list = st.session_state.df_user_list
-    df1 = df_all.query("@daterange[0] <= day <= @daterange[1]")
+    df1 = df_all.query("@daterange[0] <= day <= @daterange[1] and source == 'Facebook'")
 
     # We only need any row for each campaign
     df1.drop_duplicates(subset="campaign_name", inplace=True)
-    df2 = df_user_list.query("@daterange[0] <= first_open <= @daterange[1]")
 
     # Converting columns to datetime format
     df1["start_date"] = pd.to_datetime(df1["campaign_start_date"])
@@ -345,22 +343,9 @@ def campaign_gantt_chart(daterange):
     d = pd.to_datetime(dt.date.today())
     df1.loc[df1["end_date"] > d, "end_date"] = d
 
-    df1["campaign_name"] = df1["campaign_name"].str[
+    df1["campaign_name_short"] = df1["campaign_name"].str[
         :20
     ]  # cut the title to fit the chart
-    df2["first_open"] = pd.to_datetime(df2["first_open"])
-
-    # Initializing the count column with zeros
-    df1["count"] = 0
-
-    # Iterating over df1 rows and updating the count column
-    for index, row in df1.iterrows():
-        mask = df2.query(
-            "(@df2.first_open >= @row.start_date) & (@df2.first_open <= @row.end_date)"
-        )
-        df1.at[index, "count"] = len(mask)
-
-    df1 = df1[df1["count"] > 0]  # Eliminate campaigns that didn't get any opens
 
     df1 = df1[
         (df1["end_date"] - df1["start_date"]).dt.days > 1
@@ -370,8 +355,10 @@ def campaign_gantt_chart(daterange):
         df1,
         x_start="start_date",
         x_end="end_date",
-        y="campaign_name",
-        #        color="count",
+        y="campaign_name_short",
+        height=900,
+        color="cost",
+        custom_data=[df1["campaign_name"], df1["cost"]],
     )
 
     fig.update_yaxes(autorange="reversed")
@@ -380,7 +367,6 @@ def campaign_gantt_chart(daterange):
         title="",
         hoverlabel_bgcolor="#DAEEED",
         bargap=0.2,
-        height=600,
         xaxis_title="",
         yaxis_title="",
         title_x=0.5,  # Make title centered
@@ -396,7 +382,10 @@ def campaign_gantt_chart(daterange):
             tickformat="%x\n",
         ),
     )
-
+    hovertemp = "<b>Date: </b> %{x} <br>"
+    hovertemp += "<b>Campaign: </b> %{customdata[0]} <br>"
+    hovertemp += "<b>Cost: </b> %{customdata[1]} <br>"
+    fig.update_traces(hoverinfo="text", hovertemplate=hovertemp)
     fig.update_xaxes(
         tickangle=0, tickfont=dict(family="Rockwell", color="#A9A9A9", size=12)
     )
@@ -466,3 +455,63 @@ def LR_LA_line_chart_over_time(daterange, countries_list, option):
     )
 
     st.plotly_chart(fig, use_container_width=True)
+
+
+def lrc_scatter_chart(daterange):
+    countries_list = users.get_country_list()
+    df_counts = metrics.get_country_counts(daterange, countries_list, "LR")
+    if "df_all" not in st.session_state:
+        return pd.DataFrame()
+    else:
+        df_campaigns = st.session_state.df_all
+
+    option = st.radio("Select a statistic", ("LRC", "LAC"), index=0, horizontal=True)
+    x = "LR" if option == "LRC" else "LA"
+    df_campaigns = df_campaigns.groupby("country")["cost"].sum().round(2).reset_index()
+
+    # Merge dataframes on 'country'
+    merged_df = pd.merge(df_campaigns, df_counts, on="country", how="right")
+
+    # Calculate LRC
+    merged_df[option] = (merged_df["cost"] / merged_df[x]).round(2)
+
+    # Fill NaN values in LRC column with 0
+    merged_df[option].fillna(0, inplace=True)
+
+    scatter_df = merged_df[["country", "cost", option, x]]
+
+    fig = px.scatter(
+        scatter_df,
+        x=x,
+        y=option,
+        color="country",
+        title="Reach to Cost",
+    )
+    fig.update_traces(showlegend=False)
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def spend_by_country_map():
+    #  countries_list = users.get_country_list()
+    if "df_all" not in st.session_state:
+        return pd.DataFrame()
+    else:
+        df_campaigns = st.session_state.df_all
+
+    df_campaigns = df_campaigns.groupby("country")["cost"].sum().round(2).reset_index()
+    country_fig = px.choropleth(
+        df_campaigns,
+        locations="country",
+        color="cost",
+        color_continuous_scale=[
+            "#1584A3",
+            "#DB830F",
+            "#E6DF15",
+        ],
+        height=600,
+        projection="natural earth",
+        locationmode="country names",
+    )
+    country_fig.update_layout(geo=dict(bgcolor="rgba(0,0,0,0)"))
+    country_fig.update_geos(fitbounds="locations")
+    st.plotly_chart(country_fig)

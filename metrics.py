@@ -3,6 +3,11 @@ from rich import print
 import pandas as pd
 import numpy as np
 import settings
+import datetime as dt
+import users
+
+min_date = dt.datetime(2021, 1, 1).date()
+max_date = dt.date.today()
 
 
 @st.cache_data(ttl="1d", show_spinner=False)
@@ -186,3 +191,5 @@ def get_country_counts(daterange, countries_list, stat):
         country_counts.sort_values(by="GCA", ascending=False, inplace=True)
 
     return country_counts
+
+    
