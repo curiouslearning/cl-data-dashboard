@@ -102,6 +102,7 @@ def get_GPC_avg(daterange, countries_list):
     # Use LA as the baseline
     df_user_list = filter_user_data(daterange, countries_list, stat="LA")
     df_user_list = df_user_list.fillna(0)
+
     return 0 if len(df_user_list) == 0 else np.average(df_user_list.gpc)
 
 
@@ -112,8 +113,9 @@ def get_GC_avg(daterange, countries_list):
 
     cohort_count = len(df_user_list)
     gc_count = df_user_list[(df_user_list["gpc"] >= 90)].shape[0]
-
-    return 0 if cohort_count == 0 else gc_count / cohort_count
+    print("gc count = " + str(gc_count))
+    print("cohort count = " + str(cohort_count))
+    return 0 if cohort_count == 0 else gc_count / cohort_count * 100
 
 
 def get_country_counts(daterange, countries_list, stat):
@@ -168,6 +170,7 @@ def get_country_counts(daterange, countries_list, stat):
             .sort_values(by="GPC", ascending=False)
             .fillna(0)
         )
+
     else:
         gpc_gt_90_counts = (
             df[df["gpc"] >= 90].groupby("country")["user_pseudo_id"].count()
@@ -190,5 +193,6 @@ def get_country_counts(daterange, countries_list, stat):
             country_counts["gpc_gt_90_users"] / country_counts["total_users"]
         )
         country_counts.sort_values(by="GCA", ascending=False, inplace=True)
+    #        country_counts.to_csv("cc.csv")
 
     return country_counts
