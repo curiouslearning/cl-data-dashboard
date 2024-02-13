@@ -133,10 +133,20 @@ def ads_platform_selector():
     return platform
 
 
+def app_selector():
+    st.session_state.app = st.sidebar.radio(
+        label="Application",
+        options=["Unity", "CR", "Both"],
+        horizontal=True,
+        index=2,
+    )
+
+
 # this is a callback for language_selector
 def update_language_session_state():
     if st.session_state.lang_key:
         st.session_state.language = st.session_state.lang_key
+    st.experimental_rerun()
 
 
 # This method uses the key parameter of the selectbox
@@ -416,7 +426,7 @@ def top_gca_bar_chart(daterange, countries_list):
 
 def top_LR_LC_bar_chart(daterange, countries_list, option):
     df = metrics.get_country_counts(daterange, countries_list, str(option)).head(10)
-
+    df.info()
     title = "Top 10 Countries by " + str(option)
     fig = go.Figure(
         data=[

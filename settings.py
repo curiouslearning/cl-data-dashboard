@@ -16,6 +16,7 @@ def get_bq_client():
     bq_client = bigquery.Client(credentials=credentials)
     return bq_client
 
+
 def get_gcp_credentials():
     # Create BigQuery API client.
     gcp_credentials = service_account.Credentials.from_service_account_info(
@@ -58,9 +59,11 @@ def initialize():
 
 
 def init_user_list():
-    df_user_list = users.get_users_list()
-    if "df_user_list" not in st.session_state:
-        st.session_state["df_user_list"] = df_user_list
+    df_la, df_lr = users.get_users_list()
+    if "df_la" not in st.session_state:
+        st.session_state["df_la"] = df_la
+    if "df_lr" not in st.session_state:
+        st.session_state["df_lr"] = df_lr
     logger = get_logger()
     logger.info("user load complete")
 
@@ -75,5 +78,3 @@ def init_campaign_data():
         st.session_state["df_goog_conversions"] = df_goog_conversions
     if "df_all" not in st.session_state:
         st.session_state["df_all"] = df_all
-
-

@@ -2,6 +2,7 @@ SELECT
     a.user_pseudo_id,
     a.first_open,
     a.country,
+    a.appinfo as app_id,
     c.la_date as la_date,
     a.app_language,
     MAX(a.level) as max_user_level,
@@ -35,5 +36,5 @@ LEFT JOIN
 ON
     b.app_language = a.app_language
 GROUP BY
-    a.user_pseudo_id, a.first_open, a.country, c.la_date, a.app_language, b.max_level
+    a.user_pseudo_id, a.first_open, a.country, c.la_date, a.app_language, b.max_level,a.appinfo
 

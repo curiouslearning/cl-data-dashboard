@@ -72,16 +72,24 @@ def get_download_totals(daterange):
 
 def get_totals_by_metric(daterange, countries_list, stat="LR"):
     df_user_list = filter_user_data(daterange, countries_list, stat)
+
     return len(df_user_list)
 
 
 def filter_user_data(daterange, countries_list, stat="LR"):
+    print("in filter stat = " + stat)
     language = "All"
-    if "df_user_list" not in st.session_state:
+    app = "Both"
+    if "df_lr" and "df_la" not in st.session_state:
         return pd.DataFrame()
-    df_user_list = st.session_state.df_user_list
+
+    df_la = st.session_state.df_la
+    df_lr = st.session_state.df_lr
+
     if "language" in st.session_state:
         language = st.session_state.language
+    if "app" in st.session_state:
+        app = st.session_state.app
 
     conditions = [
         f"@daterange[0] <= first_open <= @daterange[1]",
@@ -90,11 +98,20 @@ def filter_user_data(daterange, countries_list, stat="LR"):
     if language != "All":
         conditions.append("app_language == @language")
 
+    if app == "CR":
+        conditions.append("app_id == 'org.curiouslearning.container'")
+    elif app == "Unity":
+        conditions.append("app_id != 'org.curiouslearning.container'")
+
     if stat == "LA":
         conditions.append("max_user_level >= 1")
 
     query = " and ".join(conditions)
-    df_user_list = df_user_list.query(query)
+
+    if stat == "LA":
+        df_user_list = df_la.query(query)
+    else:
+        df_user_list = df_lr.query(query)
     return df_user_list
 
 
@@ -113,45 +130,24 @@ def get_GC_avg(daterange, countries_list):
 
     cohort_count = len(df_user_list)
     gc_count = df_user_list[(df_user_list["gpc"] >= 90)].shape[0]
-    print("gc count = " + str(gc_count))
-    print("cohort count = " + str(cohort_count))
+
     return 0 if cohort_count == 0 else gc_count / cohort_count * 100
 
 
 def get_country_counts(daterange, countries_list, stat):
-    # default dataset from filter is LR which we want here as baseline
-    # and will apply filters accordingly below
+
     logger = settings.get_logger()
-    if stat == "LA":
-        df = filter_user_data(daterange, countries_list, stat)
+    if stat == "LA" or stat == "LR":
+        df_lr = filter_user_data(daterange, countries_list, "LR")
+        df_la = filter_user_data(daterange, countries_list, "LA")
         country_counts = (
-            df[df["max_user_level"] >= 1]
-            .groupby("country")
-            .size()
-            .to_frame(name="LA")
-            .reset_index()
-            .sort_values(by="LA", ascending=False)
-            .merge(
-                df.groupby("country").size().to_frame(name="LR").reset_index(),
-                on="country",
-                how="left",
-            )
-            .fillna(0)
-        )
-    elif stat == "LR":
-        df = filter_user_data(daterange, countries_list, stat)
-        country_counts = (
-            df.groupby("country")
+            df_lr.groupby("country")
             .size()
             .to_frame(name="LR")
             .reset_index()
-            .sort_values(by="LR", ascending=False)
+            .sort_values(by=stat, ascending=False)
             .merge(
-                df[df["max_user_level"] >= 1]
-                .groupby("country")
-                .size()
-                .to_frame(name="LA")
-                .reset_index(),
+                df_la.groupby("country").size().to_frame(name="LA").reset_index(),
                 on="country",
                 how="left",
             )
