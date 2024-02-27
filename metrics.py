@@ -77,7 +77,7 @@ def get_totals_by_metric(daterange, countries_list, stat="LR"):
 
 
 def filter_user_data(daterange, countries_list, stat="LR"):
-    print("in filter stat = " + stat)
+
     language = "All"
     app = "Both"
     if "df_lr" and "df_la" not in st.session_state:

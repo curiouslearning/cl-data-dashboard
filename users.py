@@ -30,6 +30,7 @@ def get_users_list():
     rows = [dict(row) for row in rows_raw]
     df_lr = pd.DataFrame(rows)
 
+
     return df_la, df_lr
 
 

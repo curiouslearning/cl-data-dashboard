@@ -256,7 +256,7 @@ def split_frame(input_df, rows):
 
 
 def paginated_dataframe(df, keys):
-    df.info()
+
     top_menu = st.columns(3)
     with top_menu[0]:
         sort = st.radio(
@@ -426,7 +426,7 @@ def top_gca_bar_chart(daterange, countries_list):
 
 def top_LR_LC_bar_chart(daterange, countries_list, option):
     df = metrics.get_country_counts(daterange, countries_list, str(option)).head(10)
-    df.info()
+
     title = "Top 10 Countries by " + str(option)
     fig = go.Figure(
         data=[

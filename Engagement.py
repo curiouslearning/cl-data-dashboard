@@ -16,6 +16,8 @@ settings.init_user_list()
 selected_date, option = ui.calendar_selector()
 daterange = ui.convert_date_to_range(selected_date, option)
 
+ui.language_selector()  # puts selection in session state
+
 countries_list = users.get_country_list()
 countries_list = ui.multi_select_all(countries_list, title="Country Selection")
 
@@ -62,4 +64,3 @@ if len(daterange) == 2 and len(countries_list) > 0:
     )
 
     ui.LR_LA_line_chart_over_time(daterange, countries_list, option)
-
