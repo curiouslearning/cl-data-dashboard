@@ -343,6 +343,14 @@ def campaign_gantt_chart(daterange):
     df_all = st.session_state.df_all
     df1 = df_all.query("@daterange[0] <= day <= @daterange[1] and source == 'Facebook'")
 
+    # set the cost value in each row to the total cost for that campaign
+    df1 = (
+        df1.groupby(["campaign_name", "campaign_start_date", "campaign_end_date"])[
+            "cost"
+        ]
+        .sum()
+        .reset_index()
+    )
     # We only need any row for each campaign
     df1.drop_duplicates(subset="campaign_name", inplace=True)
 
@@ -368,6 +376,15 @@ def campaign_gantt_chart(daterange):
         x_end="end_date",
         y="campaign_name_short",
         height=900,
+        color_continuous_scale=[
+            [0, "rgb(166,206,227, 0.5)"],
+            [0.05, "rgb(31,120,180,0.5)"],
+            [0.1, "rgb(178,223,138,0.5)"],
+            [0.3, "rgb(51,160,44,0.5)"],
+            [0.6, "rgb(251,154,153,0.5)"],
+            [1, "rgb(227,26,28,0.5)"],
+        ],
+        color_discrete_sequence=px.colors.qualitative.Vivid,
         color="cost",
         custom_data=[df1["campaign_name"], df1["cost"]],
     )
