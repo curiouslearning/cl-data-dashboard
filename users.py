@@ -31,16 +31,6 @@ def get_users_list():
     rows = [dict(row) for row in rows_raw]
     df_lr = pd.DataFrame(rows)
 
-    sql_query = f"""
-                SELECT *
-                    FROM `dataexploration-193817.user_data.puzzle_completed_users`
-                WHERE
-                    first_open BETWEEN PARSE_DATE('%Y/%m/%d','2021/01/01') AND CURRENT_DATE() 
-                """
-    rows_raw = bq_client.query(sql_query)
-    rows = [dict(row) for row in rows_raw]
-    df_lr = pd.DataFrame(rows)
-
     return df_la, df_lr
 
 
