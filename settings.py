@@ -2,10 +2,10 @@ import google.cloud.logging
 import streamlit as st
 import logging
 import os
-import datetime as dt
 from google.oauth2 import service_account
 from google.cloud import bigquery
 import campaigns
+import play_data
 from rich import print
 import pandas as pd
 import users
@@ -78,3 +78,8 @@ def init_campaign_data():
         st.session_state["df_goog_conversions"] = df_goog_conversions
     if "df_all" not in st.session_state:
         st.session_state["df_all"] = df_all
+
+
+def init_play_data():
+    df_pd = play_data.get_play_installs()
+    st.session_state["df_pd"] = df_pd

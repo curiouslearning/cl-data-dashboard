@@ -30,19 +30,22 @@ if len(daterange) == 2 and len(countries_list) > 0:
     st.markdown("**Selected Range:**")
     st.text(date_start + " to " + date_end)
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     total = metrics.get_totals_by_metric(daterange, countries_list, stat="LR")
     col1.metric(label="Learners Reached", value=prettify(int(total)))
 
+    total = metrics.get_puzzle_completed_count()
+    col2.metric(label="Fed the Monster", value=prettify(int(total)))
+
     total = metrics.get_totals_by_metric(daterange, countries_list, "LA")
-    col2.metric(label="Learners Acquired", value=prettify(int(total)))
+    col3.metric(label="Learners Acquired", value=prettify(int(total)))
 
     total = metrics.get_GPC_avg(daterange, countries_list)
-    col3.metric(label="Game Percent Complete Average", value=f"{total:.2f}%")
+    col4.metric(label="Game % Complete Avg", value=f"{total:.2f}%")
 
     total = metrics.get_GC_avg(daterange, countries_list)
-    col4.metric(label="Game Completion Average", value=f"{total:.2f}%")
+    col5.metric(label="Game Completion Avg", value=f"{total:.2f}%")
 
     st.divider()
 

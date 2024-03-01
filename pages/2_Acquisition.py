@@ -1,10 +1,7 @@
 import streamlit as st
-import pandas as pd
 import settings
 from rich import print as rprint
-import metrics
 from millify import prettify
-
 import ui_components as ui
 
 st.title("Curious Learning Dashboard")
@@ -13,10 +10,10 @@ ui.display_definitions_table()
 settings.initialize()
 settings.init_campaign_data()
 settings.init_user_list()
+settings.init_play_data()
 
 selected_date, option = ui.calendar_selector()
 daterange = ui.convert_date_to_range(selected_date, option)
-
 
 # In the case of datepicker, don't do anything until both start and end dates are picked
 if len(daterange) == 2:
