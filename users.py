@@ -5,8 +5,9 @@ import numpy as np
 
 
 # Firebase returns two different formats of user_pseudo_id between
-# web app events and android events, so we have to run two queries
+# web app events and android events, so we have to run multiple queries
 # instead of a join because we don't have a unique key for both
+# This would all be unncessery if dev had included the app user id per the spec.
 @st.cache_data(ttl="1d", show_spinner="Gathering User List")
 def get_users_list():
     bq_client = st.session_state.bq_client

@@ -11,4 +11,5 @@ settings.init_campaign_data()
 settings.init_user_list()
 settings.init_play_data()
 
+ui.app_selector()
 ui.funnel_chart()

@@ -209,7 +209,7 @@ def get_puzzle_completed_count():
         bq_client = st.session_state.bq_client
     sql_query = f"""
         select count(*) 
-        FROM `dataexploration-193817.user_data.puzzle_completed_list`
+        FROM `dataexploration-193817.user_data.puzzle_completed_users`
         """
 
     iterator = bq_client.query(sql_query).result()
