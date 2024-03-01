@@ -5,8 +5,9 @@ import numpy as np
 
 
 # Firebase returns two different formats of user_pseudo_id between
-# web app events and android events, so we have to run two queries
+# web app events and android events, so we have to run multiple queries
 # instead of a join because we don't have a unique key for both
+# This would all be unncessery if dev had included the app user id per the spec.
 @st.cache_data(ttl="1d", show_spinner="Gathering User List")
 def get_users_list():
     bq_client = st.session_state.bq_client
@@ -26,6 +27,16 @@ def get_users_list():
             WHERE
                 first_open BETWEEN PARSE_DATE('%Y/%m/%d','2021/01/01') AND CURRENT_DATE() 
             """
+    rows_raw = bq_client.query(sql_query)
+    rows = [dict(row) for row in rows_raw]
+    df_lr = pd.DataFrame(rows)
+
+    sql_query = f"""
+                SELECT *
+                    FROM `dataexploration-193817.user_data.puzzle_completed_users`
+                WHERE
+                    first_open BETWEEN PARSE_DATE('%Y/%m/%d','2021/01/01') AND CURRENT_DATE() 
+                """
     rows_raw = bq_client.query(sql_query)
     rows = [dict(row) for row in rows_raw]
     df_lr = pd.DataFrame(rows)

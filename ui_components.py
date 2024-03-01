@@ -571,14 +571,6 @@ def funnel_chart():
     installs = metrics.get_total_installs()
     puzzle_completed = metrics.get_puzzle_completed_count()
 
-    print(impressions)
-    print(clicks)
-    print(installs)
-    print(LR)
-    print(puzzle_completed)
-    print(LA)
-    print(gc_count)
-
     fig = go.Figure(
         go.Funnel(
             y=[
@@ -606,12 +598,13 @@ def funnel_chart():
                     "#FFFFFF",
                 ],
                 "line": {
-                    "width": [4, 2, 2, 3, 1, 1],
-                    "color": ["wheat", "wheat", "blue", "green", "wheat", "wheat"],
+                    "width": [4, 3, 2, 2, 2, 1, 1],
+                    "color": ["wheat", "wheat", "wheat", "wheat", "wheat", "red"],
                 },
             },
             connector={"line": {"color": "royalblue", "dash": "dot", "width": 3}},
         )
     )
+    fig.update_traces(texttemplate="%{value:,d}")
 
     st.plotly_chart(fig, use_container_width=True)
