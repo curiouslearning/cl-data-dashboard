@@ -194,3 +194,24 @@ def get_country_counts(daterange, countries_list, stat):
         country_counts.sort_values(by="GCA", ascending=False, inplace=True)
 
     return country_counts
+
+
+def get_total_installs():
+    df_pd = st.session_state.df_pd
+
+    return df_pd["Daily_Device_Installs"].sum()
+
+
+@st.cache_data(ttl="1d", show_spinner=False)
+def get_puzzle_completed_count():
+
+    if "bq_client" in st.session_state:
+        bq_client = st.session_state.bq_client
+    sql_query = f"""
+        select count(*) 
+        FROM `dataexploration-193817.user_data.puzzle_completed_list`
+        """
+
+    iterator = bq_client.query(sql_query).result()
+    first_row = next(iterator)
+    return first_row[0]

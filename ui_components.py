@@ -4,13 +4,15 @@ import datetime as dt
 import calendar
 from rich import print
 import plost
-import numpy as np
+import users
 import plotly.express as px
 import plotly.graph_objects as go
 import metrics
+from millify import prettify
+
 
 from dateutil.relativedelta import relativedelta
-import users
+
 
 min_date = dt.datetime(2021, 1, 1).date()
 max_date = dt.date.today()
@@ -34,6 +36,12 @@ def display_definitions_table():
                 "Learner Reached",
                 "The number of users that downloaded and opened the app",
                 "COUNT(Learners Reached)",
+            ],
+            [
+                "PC",
+                "Puzzle Complete / Fed the Monster",
+                "The number of users that have completed at least one puzzle",
+                "",
             ],
             [
                 "LA",
@@ -520,7 +528,7 @@ def lrc_scatter_chart(daterange):
 
 
 def spend_by_country_map():
-    #  countries_list = users.get_country_list()
+
     if "df_all" not in st.session_state:
         return pd.DataFrame()
     else:
@@ -543,3 +551,67 @@ def spend_by_country_map():
     country_fig.update_layout(geo=dict(bgcolor="rgba(0,0,0,0)"))
     country_fig.update_geos(fitbounds="locations")
     st.plotly_chart(country_fig)
+
+
+def funnel_chart():
+    df_campaigns = st.session_state.df_all
+    impressions = df_campaigns["impressions"].sum()
+    st.write("Total Impressions: " + str(prettify(int(impressions))))
+
+    clicks = df_campaigns["clicks"].sum()
+    countries_list = users.get_country_list()
+
+    LR = metrics.get_totals_by_metric([min_date, max_date], countries_list, stat="LR")
+    LA = metrics.get_totals_by_metric([min_date, max_date], countries_list, stat="LA")
+    df_user_list = metrics.filter_user_data(
+        [min_date, max_date], countries_list, stat="LA"
+    )
+    df_user_list = df_user_list.fillna(0)
+    gc_count = df_user_list[(df_user_list["gpc"] >= 90)].shape[0]
+    installs = metrics.get_total_installs()
+    puzzle_completed = metrics.get_puzzle_completed_count()
+
+    print(impressions)
+    print(clicks)
+    print(installs)
+    print(LR)
+    print(puzzle_completed)
+    print(LA)
+    print(gc_count)
+
+    fig = go.Figure(
+        go.Funnel(
+            y=[
+                #          "Impressions",
+                "Clicks",
+                "Installs",
+                "Learners Reached",
+                "Fed the Monster",
+                "Learners Acquired",
+                "Game Completed",
+            ],
+            x=[clicks, installs, LR, puzzle_completed, LA, gc_count],
+            textposition="auto",
+            textinfo="value+percent initial",
+            #           opacity=0.65,
+            marker={
+                "color": [
+                    #             "#A26E73",
+                    "#8b575c",
+                    "#c98986",
+                    "#f6bdd1",
+                    "#f6e4f6",
+                    "#ECCDEC",
+                    "#f4f4f4",
+                    "#FFFFFF",
+                ],
+                "line": {
+                    "width": [4, 2, 2, 3, 1, 1],
+                    "color": ["wheat", "wheat", "blue", "green", "wheat", "wheat"],
+                },
+            },
+            connector={"line": {"color": "royalblue", "dash": "dot", "width": 3}},
+        )
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
