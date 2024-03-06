@@ -2,9 +2,7 @@ import streamlit as st
 from rich import print
 import pandas as pd
 import numpy as np
-import settings
 import datetime as dt
-import users
 
 min_date = dt.datetime(2021, 1, 1).date()
 max_date = dt.date.today()
@@ -80,11 +78,12 @@ def filter_user_data(daterange, countries_list, stat="LR"):
 
     language = "All"
     app = "Both"
-    if "df_lr" and "df_la" not in st.session_state:
+    if "df_lr" and "df_la" and "df_pc" not in st.session_state:
         return pd.DataFrame()
 
     df_la = st.session_state.df_la
     df_lr = st.session_state.df_lr
+    df_pc = st.session_state.df_pc
 
     if "language" in st.session_state:
         language = st.session_state.language
@@ -103,19 +102,28 @@ def filter_user_data(daterange, countries_list, stat="LR"):
     elif app == "Unity":
         conditions.append("app_id != 'org.curiouslearning.container'")
 
-    if stat == "LA":
+    if stat == "LA" or stat == "GC":
         conditions.append("max_user_level >= 1")
 
     query = " and ".join(conditions)
 
-    if stat == "LA":
+    if stat == "LA":  # learner acquired
         df_user_list = df_la.query(query)
-    else:
+
+    if stat == "PC":  # puzzle completed
+        df_user_list = df_pc.query(query)
+
+    if stat == "GC":  # game completed
+        df_user_list = df_la.query(query)
+        df_user_list = df_user_list[(df_user_list["gpc"] >= 90)]
+
+    if stat == "LR":  # learner reached
         df_user_list = df_lr.query(query)
     return df_user_list
 
 
-def get_GPC_avg(daterange, countries_list):
+# Average Game Progress Percent
+def get_GPP_avg(daterange, countries_list):
     # Use LA as the baseline
     df_user_list = filter_user_data(daterange, countries_list, stat="LA")
     df_user_list = df_user_list.fillna(0)
@@ -123,6 +131,7 @@ def get_GPC_avg(daterange, countries_list):
     return 0 if len(df_user_list) == 0 else np.average(df_user_list.gpc)
 
 
+# Average Game Complete
 def get_GC_avg(daterange, countries_list):
     # Use LA as the baseline
     df_user_list = filter_user_data(daterange, countries_list, stat="LA")
@@ -136,40 +145,56 @@ def get_GC_avg(daterange, countries_list):
 
 def get_country_counts(daterange, countries_list, stat):
 
-    logger = settings.get_logger()
-    if stat == "LA" or stat == "LR":
-        df_lr = filter_user_data(daterange, countries_list, "LR")
-        df_la = filter_user_data(daterange, countries_list, "LA")
-        country_counts = (
-            df_lr.groupby("country")
+    if stat == "LR" or stat == "LA":
+        if stat == "LR":
+            primary_stat = "LR"
+            secondary_stat = "LA"
+        elif stat == "LA":
+            primary_stat = "LA"
+            secondary_stat = "LR"
+
+        df_primary = filter_user_data(daterange, countries_list, primary_stat)
+        df_secondary = filter_user_data(daterange, countries_list, secondary_stat)
+
+        primary_counts = (
+            df_primary.groupby("country")
             .size()
-            .to_frame(name="LR")
+            .to_frame(name=primary_stat)
             .reset_index()
-            .sort_values(by=stat, ascending=False)
-            .merge(
-                df_la.groupby("country").size().to_frame(name="LA").reset_index(),
-                on="country",
-                how="left",
-            )
-            .fillna(0)
         )
-    elif stat == "GPC":
+        secondary_counts = (
+            df_secondary.groupby("country")
+            .size()
+            .to_frame(name=secondary_stat)
+            .reset_index()
+        )
+
+        country_counts = (
+            primary_counts.merge(secondary_counts, on="country", how="left")
+            .fillna(0)
+            .sort_values(by=stat, ascending=False)
+        )
+    elif stat == "GPP":
         df = filter_user_data(daterange, countries_list, stat="LA")
-        # Calculate the average GPC per country
+        # Calculate the average GPP per country
         avg_gpc_per_country = df.groupby("country")["gpc"].mean().round(2)
         # Create a new DataFrame with the average GPC per country
         country_counts = (
             pd.DataFrame(
                 {
                     "country": avg_gpc_per_country.index,
-                    "GPC": avg_gpc_per_country.values,
+                    "GPP": avg_gpc_per_country.values,
                 }
             )
-            .sort_values(by="GPC", ascending=False)
+            .sort_values(by="GPP", ascending=False)
             .fillna(0)
         )
 
-    else:
+    elif stat == "PC":
+        df = filter_user_data(daterange, countries_list, stat="PC")
+        country_counts = df.groupby("country").size().to_frame(name="PC").reset_index()
+
+    elif stat == "GCA":
         df = filter_user_data(daterange, countries_list, stat="LA")
         gpc_gt_90_counts = (
             df[df["gpc"] >= 90].groupby("country")["user_pseudo_id"].count()
@@ -193,13 +218,9 @@ def get_country_counts(daterange, countries_list, stat):
         )
         country_counts.sort_values(by="GCA", ascending=False, inplace=True)
 
+    else:
+        raise Exception("Invalid stat choice")
     return country_counts
-
-
-def get_total_installs():
-    df_pd = st.session_state.df_pd
-
-    return df_pd["Daily_Device_Installs"].sum()
 
 
 @st.cache_data(ttl="1d", show_spinner=False)

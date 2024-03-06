@@ -59,11 +59,13 @@ def initialize():
 
 
 def init_user_list():
-    df_la, df_lr = users.get_users_list()
+    df_la, df_lr, df_pc = users.get_users_list()
     if "df_la" not in st.session_state:
         st.session_state["df_la"] = df_la
     if "df_lr" not in st.session_state:
         st.session_state["df_lr"] = df_lr
+    if "df_pc" not in st.session_state:
+        st.session_state["df_pc"] = df_pc
     logger = get_logger()
     logger.info("user load complete")
 
@@ -78,8 +80,3 @@ def init_campaign_data():
         st.session_state["df_goog_conversions"] = df_goog_conversions
     if "df_all" not in st.session_state:
         st.session_state["df_all"] = df_all
-
-
-def init_play_data():
-    df_pd = play_data.get_play_installs()
-    st.session_state["df_pd"] = df_pd

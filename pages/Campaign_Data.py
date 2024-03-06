@@ -3,7 +3,7 @@ import settings
 import metrics
 from millify import prettify
 
-import ui_components as ui
+import ui_widgets as ui
 
 st.set_page_config(layout="wide")
 

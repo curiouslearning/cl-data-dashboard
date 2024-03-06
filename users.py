@@ -10,12 +10,13 @@ import numpy as np
 # This would all be unncessery if dev had included the app user id per the spec.
 @st.cache_data(ttl="1d", show_spinner="Gathering User List")
 def get_users_list():
+    start_date = "2021/01/01"
     bq_client = st.session_state.bq_client
     sql_query = f"""
                 SELECT *
                     FROM `dataexploration-193817.user_data.la_users_data`
                 WHERE
-                    first_open BETWEEN PARSE_DATE('%Y/%m/%d','2021/01/01') AND CURRENT_DATE() 
+                    first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE() 
                 """
     rows_raw = bq_client.query(sql_query)
     rows = [dict(row) for row in rows_raw]
@@ -25,13 +26,23 @@ def get_users_list():
             SELECT *
                 FROM `dataexploration-193817.user_data.user_first_open_list`
             WHERE
-                first_open BETWEEN PARSE_DATE('%Y/%m/%d','2021/01/01') AND CURRENT_DATE() 
+                first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE() 
             """
     rows_raw = bq_client.query(sql_query)
     rows = [dict(row) for row in rows_raw]
     df_lr = pd.DataFrame(rows)
 
-    return df_la, df_lr
+    sql_query = f"""
+            SELECT *
+                FROM `dataexploration-193817.user_data.puzzle_completed_users`
+            WHERE
+                first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE() 
+            """
+    rows_raw = bq_client.query(sql_query)
+    rows = [dict(row) for row in rows_raw]
+    df_pc = pd.DataFrame(rows)
+
+    return df_la, df_lr, df_pc
 
 
 @st.cache_data(ttl="1d", show_spinner=False)
