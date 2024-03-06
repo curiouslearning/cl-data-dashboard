@@ -11,10 +11,9 @@ st.subheader("Acquisition Funnel")
 settings.initialize()
 settings.init_campaign_data()
 settings.init_user_list()
-
-ui.language_selector()  # puts selection in session state
-
+selected_date, option = ui.calendar_selector()
+daterange = ui.convert_date_to_range(selected_date, option)
 ui.app_selector()
 
 uic.campaign_funnel_chart()
-uic.engagement_funnel_chart()
+uic.engagement_funnel_chart(daterange)

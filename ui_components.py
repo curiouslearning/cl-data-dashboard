@@ -286,16 +286,17 @@ def campaign_funnel_chart():
     st.plotly_chart(fig, use_container_width=True)
 
 
-def engagement_funnel_chart():
+def engagement_funnel_chart(daterange):
+    ui.language_selector()  # puts selection in session state
     countries_list = users.get_country_list()
     countries_list = ui.multi_select_all(
         countries_list, title="Country Selection", key="funnel_key"
     )
 
-    LR = metrics.get_totals_by_metric([min_date, max_date], countries_list, stat="LR")
-    LA = metrics.get_totals_by_metric([min_date, max_date], countries_list, stat="LA")
-    PC = metrics.get_totals_by_metric([min_date, max_date], countries_list, "PC")
-    GC = metrics.get_totals_by_metric([min_date, max_date], countries_list, "GC")
+    LR = metrics.get_totals_by_metric(daterange, countries_list, stat="LR")
+    LA = metrics.get_totals_by_metric(daterange, countries_list, stat="LA")
+    PC = metrics.get_totals_by_metric(daterange, countries_list, "PC")
+    GC = metrics.get_totals_by_metric(daterange, countries_list, "GC")
 
     fig = go.Figure(
         go.Funnel(
