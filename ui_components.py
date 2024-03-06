@@ -245,7 +245,6 @@ def spend_by_country_map():
 def campaign_funnel_chart():
     df_campaigns = st.session_state.df_all
     impressions = df_campaigns["impressions"].sum()
-    st.write("Total Impressions: " + str(prettify(int(impressions))))
 
     clicks = df_campaigns["clicks"].sum()
 
@@ -281,6 +280,7 @@ def campaign_funnel_chart():
     fig.update_traces(texttemplate="%{value:,d}")
     fig.update_layout(
         margin=dict(l=20, r=20, t=20, b=20),
+        height=200,
     )
 
     st.plotly_chart(fig, use_container_width=True)
@@ -314,15 +314,14 @@ def engagement_funnel_chart():
                     #             "#A26E73",
                     #                    "#8b575c",
                     #                   "#c98986",
-                    #                   "#f6bdd1",
+                    "#f6bdd1",
                     "#f6e4f6",
                     "#ECCDEC",
-                    "#f4f4f4",
-                    "#FFFFFF",
+                    "#c98986",
                 ],
                 "line": {
                     "width": [4, 3, 2, 1],
-                    "color": ["wheat", "wheat", "wheat", "red"],
+                    "color": ["wheat", "wheat", "wheat", "wheat"],
                 },
             },
             connector={"line": {"color": "royalblue", "dash": "dot", "width": 3}},
