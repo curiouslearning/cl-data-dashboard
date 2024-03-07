@@ -7,7 +7,7 @@ import ui_widgets as ui
 import users
 
 st.title("Curious Learning Dashboard")
-st.subheader("Acquisition Funne Comparison")
+st.subheader("Acquisition Funnel Comparison")
 settings.initialize()
 settings.init_user_list()
 
