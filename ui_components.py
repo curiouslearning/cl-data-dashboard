@@ -286,12 +286,7 @@ def campaign_funnel_chart():
     st.plotly_chart(fig, use_container_width=True)
 
 
-def engagement_funnel_chart(daterange):
-    ui.language_selector()  # puts selection in session state
-    countries_list = users.get_country_list()
-    countries_list = ui.multi_select_all(
-        countries_list, title="Country Selection", key="funnel_key"
-    )
+def create_engagement_figure(daterange, countries_list):
 
     LR = metrics.get_totals_by_metric(daterange, countries_list, stat="LR")
     LA = metrics.get_totals_by_metric(daterange, countries_list, stat="LA")
@@ -309,12 +304,9 @@ def engagement_funnel_chart(daterange):
             x=[LR, PC, LA, GC],
             textposition="auto",
             textinfo="value+percent initial",
-            #           opacity=0.65,
+            opacity=0.65,
             marker={
                 "color": [
-                    #             "#A26E73",
-                    #                    "#8b575c",
-                    #                   "#c98986",
                     "#f6bdd1",
                     "#f6e4f6",
                     "#ECCDEC",
@@ -332,5 +324,42 @@ def engagement_funnel_chart(daterange):
     fig.update_layout(
         margin=dict(l=20, r=20, t=20, b=20),
     )
+    return fig
+
+
+def engagement_funnel_chart():
+    ui.language_selector()  # puts selection in session state
+    countries_list = users.get_country_list()
+    countries_list = ui.multi_select_all(
+        countries_list, title="Country Selection", key="funnel_key"
+    )
+
+    selected_date, option = ui.calendar_selector()
+    daterange = ui.convert_date_to_range(selected_date, option)
+
+    fig = create_engagement_figure(daterange, countries_list)
 
     st.plotly_chart(fig, use_container_width=True)
+
+
+def engagement_funnel_chart_compare():
+    ui.language_selector()  # puts selection in session state
+    countries_list = users.get_country_list()
+    countries_list = ui.multi_select_all(
+        countries_list, title="Country Selection", key="funnel_compare_key"
+    )
+
+    selected_date, option = ui.calendar_selector()
+    daterange = ui.convert_date_to_range(selected_date, option)
+    col1, col2 = st.columns(2)
+
+    col1.subheader("Unity")
+    col2.subheader("Curious Reader")
+
+    st.session_state.app = "Unity"
+    fig = create_engagement_figure(daterange, countries_list)
+    col1.plotly_chart(fig, use_container_width=True)
+
+    st.session_state.app = "CR"
+    fig = create_engagement_figure(daterange, countries_list)
+    col2.plotly_chart(fig, use_container_width=True)

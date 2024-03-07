@@ -145,9 +145,6 @@ def update_language_session_state():
         st.session_state.language = st.session_state.lang_key
 
 
-#  st.experimental_rerun()
-
-
 # This method uses the key parameter of the selectbox
 # to automatically ad the selection to session state.
 def language_selector():
@@ -162,8 +159,9 @@ def language_selector():
         on_change=update_language_session_state,
     )
 
+
 # Pass a unique key into the function in order to use this on multiple pages safely
-def multi_select_all(available_options, title,key):
+def multi_select_all(available_options, title, key):
     available_options.insert(0, "All")
 
     # If a user switches to another page and comes back, selected options is dropped from session state
@@ -179,9 +177,7 @@ def multi_select_all(available_options, title,key):
 
         if key in st.session_state:
             if "All" in st.session_state[key]:
-                st.session_state[key] = [
-                    "All"
-                ]  # Reset to "All" if deselected
+                st.session_state[key] = ["All"]  # Reset to "All" if deselected
                 st.session_state["max_selections"] = 1  # Enforce single selection again
             else:
                 st.session_state["max_selections"] = len(
@@ -201,9 +197,7 @@ def multi_select_all(available_options, title,key):
     if "All" in st.session_state[key]:
         st.sidebar.write("You selected all options.")
     else:
-        st.sidebar.write(
-            f"You selected {len(st.session_state[key])} options: "
-        )
+        st.sidebar.write(f"You selected {len(st.session_state[key])} options: ")
         st.sidebar.write(st.session_state[key])
 
     return (
