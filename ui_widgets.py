@@ -32,7 +32,7 @@ def display_definitions_table():
             ],
             [
                 "PC",
-                "Puzzle Complete / Fed the Monster",
+                "Puzzle Complete / Drgged a Stone",
                 "The number of users that have completed at least one puzzle",
                 "",
             ],

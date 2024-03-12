@@ -39,7 +39,7 @@ if len(daterange) == 2 and len(countries_list) > 0:
     col1.metric(label="Learners Reached", value=prettify(int(total)))
 
     total = metrics.get_totals_by_metric(daterange, countries_list, "PC")
-    col2.metric(label="Fed the Monster", value=prettify(int(total)))
+    col2.metric(label="Puzzle Completed", value=prettify(int(total)))
 
     total = metrics.get_totals_by_metric(daterange, countries_list, "LA")
     col3.metric(label="Learners Acquired", value=prettify(int(total)))
