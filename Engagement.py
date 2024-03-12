@@ -16,6 +16,8 @@ settings.initialize()
 settings.init_user_list()
 selected_date, option = ui.calendar_selector()
 daterange = ui.convert_date_to_range(selected_date, option)
+print(str(type(daterange)))
+print(daterange)
 
 ui.language_selector()  # puts selection in session state
 

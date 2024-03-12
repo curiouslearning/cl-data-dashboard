@@ -71,7 +71,7 @@ def get_download_totals(daterange):
 def get_totals_by_metric(daterange, countries_list, stat="LR"):
     df_user_list = filter_user_data(daterange, countries_list, stat)
 
-    if stat not in ["PC", "TS", "SL"]:
+    if stat not in ["TS", "SL"]:
         return len(df_user_list)
     else:
         tapped_start = len(
@@ -91,9 +91,6 @@ def get_totals_by_metric(daterange, countries_list, stat="LR"):
 
         if stat == "SL":  # all PC and SL users implicitly imply those events
             return tapped_start + selected_level + puzzle_completed
-
-        if stat == "PC":
-            return puzzle_completed
 
 
 def filter_user_data(daterange, countries_list, stat="LR"):
@@ -166,6 +163,7 @@ def get_GC_avg(daterange, countries_list):
     return 0 if cohort_count == 0 else gc_count / cohort_count * 100
 
 
+@st.cache_data(ttl="1d", show_spinner=False)
 def get_country_counts(daterange, countries_list, stat):
 
     if stat == "LR" or stat == "LA":
@@ -244,3 +242,16 @@ def get_country_counts(daterange, countries_list, stat):
     else:
         raise Exception("Invalid stat choice")
     return country_counts
+
+
+def get_cr_event_counts():
+    start_date = dt.datetime(2024, 3, 5).date()
+    bq_client = st.session_state.bq_client
+    sql_query = f"""
+        SELECT *
+            FROM `dataexploration-193817.user_data.pre_LA_cr_event_counts`
+        
+        """
+    rows_raw = bq_client.query(sql_query)
+    rows = [dict(row) for row in rows_raw]
+    return pd.DataFrame(rows)

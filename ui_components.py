@@ -343,8 +343,8 @@ def engagement_funnel_chart_compare():
     st.session_state.app = "Unity"
     LR = metrics.get_totals_by_metric(daterange, countries_list, stat="LR")
     PC = metrics.get_totals_by_metric(daterange, countries_list, "PC")
-    TS = metrics.get_totals_by_metric(daterange, countries_list, "TS")
-    SL = metrics.get_totals_by_metric(daterange, countries_list, "SL")
+    #  TS = metrics.get_totals_by_metric(daterange, countries_list, "TS")
+    #  SL = metrics.get_totals_by_metric(daterange, countries_list, "SL")
     LA = metrics.get_totals_by_metric(daterange, countries_list, stat="LA")
     GC = metrics.get_totals_by_metric(daterange, countries_list, "GC")
 
@@ -357,7 +357,7 @@ def engagement_funnel_chart_compare():
             "Learners Acquired",
             "Game Completed",
         ],
-        "Count": [LR, 0, 0, PC, LA, GC],
+        "Count": [LR, PC, LA, GC],
     }
     fig = create_engagement_figure(daterange, countries_list, funnel_data)
     col1.plotly_chart(fig, use_container_width=True)
@@ -365,10 +365,43 @@ def engagement_funnel_chart_compare():
     st.session_state.app = "CR"
     LR = metrics.get_totals_by_metric(daterange, countries_list, stat="LR")
     PC = metrics.get_totals_by_metric(daterange, countries_list, "PC")
-    TS = metrics.get_totals_by_metric(daterange, countries_list, "TS")
-    SL = metrics.get_totals_by_metric(daterange, countries_list, "SL")
+    #   TS = metrics.get_totals_by_metric(daterange, countries_list, "TS")
+    #   SL = metrics.get_totals_by_metric(daterange, countries_list, "SL")
     LA = metrics.get_totals_by_metric(daterange, countries_list, stat="LA")
     GC = metrics.get_totals_by_metric(daterange, countries_list, "GC")
+
+    funnel_data = {
+        "Title": [
+            "Learners Reached",
+            "Tapped Start",
+            "Selected Level",
+            "Puzzle Completed",
+            "Learners Acquired",
+            "Game Completed",
+        ],
+        "Count": [LR, PC, LA, GC],
+    }
+
+    fig = create_engagement_figure(daterange, countries_list, funnel_data)
+    col2.plotly_chart(fig, use_container_width=True)
+
+
+def cr_funnel_chart_details():
+
+    daterange = [dt.date(2024, 3, 5), pd.to_datetime("today").date()]
+    country_list = users.get_country_list()
+
+    st.subheader("Curious Reader Acquisition Starting March 5th, 2024")
+
+    st.session_state.app = "CR"
+    LR = metrics.get_totals_by_metric(daterange, country_list, stat="LR")
+    LA = metrics.get_totals_by_metric(daterange, country_list, stat="LA")
+    GC = metrics.get_totals_by_metric(daterange, country_list, "GC")
+
+    df = metrics.get_cr_event_counts()
+    PC = int(df.tail(1)["puzzle_completed"])
+    TS = int(df.tail(1)["tapped_start"])
+    SL = int(df.tail(1)["selected_level"])
 
     funnel_data = {
         "Title": [
@@ -382,5 +415,5 @@ def engagement_funnel_chart_compare():
         "Count": [LR, TS, SL, PC, LA, GC],
     }
 
-    fig = create_engagement_figure(daterange, countries_list, funnel_data)
-    col2.plotly_chart(fig, use_container_width=True)
+    fig = create_engagement_figure(daterange, country_list, funnel_data)
+    st.plotly_chart(fig, use_container_width=True)

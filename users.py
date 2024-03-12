@@ -4,7 +4,7 @@ from rich import print as print
 import numpy as np
 
 # How far back to obtain user data.  Currently the queries pull back to 01/01/2021
-start_date = "2021/02/01"
+start_date = "2021/01/01"
 
 
 # Firebase returns two different formats of user_pseudo_id between
@@ -37,7 +37,7 @@ def get_users_list():
 
     sql_query = f"""
             SELECT *
-                FROM `dataexploration-193817.user_data.pre_LA_users_progress`
+                FROM `dataexploration-193817.user_data.puzzle_completed_users`
             WHERE
                 first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE() 
             """
