@@ -70,8 +70,34 @@ def get_download_totals(daterange):
 
 def get_totals_by_metric(daterange, countries_list, stat="LR"):
     df_user_list = filter_user_data(daterange, countries_list, stat)
+    print(stat)
+    if stat not in ["PC", "TS", "SL"]:
+        return len(df_user_list)
+    else:
+        tapped_start = len(
+            df_user_list[df_user_list["furthest_event"] == "tapped_start"]
+        )
+        selected_level = len(
+            df_user_list[df_user_list["furthest_event"] == "selected_level"]
+        )
+        puzzle_completed = len(
+            df_user_list[df_user_list["furthest_event"] == "puzzle_completed"]
+        )
 
-    return len(df_user_list)
+        print("tapped start: " + str(tapped_start))
+        print("selected level: " + str(selected_level))
+        print("puzzle_completed: " + str(puzzle_completed))
+
+        if (
+            stat == "TS"
+        ):  # all PC  and SL users implicitly imply they did SL too.  Plus the new SL that have not hit PC
+            return tapped_start + tapped_start + selected_level + puzzle_completed
+
+        if stat == "SL":  # all PC and SL users implicitly imply those events
+            return tapped_start + selected_level + puzzle_completed
+
+        if stat == "PC":
+            return puzzle_completed
 
 
 def filter_user_data(daterange, countries_list, stat="LR"):
@@ -102,23 +128,24 @@ def filter_user_data(daterange, countries_list, stat="LR"):
     elif app == "Unity":
         conditions.append("app_id != 'org.curiouslearning.container'")
 
+    query_df = df_la  # default
     if stat == "LA" or stat == "GC":
         conditions.append("max_user_level >= 1")
 
-    query = " and ".join(conditions)
+    elif stat == "PC" or stat == "TS" or stat == "SL":  # puzzle completed
+        query_df = df_pc
 
-    if stat == "LA":  # learner acquired
-        df_user_list = df_la.query(query)
-
-    if stat == "PC":  # puzzle completed
-        df_user_list = df_pc.query(query)
+    elif stat == "LR":  # learner reached
+        query_df = df_lr
 
     if stat == "GC":  # game completed
+        query = " and ".join(conditions)
         df_user_list = df_la.query(query)
         df_user_list = df_user_list[(df_user_list["gpc"] >= 90)]
+        return df_user_list
 
-    if stat == "LR":  # learner reached
-        df_user_list = df_lr.query(query)
+    query = " and ".join(conditions)
+    df_user_list = query_df.query(query)
     return df_user_list
 
 
@@ -221,18 +248,3 @@ def get_country_counts(daterange, countries_list, stat):
     else:
         raise Exception("Invalid stat choice")
     return country_counts
-
-
-@st.cache_data(ttl="1d", show_spinner=False)
-def get_puzzle_completed_count():
-
-    if "bq_client" in st.session_state:
-        bq_client = st.session_state.bq_client
-    sql_query = f"""
-        select count(*) 
-        FROM `dataexploration-193817.user_data.puzzle_completed_users`
-        """
-
-    iterator = bq_client.query(sql_query).result()
-    first_row = next(iterator)
-    return first_row[0]

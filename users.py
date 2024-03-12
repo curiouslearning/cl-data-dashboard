@@ -3,6 +3,9 @@ import pandas as pd
 from rich import print as print
 import numpy as np
 
+# How far back to obtain user data.  Currently the queries pull back to 01/01/2021
+start_date = "2021/02/01"
+
 
 # Firebase returns two different formats of user_pseudo_id between
 # web app events and android events, so we have to run multiple queries
@@ -10,7 +13,7 @@ import numpy as np
 # This would all be unncessery if dev had included the app user id per the spec.
 @st.cache_data(ttl="1d", show_spinner="Gathering User List")
 def get_users_list():
-    start_date = "2021/01/01"
+
     bq_client = st.session_state.bq_client
     sql_query = f"""
                 SELECT *
@@ -34,7 +37,7 @@ def get_users_list():
 
     sql_query = f"""
             SELECT *
-                FROM `dataexploration-193817.user_data.puzzle_completed_users`
+                FROM `dataexploration-193817.user_data.pre_LA_users_progress`
             WHERE
                 first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE() 
             """
@@ -89,21 +92,14 @@ def get_country_list():
 
 def debug_list():
     bq_client = st.session_state.bq_client
+    breakpoint()
     sql_query = f"""
-        select distinct user_pseudo_id from `dataexploration-193817.user_data.user_first_open_list`      """
+        SELECT *  FROM `dataexploration-193817.user_data.pre_LA_users_progress` 
+        WHERE app_id like  '%feedthemonster%' 
+        """
     rows_raw = bq_client.query(sql_query)
     rows = [dict(row) for row in rows_raw]
-
-    df1 = pd.DataFrame(rows)
-
-    sql_query = f"""
-        select distinct user_pseudo_id from `dataexploration-193817.user_data.user_first_open_list`      """
-    rows_raw = bq_client.query(sql_query)
-    rows = [dict(row) for row in rows_raw]
-
-    df2 = pd.DataFrame(rows)
-
-    """
+    df = pd.DataFrame(rows)
 
     duplicates = (
         df[df.duplicated(subset=["user_pseudo_id"], keep=False)]
@@ -111,9 +107,6 @@ def debug_list():
     df_no_duplicates = df.drop_duplicates(
         subset=["user_pseudo_id"], keep=False
     ).reset_index()
-"""
-    df3 = pd.merge(df1, df2, on="user_pseudo_id", how="inner")
-    print("DEBUG")
-    df3.info()
 
-    return
+    duplicates.to_csv("dupes.csv")
+    df_no_duplicates.to_csv("nodupes.csv")

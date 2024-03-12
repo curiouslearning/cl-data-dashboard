@@ -1,10 +1,10 @@
 SELECT
-  DISTINCT(user_pseudo_id),
+  DISTINCT (user_pseudo_id),
   app_info.id AS app_id,
   CAST(DATE(TIMESTAMP_MICROS(user_first_touch_timestamp)) AS DATE) AS first_open,
-  geo.country as country,
+  geo.country AS country,
   LOWER(REGEXP_EXTRACT(app_info.id, r'feedthemonster(.*)')) AS app_language,
-
+  "puzzle_completed" AS furthest_event
 FROM (
   SELECT
     *
@@ -88,17 +88,3 @@ WHERE
   AND params.value.string_value LIKE 'SegmentSuccess%'
   AND CAST(DATE(TIMESTAMP_MICROS(user_first_touch_timestamp)) AS DATE) BETWEEN '2021-01-01'
   AND CURRENT_DATE()
-UNION ALL
-SELECT
-  DISTINCT(user_pseudo_id),
-  "org.curiouslearning.container" AS app_id,
-  CAST(DATE(TIMESTAMP_MICROS(user_first_touch_timestamp)) AS DATE) AS first_open,
-  geo.country as country,
-  LOWER(REGEXP_EXTRACT(app_params.value.string_value, '[?&]cr_lang=([^&]+)')) AS app_language,
-FROM
-  `ftm-b9d99.analytics_159643920.events_20*` as ga,
-  UNNEST(event_params) AS app_params
-WHERE
-  event_name = 'puzzle_completed'
-  AND app_params.key = 'page_location'
-  AND app_params.value.string_value LIKE '%https://feedthemonster.curiouscontent.org%'
