@@ -88,25 +88,3 @@ def get_country_list():
         df = pd.DataFrame(rows)
         countries_list = np.array(df.values).flatten().tolist()
     return countries_list
-
-
-def debug_list():
-    bq_client = st.session_state.bq_client
-    breakpoint()
-    sql_query = f"""
-        SELECT *  FROM `dataexploration-193817.user_data.pre_LA_users_progress` 
-        WHERE app_id like  '%feedthemonster%' 
-        """
-    rows_raw = bq_client.query(sql_query)
-    rows = [dict(row) for row in rows_raw]
-    df = pd.DataFrame(rows)
-
-    duplicates = (
-        df[df.duplicated(subset=["user_pseudo_id"], keep=False)]
-    ).reset_index()
-    df_no_duplicates = df.drop_duplicates(
-        subset=["user_pseudo_id"], keep=False
-    ).reset_index()
-
-    duplicates.to_csv("dupes.csv")
-    df_no_duplicates.to_csv("nodupes.csv")
