@@ -1,2 +1,2 @@
 # cl-data-dashboard
-New version of the Streamlit dashboard
+Streamlit Dashboard for External Stakeholders
