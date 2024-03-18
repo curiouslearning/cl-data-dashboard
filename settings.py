@@ -5,7 +5,6 @@ import os
 from google.oauth2 import service_account
 from google.cloud import bigquery
 import campaigns
-import play_data
 from rich import print
 import pandas as pd
 import users
