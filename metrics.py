@@ -71,7 +71,7 @@ def get_download_totals(daterange):
 def get_totals_by_metric(daterange, countries_list, stat="LR"):
     df_user_list = filter_user_data(daterange, countries_list, stat)
 
-    if stat not in ["TS", "SL"]:
+    if stat not in ["TS", "SL", "PC"]:
         return len(df_user_list)
     else:
         tapped_start = len(
@@ -84,13 +84,14 @@ def get_totals_by_metric(daterange, countries_list, stat="LR"):
             df_user_list[df_user_list["furthest_event"] == "puzzle_completed"]
         )
 
-        if (
-            stat == "TS"
-        ):  # all PC  and SL users implicitly imply they did SL too.  Plus the new SL that have not hit PC
-            return tapped_start + tapped_start + selected_level + puzzle_completed
+        if stat == "TS":
+            return tapped_start + selected_level + puzzle_completed
 
         if stat == "SL":  # all PC and SL users implicitly imply those events
-            return tapped_start + selected_level + puzzle_completed
+            return tapped_start + puzzle_completed
+
+        if stat == "PC":
+            return puzzle_completed
 
 
 def filter_user_data(daterange, countries_list, stat="LR"):

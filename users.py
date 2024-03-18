@@ -37,7 +37,7 @@ def get_users_list():
 
     sql_query = f"""
             SELECT *
-                FROM `dataexploration-193817.user_data.puzzle_completed_users`
+                FROM `dataexploration-193817.user_data.pre_LA_users_progress`
             WHERE
                 first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE() 
             """
