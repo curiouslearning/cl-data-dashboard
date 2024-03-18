@@ -389,3 +389,31 @@ def cr_funnel_chart_details():
 
     fig = create_engagement_figure(daterange, country_list, funnel_data)
     st.plotly_chart(fig, use_container_width=True)
+
+
+def engagement_funnel_chart():
+    ui.language_selector()  # puts selection in session state
+    countries_list = users.get_country_list()
+    countries_list = ui.multi_select_all(
+        countries_list, title="Country Selection", key="funnel_key"
+    )
+
+    selected_date, option = ui.calendar_selector()
+    daterange = ui.convert_date_to_range(selected_date, option)
+    LR = metrics.get_totals_by_metric(daterange, countries_list, stat="LR")
+    PC = metrics.get_totals_by_metric(daterange, countries_list, "PC")
+    LA = metrics.get_totals_by_metric(daterange, countries_list, stat="LA")
+    GC = metrics.get_totals_by_metric(daterange, countries_list, "GC")
+    funnel_data = {
+        "Title": [
+            "Learners Reached",
+            "Puzzle Completed",
+            "Learners Acquired",
+            "Game Completed",
+        ],
+        "Count": [LR, PC, LA, GC],
+    }
+
+    fig = create_engagement_figure(daterange, countries_list, funnel_data)
+
+    st.plotly_chart(fig, use_container_width=True)
