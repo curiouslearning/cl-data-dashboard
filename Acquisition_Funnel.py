@@ -12,3 +12,4 @@ settings.initialize()
 settings.init_user_list()
 
 uic.engagement_funnel_chart_compare()
+uic.cr_funnel_chart_details()
