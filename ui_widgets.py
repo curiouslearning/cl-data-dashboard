@@ -116,7 +116,9 @@ def custom_date_selection_slider():
 
 
 def custom_date_selection():
-    date_range = st.sidebar.date_input("Pick a date", (min_date, max_date))
+    date_range = st.sidebar.date_input(
+        "Pick a date", (dt.datetime(2024, 1, 1).date(), max_date)
+    )
     return date_range
 
 
