@@ -1,7 +1,4 @@
-import google.cloud.logging
 import streamlit as st
-import logging
-import os
 from google.oauth2 import service_account
 from google.cloud import bigquery
 import campaigns
@@ -29,44 +26,22 @@ def get_gcp_credentials():
     return gcp_credentials
 
 
-@st.cache_resource
-def get_logger():
-    credentials = get_gcp_credentials()
-    logging_client = google.cloud.logging.Client(credentials=credentials)
-    logging_client.setup_logging(log_level=logging.DEBUG)
-    logging_client.setup_logging()
-    logger = logging.getLogger()
-
-    if os.getenv("LOCAL_LOGGING", "False") == "True":
-        # output logs to console - otherwise logs are only visible when running in GCP
-        logger.addHandler(logging.StreamHandler())
-    return logger
-
-
 def initialize():
     pd.set_option("display.max_columns", 20)
-    logger = get_logger()
     bq_client = get_bq_client()
 
-    if "logger" not in st.session_state:
-        st.session_state["logger"] = logger
     if "bq_client" not in st.session_state:
         st.session_state["bq_client"] = bq_client
     if "language" not in st.session_state:
         st.session_state.language = "All"
-    logger.info("initialization complete")
 
 
 def init_user_list():
-    df_la, df_lr, df_pc = users.get_users_list()
-    if "df_la" not in st.session_state:
-        st.session_state["df_la"] = df_la
-    if "df_lr" not in st.session_state:
-        st.session_state["df_lr"] = df_lr
-    if "df_pc" not in st.session_state:
-        st.session_state["df_pc"] = df_pc
-    logger = get_logger()
-    logger.info("user load complete")
+    df_user_list, df_first_open = users.get_users_list()
+    if "df_user_list" not in st.session_state:
+        st.session_state["df_user_list"] = df_user_list
+    if "df_first_open" not in st.session_state:
+        st.session_state["df_first_open"] = df_first_open
 
 
 def init_campaign_data():

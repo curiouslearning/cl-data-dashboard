@@ -71,39 +71,49 @@ def get_download_totals(daterange):
 def get_totals_by_metric(daterange, countries_list, stat="LR"):
     df_user_list = filter_user_data(daterange, countries_list, stat)
 
-    if stat not in ["TS", "SL", "PC"]:
+    if stat not in ["TS", "SL", "PC", "LA"]:
         return len(df_user_list)
     else:
-        tapped_start = len(
+        tapped_start_count = len(
             df_user_list[df_user_list["furthest_event"] == "tapped_start"]
         )
-        selected_level = len(
+        selected_level_count = len(
             df_user_list[df_user_list["furthest_event"] == "selected_level"]
         )
-        puzzle_completed = len(
+        puzzle_completed_count = len(
             df_user_list[df_user_list["furthest_event"] == "puzzle_completed"]
+        )
+        level_completed_count = len(
+            df_user_list[df_user_list["furthest_event"] == "level_completed"]
         )
 
         if stat == "TS":
-            return tapped_start + selected_level + puzzle_completed
+            return (
+                tapped_start_count
+                + selected_level_count
+                + puzzle_completed_count
+                + level_completed_count
+            )
 
         if stat == "SL":  # all PC and SL users implicitly imply those events
-            return tapped_start + puzzle_completed
+            return tapped_start_count + puzzle_completed_count + level_completed_count
 
         if stat == "PC":
-            return puzzle_completed
+            return puzzle_completed_count + level_completed_count
+
+        if stat == "LA":
+            return level_completed_count
 
 
 def filter_user_data(daterange, countries_list, stat="LR"):
 
     language = "All"
     app = "Both"
-    if "df_lr" and "df_la" and "df_pc" not in st.session_state:
+    if "df_user_list" and "df_first_open" not in st.session_state:
         return pd.DataFrame()
 
-    df_la = st.session_state.df_la
-    df_lr = st.session_state.df_lr
-    df_pc = st.session_state.df_pc
+    df_user_list = st.session_state.df_user_list
+    df_first_open = st.session_state.df_first_open
 
     if "language" in st.session_state:
         language = st.session_state.language
@@ -122,25 +132,22 @@ def filter_user_data(daterange, countries_list, stat="LR"):
     elif app == "Unity":
         conditions.append("app_id != 'org.curiouslearning.container'")
 
-    query_df = df_la  # default
-    if stat == "LA" or stat == "GC":
-        conditions.append("max_user_level >= 1")
-
-    elif stat == "PC" or stat == "TS" or stat == "SL":  # puzzle completed
-        query_df = df_pc
-
-    elif stat == "LR":  # learner reached
-        query_df = df_lr
+    if stat == "LR":
+        query = " and ".join(conditions)
+        df = df_first_open.query(query)
+        return df
 
     if stat == "GC":  # game completed
+        conditions.append("max_user_level >= 1")
         query = " and ".join(conditions)
-        df_user_list = df_la.query(query)
-        df_user_list = df_user_list[(df_user_list["gpc"] >= 90)]
-        return df_user_list
+        df = df_user_list.query(query)
+        df = df[(df["gpc"] >= 90)]
+        return df
 
+    # All other stat options (LA,PC,TS,SL)
     query = " and ".join(conditions)
-    df_user_list = query_df.query(query)
-    return df_user_list
+    df = df_user_list.query(query)
+    return df
 
 
 # Average Game Progress Percent
