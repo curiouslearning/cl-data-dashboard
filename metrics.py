@@ -171,7 +171,6 @@ def get_GC_avg(daterange, countries_list):
     return 0 if cohort_count == 0 else gc_count / cohort_count * 100
 
 
-@st.cache_data(ttl="1d", show_spinner=False)
 def get_country_counts(daterange, countries_list, stat):
 
     if stat == "LR" or stat == "LA":
