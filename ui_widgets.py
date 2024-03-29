@@ -103,6 +103,7 @@ def month_selector():
 
 
 def custom_date_selection_slider():
+    # date_range = st.sidebar.date_input("Pick a date", (min_date, max_date))
     today = dt.datetime.now().date()
     last_year = dt.date(today.year, 1, 1) - relativedelta(years=1)
 
@@ -115,7 +116,7 @@ def custom_date_selection_slider():
 
 
 def custom_date_selection():
-    date_range = st.sidebar.date_input("Pick a date", (min_date, max_date))
+    date_range = st.date_input("Pick a date", (min_date, max_date))
     return date_range
 
 
@@ -130,12 +131,13 @@ def ads_platform_selector():
 
 
 def app_selector():
-    st.session_state.app = st.sidebar.radio(
+    app = st.sidebar.radio(
         label="Application",
         options=["Unity", "CR", "Both"],
         horizontal=True,
         index=2,
     )
+    return app
 
 
 # this is a callback for language_selector
@@ -150,13 +152,14 @@ def language_selector():
     df = users.get_language_list()
     df.insert(0, "All")
 
-    st.session_state.selectbox_value = st.sidebar.selectbox(
+    language = st.sidebar.selectbox(
         label="Select a language",
         options=df,
         index=0,
         key="lang_key",
         on_change=update_language_session_state,
     )
+    return language
 
 
 # Pass a unique key into the function in order to use this on multiple pages safely
@@ -327,3 +330,9 @@ def stats_radio_selector():
         help=radio_markdown,
     )
     return option
+
+
+def app_version_selector(key):
+    cr_versions = st.session_state.cr_app_versions_list
+    version = st.sidebar.selectbox(label="App Version", options=cr_versions, key=key)
+    return version

@@ -27,13 +27,12 @@ def get_gcp_credentials():
 
 
 def initialize():
+    pd.options.mode.copy_on_write = True
     pd.set_option("display.max_columns", 20)
     bq_client = get_bq_client()
 
     if "bq_client" not in st.session_state:
         st.session_state["bq_client"] = bq_client
-    if "language" not in st.session_state:
-        st.session_state.language = "All"
 
 
 def init_user_list():
@@ -54,3 +53,9 @@ def init_campaign_data():
         st.session_state["df_goog_conversions"] = df_goog_conversions
     if "df_all" not in st.session_state:
         st.session_state["df_all"] = df_all
+
+
+def init_cr_app_version_list():
+    cr_app_versions_list = users.get_app_version_list()
+    if "cr_app_versions_list" not in st.session_state:
+        st.session_state.cr_app_versions_list = cr_app_versions_list

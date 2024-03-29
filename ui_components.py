@@ -13,9 +13,11 @@ min_date = dt.datetime(2021, 1, 1).date()
 max_date = dt.date.today()
 
 
-def stats_by_country_map(daterange, countries_list):
+def stats_by_country_map(daterange, countries_list, app="Both", language="All"):
     option = ui.stats_radio_selector()
-    df = metrics.get_country_counts(daterange, countries_list, option)
+    df = metrics.get_country_counts(
+        daterange, countries_list, option, app, language=language
+    )
 
     country_fig = px.choropleth(
         df,
@@ -120,8 +122,10 @@ def campaign_gantt_chart(daterange):
     )  # Display the plotly chart in Streamlit
 
 
-def top_gpc_bar_chart(daterange, countries_list):
-    df = metrics.get_country_counts(daterange, countries_list, "GPP").head(10)
+def top_gpc_bar_chart(daterange, countries_list, app="Both", language="All"):
+    df = metrics.get_country_counts(
+        daterange, countries_list, "GPP", app, language
+    ).head(10)
     df.rename(columns={"country": "Country"}, inplace=True)
     fig = px.bar(
         df, x="Country", y="GPP", color="Country", title="Top 10 Countries by GPP %"
@@ -129,8 +133,10 @@ def top_gpc_bar_chart(daterange, countries_list):
     st.plotly_chart(fig, use_container_width=True)
 
 
-def top_gca_bar_chart(daterange, countries_list):
-    df = metrics.get_country_counts(daterange, countries_list, "GCA").head(10)
+def top_gca_bar_chart(daterange, countries_list, app="Both", language="All"):
+    df = metrics.get_country_counts(
+        daterange, countries_list, "GCA", app, language
+    ).head(10)
     df.rename(columns={"country": "Country"}, inplace=True)
     fig = px.bar(
         df, x="Country", y="GCA", color="Country", title="Top 10 Countries by GCA %"
@@ -138,8 +144,10 @@ def top_gca_bar_chart(daterange, countries_list):
     st.plotly_chart(fig, use_container_width=True)
 
 
-def top_LR_LC_bar_chart(daterange, countries_list, option):
-    df = metrics.get_country_counts(daterange, countries_list, str(option)).head(10)
+def top_LR_LC_bar_chart(daterange, countries_list, option, app="Both", language="All"):
+    df = metrics.get_country_counts(
+        daterange, countries_list, str(option), app=app, language=language
+    ).head(10)
 
     title = "Top 10 Countries by " + str(option)
     fig = go.Figure(
@@ -152,8 +160,12 @@ def top_LR_LC_bar_chart(daterange, countries_list, option):
     st.plotly_chart(fig, use_container_width=True)
 
 
-def LR_LA_line_chart_over_time(daterange, countries_list, option):
-    df_user_list = metrics.filter_user_data(daterange, countries_list, option)
+def LR_LA_line_chart_over_time(
+    daterange, countries_list, option, app="Both", language="All"
+):
+    df_user_list = metrics.filter_user_data(
+        daterange, countries_list, option, app=app, language=language
+    )
     if option == "LA":
         groupby = "LA Date"
         title = "Daily Learners Acquired"
@@ -201,8 +213,8 @@ def lrc_scatter_chart(daterange):
     merged_df[option] = (merged_df["cost"] / merged_df[x]).round(2)
 
     # Fill NaN values in LRC column with 0
-    merged_df[option].fillna(0, inplace=True)
 
+    merged_df[option] = merged_df[option].fillna(0)
     scatter_df = merged_df[["country", "cost", option, x]]
 
     fig = px.scatter(
@@ -250,7 +262,6 @@ def create_engagement_figure(funnel_data=[]):
             x=funnel_data["Count"],
             textposition="auto",
             hoverinfo="x+y+text+percent initial+percent previous",
-
             marker={
                 "color": [
                     "#4F420A",

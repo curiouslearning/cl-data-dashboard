@@ -14,7 +14,6 @@ settings.init_user_list()
 
 selected_date, option = ui.calendar_selector()
 daterange = ui.convert_date_to_range(selected_date, option)
-
 # In the case of datepicker, don't do anything until both start and end dates are picked
 if len(daterange) == 2:
     date_start = daterange[0].strftime("%Y-%m-%d")
