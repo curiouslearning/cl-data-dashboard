@@ -3,6 +3,7 @@ from rich import print
 import pandas as pd
 import numpy as np
 import datetime as dt
+import users
 
 min_date = dt.datetime(2021, 1, 1).date()
 max_date = dt.date.today()
@@ -70,13 +71,17 @@ def get_download_totals(daterange):
 
 @st.cache_data(ttl="1d", show_spinner=False)
 def get_totals_by_metric(
-    daterange,
-    countries_list,
+    daterange=[min_date, max_date],
+    countries_list=[],
     stat="LR",
     cr_app_version="All",
     app="Both",
     language="All",
 ):
+    # if no list passed in then get the full list
+    if len(countries_list) == 0:
+        countries_list = users.get_country_list()
+
     df_user_list = filter_user_data(
         daterange, countries_list, stat, cr_app_version, app=app, language=language
     )

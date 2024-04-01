@@ -72,33 +72,38 @@ def display_definitions_table():
     expander.table(def_df)
 
 
-def quarter_start(month):
-    quarters = [1, 4, 7, 10]
-    return (month - 1) // 3 * 3 + 1 if month in quarters else None
-
-
-def year_selector():
-    this_year = dt.datetime.now().year
-    report_year = st.sidebar.radio(
-        "Year", range(this_year, this_year - 4, -1), horizontal=True
-    )
-
-    return report_year
-
-
-def month_selector():
+def month_selector(placement="side", key=""):
     from calendar import month_abbr
 
-    with st.sidebar.expander("Report month"):
-        this_year = dt.datetime.now().year
-        this_month = dt.datetime.now().month
-        report_year = st.sidebar.selectbox("Year", range(this_year, this_year - 4, -1))
-        month_abbr = month_abbr[1:]
-        report_month_str = st.sidebar.radio(
-            "Month", month_abbr, index=this_month - 1, horizontal=True
-        )
-        report_month = month_abbr.index(report_month_str) + 1
+    this_year = dt.datetime.now().year
+    this_month = dt.datetime.now().month
+    month_abbr = month_abbr[1:]
 
+    if placement == "side":
+
+        report_year = st.sidebar.selectbox(
+            "Year", range(this_year, this_year - 4, -1), key=key
+        )
+
+        report_month_str = st.sidebar.radio(
+            "Month",
+            month_abbr,
+            index=this_month - 1,
+            horizontal=True,
+            key=key + "x",
+        )
+
+    else:
+        report_year = st.selectbox("Year", range(this_year, this_year - 4, -1), key=key)
+
+        report_month_str = st.radio(
+            "Month",
+            month_abbr,
+            index=this_month - 1,
+            horizontal=True,
+            key=key + "x",
+        )
+    report_month = month_abbr.index(report_month_str) + 1
     return report_month, report_year
 
 
@@ -115,9 +120,51 @@ def custom_date_selection_slider():
     )
 
 
-def custom_date_selection():
-    date_range = st.date_input("Pick a date", (min_date, max_date))
+def custom_date_selection(placement="side", key=""):
+    if placement == "side":
+        date_range = st.sidebar.date_input("Pick a date", (min_date, max_date), key=key)
+    else:
+        date_range = st.date_input("Pick a date", (min_date, max_date), key=key)
+
     return date_range
+
+
+def convert_date_to_range(selected_date, option):
+
+    if option == "Select year":
+        first = dt.date(selected_date, 1, 1)
+        last = dt.date(selected_date, 12, 31)
+        return [first, last]
+    elif option == "All time":
+        return [min_date, max_date]
+    elif option == "Select month":
+        month = selected_date[0]
+        year = selected_date[1]
+        first = dt.date(year, month, 1)
+        yearmonth = calendar.monthrange(year, month)
+        last = dt.date(year, month, yearmonth[1])
+        return [first, last]
+    else:
+        return selected_date
+
+
+def quarter_start(month):
+    quarters = [1, 4, 7, 10]
+    return (month - 1) // 3 * 3 + 1 if month in quarters else None
+
+
+def year_selector(placement="side", key=""):
+    this_year = dt.datetime.now().year
+    if placement == "side":
+        report_year = st.sidebar.radio(
+            "Year", range(this_year, this_year - 4, -1), horizontal=True
+        )
+    else:
+        report_year = st.radio(
+            "Year", range(this_year, this_year - 4, -1), horizontal=True, key=key
+        )
+
+    return report_year
 
 
 def ads_platform_selector():
@@ -209,50 +256,6 @@ def multi_select_all(available_options, title, key):
     )  # Return full list if "All" is selected
 
 
-def calendar_selector():
-    option = st.sidebar.radio(
-        label="Select a report date range",
-        options=(
-            "All time",
-            #            "March 5th, 2024",
-            "Select year",
-            "Select month",
-            "Select custom range",
-        ),
-        index=0,
-    )
-
-    if option == "Select year":
-        selected_date = year_selector()
-    elif option == "All time":
-        selected_date = [min_date, max_date]
-    elif option == "Select month":
-        selected_date = month_selector()
-    elif option == "March 5th, 2024":
-        selected_date = [dt.date(2024, 3, 5), pd.to_datetime("today").date()]
-    else:
-        selected_date = custom_date_selection()
-    return selected_date, option
-
-
-def convert_date_to_range(selected_date, option):
-    if option == "Select year":
-        first = dt.date(selected_date, 1, 1)
-        last = dt.date(selected_date, 12, 31)
-        return [first, last]
-    elif option == "All time":
-        return [min_date, max_date]
-    elif option == "Select month":
-        month = selected_date[0]
-        year = selected_date[1]
-        first = dt.date(year, month, 1)
-        yearmonth = calendar.monthrange(year, month)
-        last = dt.date(year, month, yearmonth[1])
-        return [first, last]
-    else:
-        return selected_date
-
-
 @st.cache_data(show_spinner=False)
 def split_frame(input_df, rows):
     df = [input_df.iloc[i : i + rows - 1, :] for i in range(0, len(input_df), rows)]
@@ -332,7 +335,45 @@ def stats_radio_selector():
     return option
 
 
-def app_version_selector(key):
+def app_version_selector(placement="side", key=""):
     cr_versions = st.session_state.cr_app_versions_list
-    version = st.sidebar.selectbox(label="App Version", options=cr_versions, key=key)
+
+    if placement == "side":
+        version = st.sidebar.selectbox(
+            label="App Version", options=cr_versions, key=key
+        )
+    else:
+        version = st.selectbox(label="App Version", options=cr_versions, key=key)
     return version
+
+
+def calendar_selector(placement="side", key=""):
+    options = (
+        "All time",
+        "Select year",
+        "Select month",
+        "Select custom range",
+    )
+
+    with st.expander("Date"):
+
+        if placement == "side":
+            option = st.sidebar.radio(
+                label="Select a date range", options=options, index=0, key=key + "1"
+            )
+        else:
+            option = st.radio(
+                label="Select a date range", options=options, index=0, key=key + "1"
+            )
+
+        if option == "Select year":
+            selected_date = year_selector(placement=placement, key=key)
+        elif option == "All time":
+            selected_date = [min_date, max_date]
+        elif option == "Select month":
+            key = key + "x"
+            selected_date = month_selector(placement, key=key)
+        else:
+            selected_date = custom_date_selection(placement, key=key)
+
+    return selected_date, option

@@ -254,14 +254,38 @@ def spend_by_country_map():
     st.plotly_chart(country_fig)
 
 
-def create_engagement_figure(funnel_data=[]):
+def campaign_funnel_chart():
+    df_campaigns = st.session_state.df_all
+    impressions = df_campaigns["impressions"].sum()
+
+    clicks = df_campaigns["clicks"].sum()
+
+    funnel_data = {
+        "Title": [
+            "Impressions",
+            "Clicks",
+        ],
+        "Count": [impressions, clicks],
+    }
+
+    fig = create_engagement_figure(funnel_data=funnel_data)
+    fig.update_layout(
+        height=200,
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def create_engagement_figure(funnel_data=[], key=""):
 
     fig = go.Figure(
         go.Funnel(
             y=funnel_data["Title"],
             x=funnel_data["Count"],
             textposition="auto",
+            #          textinfo="value+percent initial+percent previous",
             hoverinfo="x+y+text+percent initial+percent previous",
+            #           key=key,
             marker={
                 "color": [
                     "#4F420A",
