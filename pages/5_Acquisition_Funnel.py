@@ -26,7 +26,7 @@ daterange = ui.convert_date_to_range(selected_date, option)
 if len(daterange) == 2:
     st.subheader("Campaign Funnel")
 
-    df_campaigns = st.session_state.df_all
+    df_campaigns = st.session_state.df_campaigns
     impressions = df_campaigns["impressions"].sum()
     clicks = df_campaigns["clicks"].sum()
 

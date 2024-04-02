@@ -299,8 +299,8 @@ def paginated_dataframe(df, keys):
 
 
 def top_campaigns_by_downloads_barchart(n):
-    df_all = st.session_state.df_all
-    df = df_all.filter(["campaign_name", "mobile_app_install"], axis=1)
+    df_campaigns = st.session_state.df_campaigns
+    df = df_campaigns.filter(["campaign_name", "mobile_app_install"], axis=1)
     pivot_df = pd.pivot_table(
         df, index=["campaign_name"], aggfunc={"mobile_app_install": "sum"}
     )

@@ -39,8 +39,10 @@ def stats_by_country_map(daterange, countries_list, app="Both", language="All"):
 
 @st.cache_data(ttl="1d")
 def campaign_gantt_chart(daterange):
-    df_all = st.session_state.df_all
-    df1 = df_all.query("@daterange[0] <= day <= @daterange[1] and source == 'Facebook'")
+    df_campaigns = st.session_state.df_campaigns
+    df1 = df_campaigns.query(
+        "@daterange[0] <= day <= @daterange[1] and source == 'Facebook'"
+    )
 
     # set the cost value in each row to the total cost for that campaign
     df1 = (
@@ -197,10 +199,10 @@ def LR_LA_line_chart_over_time(
 def lrc_scatter_chart(daterange):
     countries_list = users.get_country_list()
     df_counts = metrics.get_country_counts(daterange, countries_list, "LR")
-    if "df_all" not in st.session_state:
+    if "df_campaigns" not in st.session_state:
         return pd.DataFrame()
     else:
-        df_campaigns = st.session_state.df_all
+        df_campaigns = st.session_state.df_campaigns
 
     option = st.radio("Select a statistic", ("LRC", "LAC"), index=0, horizontal=True)
     x = "LR" if option == "LRC" else "LA"
@@ -230,10 +232,10 @@ def lrc_scatter_chart(daterange):
 
 def spend_by_country_map():
 
-    if "df_all" not in st.session_state:
+    if "df_campaigns" not in st.session_state:
         return pd.DataFrame()
     else:
-        df_campaigns = st.session_state.df_all
+        df_campaigns = st.session_state.df_campaigns
 
     df_campaigns = df_campaigns.groupby("country")["cost"].sum().round(2).reset_index()
     country_fig = px.choropleth(
@@ -255,7 +257,7 @@ def spend_by_country_map():
 
 
 def campaign_funnel_chart():
-    df_campaigns = st.session_state.df_all
+    df_campaigns = st.session_state.df_campaigns
     impressions = df_campaigns["impressions"].sum()
 
     clicks = df_campaigns["clicks"].sum()

@@ -39,10 +39,7 @@ def get_google_campaign_data():
     df["source"] = "Google"
     df["mobile_app_install"] = 0  # Facebook only metric
     df["reach"] = 0  # Facebook only metric
-    df.reset_index(drop=True, inplace=True)
-    df.set_index("campaign_id")
 
-    df = add_campaign_country(df)
     return df
 
 
@@ -61,6 +58,7 @@ def get_fb_campaign_data():
             start_time as campaign_start_date, 
             end_time as campaign_end_date,
             data_date_start as day,
+            0 as button_clicks,
             reach
             FROM dataexploration-193817.marketing_data.facebook_ads_data as d
             JOIN UNNEST(actions) as a
@@ -87,36 +85,26 @@ def get_fb_campaign_data():
     df["day"] = pd.to_datetime(df["day"]).dt.date
     df["source"] = "Facebook"
     df["mobile_app_install"] = pd.to_numeric(df["mobile_app_install"])
-    df.reset_index(drop=True, inplace=True)
-    df.set_index("campaign_id")
-
-    df = add_campaign_country(df)
 
     return df
 
 
 @st.cache_data(ttl="1d", show_spinner=False)
 def add_campaign_country(df):
-    bq_client = st.session_state.bq_client
-    sql_query = f"""
-                SELECT *
-                FROM `dataexploration-193817.user_data.campaign_gsheet`;
-                """
-    rows_raw = bq_client.query(sql_query)
-    rows = [dict(row) for row in rows_raw]
+    pattern = "-" + "(.*)"
 
-    dfcountry = pd.DataFrame(rows)
-    if len(rows) == 0:
-        return pd.DataFrame()
+    # Extract characters following the string match and assign it as the "country"
+    df["country"] = df["campaign_name"].str.extract(pattern)
 
-    merged_df = pd.merge(df, dfcountry, on="campaign_id", how="left")
+    # Remove the word "Campaign" if it exists
+    pattern = "(.*)Campaign"
+    extracted = df["country"].str.extract(pattern)
+    # Strip leading spaces from the extracted string
+    extracted[0] = extracted[0].str.strip()
+    # Replace NaN values (no match) with the original values=
+    df["country"] = extracted[0].fillna(df["country"])
 
-    # Step 2: Drop rows from DataFrame A where there's no match in DataFrame B
-    df = df[df["campaign_id"].isin(dfcountry["campaign_id"].dropna())]
-
-    # Step 3: Update DataFrame A with the values from the merged column
-    df["country"] = merged_df["country"]
-
+    df["country"] = extracted[0].str.strip()
     return df
 
 
@@ -142,3 +130,24 @@ def get_google_campaign_conversions():
     df.set_index("campaign_id")
 
     return df
+
+
+def rollup_campaign_data(df):
+    return df.groupby("campaign_id", as_index=True).agg(
+        {
+            "campaign_name": "first",
+            "campaign_start_date": "first",
+            "campaign_end_date": "first",
+            "mobile_app_install": "sum",
+            "day": "first",
+            "source": "first",
+            "clicks": "sum",
+            "reach": "first",
+            "button_clicks": lambda x: (
+                x.sum() if "button_clicks" in x else 0
+            ),  # Sum if column exists, otherwise return 0
+            "cost": "sum",
+            "cpc": "sum",
+            "impressions": "sum",
+        }
+    )

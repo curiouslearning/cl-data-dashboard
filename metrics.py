@@ -11,9 +11,9 @@ max_date = dt.date.today()
 
 @st.cache_data(ttl="1d", show_spinner=False)
 def get_ave_cost_per_action(daterange):
-    df_all = st.session_state.df_all
+    df_campaigns = st.session_state.df_campaigns
 
-    df = df_all.query(
+    df = df_campaigns.query(
         "@daterange[0] <= day <= @daterange[1] and mobile_app_install > 0"
     )
 
@@ -26,44 +26,9 @@ def get_ave_cost_per_action(daterange):
     return 0
 
 
-@st.cache_data(ttl="1d", show_spinner=False)
-def get_google_conversions(daterange):
-    df = st.session_state.df_goog_conversions
-
-    df1 = df.query("@daterange[0] <= day <= @daterange[1]")
-    total = df1["button_clicks"].sum()
-    return total
-
-
-@st.cache_data(ttl="1d", show_spinner=False)
-def get_campaign_data_totals(daterange, source):
-    df_all = st.session_state.df_all
-
-    df = df_all.query("@daterange[0] <= day <= @daterange[1]  and source == @source")
-    df = df.groupby("campaign_id", as_index=True).agg(
-        {
-            "campaign_name": "first",
-            "country": "first",
-            "campaign_start_date": "first",
-            "campaign_end_date": "first",
-            "mobile_app_install": "sum",
-            "clicks": "sum",
-            "reach": "first",
-            "button_clicks": "sum",
-            "cost": "sum",
-            "cpc": "sum",
-            "impressions": "sum",
-        }
-    )
-
-    df.sort_values(by=["campaign_start_date"], ascending=False)
-
-    return df
-
-
 def get_download_totals(daterange):
-    df_all = st.session_state.df_all
-    df = df_all.query("@daterange[0] <= day <= @daterange[1]")
+    df_campaigns = st.session_state.df_campaigns
+    df = df_campaigns.query("@daterange[0] <= day <= @daterange[1]")
     total = df["mobile_app_install"].sum()
 
     return total
@@ -86,9 +51,13 @@ def get_totals_by_metric(
         daterange, countries_list, stat, cr_app_version, app=app, language=language
     )
 
-    if stat not in ["TS", "SL", "PC", "LA"]:
+    if stat not in ["DC", "TS", "SL", "PC", "LA"]:
         return len(df_user_list)
     else:
+        download_completed_count = len(
+            df_user_list[df_user_list["furthest_event"] == "download_completed"]
+        )
+
         tapped_start_count = len(
             df_user_list[df_user_list["furthest_event"] == "tapped_start"]
         )
@@ -101,6 +70,15 @@ def get_totals_by_metric(
         level_completed_count = len(
             df_user_list[df_user_list["furthest_event"] == "level_completed"]
         )
+
+        if stat == "DC":
+            return (
+                download_completed_count
+                + tapped_start_count
+                + selected_level_count
+                + puzzle_completed_count
+                + level_completed_count
+            )
 
         if stat == "TS":
             return (
@@ -193,16 +171,13 @@ def get_GC_avg(daterange, countries_list, app="Both", language="All"):
     return 0 if cohort_count == 0 else gc_count / cohort_count * 100
 
 
+# Returns a DataFrame list of countries and the number of users per country
 @st.cache_data(ttl="1d", show_spinner=False)
 def get_country_counts(daterange, countries_list, stat, app="Both", language="All"):
 
     if stat == "LR" or stat == "LA":
-        if stat == "LR":
-            primary_stat = "LR"
-            secondary_stat = "LA"
-        elif stat == "LA":
-            primary_stat = "LA"
-            secondary_stat = "LR"
+        primary_stat = stat
+        secondary_stat = "LR" if stat == "LA" else "LA"
 
         df_primary = filter_user_data(
             daterange, countries_list, primary_stat, app=app, language=language
