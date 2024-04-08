@@ -38,7 +38,7 @@ def stats_by_country_map(daterange, countries_list, app="Both", language="All"):
 
 
 @st.cache_data(ttl="1d")
-def campaign_gantt_chart(daterange):
+def campaign_gantt_chart():
     df1 = st.session_state.df_campaigns
     df1["campaign_start_date"] = pd.to_datetime(df1["campaign_start_date"]).dt.date
 
@@ -189,14 +189,16 @@ def LR_LA_line_chart_over_time(
     st.plotly_chart(fig, use_container_width=True)
 
 
-def lrc_scatter_chart(daterange):
+def lrc_scatter_chart():
     df_campaigns = st.session_state.df_campaigns
     countries_list = df_campaigns["country"].unique()
     countries_list = list(countries_list)
 
     # Convert the numpy array to a Python list
 
-    df_counts = metrics.get_country_counts(daterange, countries_list, "LR")
+    df_counts = metrics.get_country_counts(
+        [min_date, max_date], countries_list, stat="LR"
+    )
 
     option = st.radio("Select a statistic", ("LRC", "LAC"), index=0, horizontal=True)
     x = "LR" if option == "LRC" else "LA"
