@@ -103,6 +103,7 @@ def add_campaign_country(df):
 
     # Replace NaN values (no match) with the original values=
     df["country"] = extracted[0].fillna(df["country"])
+    df["country"] = df["country"].str.strip()
 
     return df
 

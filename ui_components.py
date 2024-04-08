@@ -192,10 +192,8 @@ def LR_LA_line_chart_over_time(
 def lrc_scatter_chart(daterange):
     countries_list = users.get_country_list()
     df_counts = metrics.get_country_counts(daterange, countries_list, "LR")
-    if "df_campaigns" not in st.session_state:
-        return pd.DataFrame()
-    else:
-        df_campaigns = st.session_state.df_campaigns
+
+    df_campaigns = st.session_state.df_campaigns
 
     option = st.radio("Select a statistic", ("LRC", "LAC"), index=0, horizontal=True)
     x = "LR" if option == "LRC" else "LA"
@@ -203,6 +201,9 @@ def lrc_scatter_chart(daterange):
 
     # Merge dataframes on 'country'
     merged_df = pd.merge(df_campaigns, df_counts, on="country", how="right")
+
+    min_value = 100
+    merged_df = merged_df[(merged_df["LR"] > min_value) | (merged_df["LA"] > min_value)]
 
     # Calculate LRC
     merged_df[option] = (merged_df["cost"] / merged_df[x]).round(2)
@@ -219,7 +220,7 @@ def lrc_scatter_chart(daterange):
         color="country",
         title="Reach to Cost",
     )
-    fig.update_traces(showlegend=False)
+    fig.update_traces(showlegend=True)
     st.plotly_chart(fig, use_container_width=True)
 
 
@@ -231,6 +232,7 @@ def spend_by_country_map():
         df_campaigns = st.session_state.df_campaigns
 
     df_campaigns = df_campaigns.groupby("country")["cost"].sum().round(2).reset_index()
+
     country_fig = px.choropleth(
         df_campaigns,
         locations="country",
