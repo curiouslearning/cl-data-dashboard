@@ -26,12 +26,13 @@ def get_ave_cost_per_action(daterange):
     return 0
 
 
-def get_download_totals(daterange):
+def get_download_totals():
     df_campaigns = st.session_state.df_campaigns
-    df = df_campaigns.query("@daterange[0] <= day <= @daterange[1]")
-    total = df["mobile_app_install"].sum()
+    total_fb = df_campaigns["mobile_app_install"].sum()
 
-    return total
+    total_goog = df_campaigns["button_clicks"].sum()
+
+    return total_fb, total_goog
 
 
 @st.cache_data(ttl="1d", show_spinner=False)

@@ -39,21 +39,14 @@ def stats_by_country_map(daterange, countries_list, app="Both", language="All"):
 
 @st.cache_data(ttl="1d")
 def campaign_gantt_chart(daterange):
-    df_campaigns = st.session_state.df_campaigns
-    df1 = df_campaigns.query(
-        "@daterange[0] <= day <= @daterange[1] and source == 'Facebook'"
-    )
+    df1 = st.session_state.df_campaigns
+    df1["campaign_start_date"] = pd.to_datetime(df1["campaign_start_date"]).dt.date
 
-    # set the cost value in each row to the total cost for that campaign
-    df1 = (
-        df1.groupby(["campaign_name", "campaign_start_date", "campaign_end_date"])[
-            "cost"
-        ]
-        .sum()
-        .reset_index()
-    )
-    # We only need any row for each campaign
-    df1.drop_duplicates(subset="campaign_name", inplace=True)
+    # Define the chart start date
+    chart_start = dt.datetime.strptime("2023-07-01", "%Y-%m-%d").date()
+
+    # Query the DataFrame
+    df1 = df1.query("campaign_start_date > @chart_start")
 
     # Converting columns to datetime format
     df1["start_date"] = pd.to_datetime(df1["campaign_start_date"])

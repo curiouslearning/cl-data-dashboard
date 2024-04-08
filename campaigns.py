@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from rich import print as print
+import campaigns
 
 
 @st.cache_data(show_spinner="Fetching Google Campaign Data", ttl="1d")
@@ -9,21 +10,21 @@ def get_google_campaign_data():
     sql_query = f"""
         SELECT
         metrics.campaign_id,
-        metrics.segments_date as day,
         campaigns.campaign_name,
+        0 as mobile_app_install,
         metrics_clicks as clicks,
-        metrics_conversions as all_conversions,
         metrics_impressions as impressions,
         metrics_cost_micros as cost,
         metrics_average_cpc as cpc,
         campaigns.campaign_start_date,
         campaigns.campaign_end_date, 
+        0 as reach,
+        "Google" as source
         FROM dataexploration-193817.marketing_data.p_ads_CampaignStats_6687569935 as metrics
         inner join dataexploration-193817.marketing_data.ads_Campaign_6687569935 as campaigns
         on metrics.campaign_id = campaigns.campaign_id
         and campaigns.campaign_start_date >= '2021-01-01'
-        group by 1,2,3,4,5,6,7,8,9,10
-        order by segments_date desc        
+        group by 1,2,3,4,5,6,7,8,9,10   
     """
     rows_raw = bq_client.query(sql_query)
     rows = [dict(row) for row in rows_raw]
@@ -31,14 +32,9 @@ def get_google_campaign_data():
     df = pd.DataFrame(rows)
 
     df["campaign_id"] = df["campaign_id"].astype(str).str.replace(",", "")
-    df["day"] = pd.to_datetime(df["day"]).dt.date
     df["cost"] = df["cost"].divide(1000000).round(2)
     df["cpc"] = df["cpc"].divide(1000000)
     df = df.convert_dtypes()
-
-    df["source"] = "Google"
-    df["mobile_app_install"] = 0  # Facebook only metric
-    df["reach"] = 0  # Facebook only metric
 
     return df
 
@@ -57,9 +53,9 @@ def get_fb_campaign_data():
             cpc,
             start_time as campaign_start_date, 
             end_time as campaign_end_date,
-            data_date_start as day,
+            reach,
+            "Facebook" as source,
             0 as button_clicks,
-            reach
             FROM dataexploration-193817.marketing_data.facebook_ads_data as d
             JOIN UNNEST(actions) as a
             WHERE a.action_type = 'mobile_app_install'
@@ -82,29 +78,32 @@ def get_fb_campaign_data():
     df["campaign_end_date"] = pd.to_datetime(
         df.campaign_end_date, utc=True
     ).dt.strftime("%Y/%m/%d")
-    df["day"] = pd.to_datetime(df["day"]).dt.date
-    df["source"] = "Facebook"
+
     df["mobile_app_install"] = pd.to_numeric(df["mobile_app_install"])
 
     return df
 
 
 @st.cache_data(ttl="1d", show_spinner=False)
+# Looks for the string following the dash and makes that the associated country.
+# This requires a strict naming convention of "[anything without dashes] - [country]]"
 def add_campaign_country(df):
-    pattern = "-" + "(.*)"
 
-    # Extract characters following the string match and assign it as the "country"
-    df["country"] = df["campaign_name"].str.extract(pattern)
+    regex_pattern = r"^[^-]*-[^-]*$"  # This regex pattern matches strings containing exactly one "-"
+
+    df = df[df["campaign_name"].str.contains(regex_pattern)]
+
+    # Set country to everything after the dash and remove padding
+    regex_pattern = r"-\s*(.*)"
+    df["country"] = df["campaign_name"].str.extract(regex_pattern)[0].str.strip()
 
     # Remove the word "Campaign" if it exists
-    pattern = "(.*)Campaign"
-    extracted = df["country"].str.extract(pattern)
-    # Strip leading spaces from the extracted string
-    extracted[0] = extracted[0].str.strip()
+    regex_pattern = "\s*(.*)Campaign"
+    extracted = df["country"].str.extract(regex_pattern)
+
     # Replace NaN values (no match) with the original values=
     df["country"] = extracted[0].fillna(df["country"])
 
-    df["country"] = extracted[0].str.strip()
     return df
 
 
@@ -114,7 +113,6 @@ def get_google_campaign_conversions():
     sql_query = f"""
                 SELECT campaign_id,
                 metrics_conversions as button_clicks,
-                segments_date as day
                 FROM `dataexploration-193817.marketing_data.ads_CampaignConversionStats_6687569935`
                 where segments_conversion_action_name like '%CTA_Gplay%';
                 """
@@ -124,30 +122,60 @@ def get_google_campaign_conversions():
         return pd.DataFrame()
 
     df = pd.DataFrame(rows)
-    df["source"] = "Google"
+
     df["campaign_id"] = df["campaign_id"].astype(str).str.replace(",", "")
-    df.reset_index(drop=True, inplace=True)
-    df.set_index("campaign_id")
 
     return df
 
 
 def rollup_campaign_data(df):
-    return df.groupby("campaign_id", as_index=True).agg(
+
+    df = df.groupby("campaign_id", as_index=False).agg(
         {
-            "campaign_name": "first",
+            "campaign_name": "last",
             "campaign_start_date": "first",
             "campaign_end_date": "first",
             "mobile_app_install": "sum",
-            "day": "first",
             "source": "first",
             "clicks": "sum",
-            "reach": "first",
-            "button_clicks": lambda x: (
-                x.sum() if "button_clicks" in x else 0
-            ),  # Sum if column exists, otherwise return 0
+            "reach": "sum",
             "cost": "sum",
             "cpc": "sum",
             "impressions": "sum",
         }
     )
+
+    return df
+
+
+# Get the button clicks from BigQuery, add them to the dataframe
+# and rollup the sum per campaign_id
+def add_google_button_clicks(df):
+
+    df_goog_conversions = campaigns.get_google_campaign_conversions()
+
+    df_goog = pd.merge(
+        df,
+        df_goog_conversions,
+        on="campaign_id",
+        how="left",
+        suffixes=("", ""),
+    )
+
+    df_goog = df_goog.groupby("campaign_id", as_index=False).agg(
+        {
+            "campaign_name": "last",
+            "campaign_start_date": "first",
+            "campaign_end_date": "first",
+            "mobile_app_install": "first",
+            "source": "first",
+            "button_clicks": "sum",
+            "clicks": "first",
+            "reach": "first",
+            "cost": "first",
+            "cpc": "first",
+            "impressions": "first",
+        }
+    )
+
+    return df_goog

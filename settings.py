@@ -43,20 +43,24 @@ def init_user_list():
         st.session_state["df_first_open"] = df_first_open
 
 
+# Get the campaign data from BigQuery, roll it up per campaign
 def init_campaign_data():
     df_fb = campaigns.get_fb_campaign_data()
-    df_goog = campaigns.get_google_campaign_data()
-    df_goog_conversions = campaigns.get_google_campaign_conversions()
-    df_goog = pd.concat([df_goog, df_goog_conversions])
-
     df_fb = campaigns.rollup_campaign_data(df_fb)
+
+    df_goog = campaigns.get_google_campaign_data()
     df_goog = campaigns.rollup_campaign_data(df_goog)
-    df_campaigns = pd.concat([df_fb, df_goog])
+
+    df_goog = campaigns.add_google_button_clicks(df_goog)
+
+    df_campaigns = pd.concat([df_goog, df_fb])
 
     df_campaigns = campaigns.add_campaign_country(df_campaigns)
 
+    # Just moving country ahead in the dataframe
+    col = df_campaigns.pop("country")
+    df_campaigns.insert(2, col.name, col)
     df_campaigns.reset_index(drop=True, inplace=True)
-    df_campaigns.set_index("campaign_name")
 
     if "df_campaigns" not in st.session_state:
         st.session_state["df_campaigns"] = df_campaigns
