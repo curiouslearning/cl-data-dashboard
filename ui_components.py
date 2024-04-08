@@ -190,10 +190,13 @@ def LR_LA_line_chart_over_time(
 
 
 def lrc_scatter_chart(daterange):
-    countries_list = users.get_country_list()
-    df_counts = metrics.get_country_counts(daterange, countries_list, "LR")
-
     df_campaigns = st.session_state.df_campaigns
+    countries_list = df_campaigns["country"].unique()
+    countries_list = list(countries_list)
+
+    # Convert the numpy array to a Python list
+
+    df_counts = metrics.get_country_counts(daterange, countries_list, "LR")
 
     option = st.radio("Select a statistic", ("LRC", "LAC"), index=0, horizontal=True)
     x = "LR" if option == "LRC" else "LA"
@@ -202,7 +205,7 @@ def lrc_scatter_chart(daterange):
     # Merge dataframes on 'country'
     merged_df = pd.merge(df_campaigns, df_counts, on="country", how="right")
 
-    min_value = 100
+    min_value = 1000
     merged_df = merged_df[(merged_df["LR"] > min_value) | (merged_df["LA"] > min_value)]
 
     # Calculate LRC
