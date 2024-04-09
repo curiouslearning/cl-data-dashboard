@@ -116,8 +116,12 @@ def filter_user_data(
 
     conditions = [
         f"@daterange[0] <= first_open <= @daterange[1]",
-        f"country.isin(@countries_list)",
     ]
+
+    if countries_list[0] != "All":
+        conditions.append(
+            f"country.isin(@countries_list)",
+        )
 
     if language != "All":
         conditions.append("app_language == @language")
@@ -143,6 +147,7 @@ def filter_user_data(
 
     # All other stat options (LA,PC,TS,SL)
     query = " and ".join(conditions)
+
     df = df_user_list.query(query)
     return df
 

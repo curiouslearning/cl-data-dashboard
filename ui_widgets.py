@@ -187,30 +187,70 @@ def app_selector():
     return app
 
 
-# this is a callback for language_selector
-def update_language_session_state():
-    if st.session_state.lang_key:
-        st.session_state.language = st.session_state.lang_key
+# Pass a unique key into the function in order to use this on multiple pages safely
+def country_selector(placement="side", title="", key="key"):
+    def update_country_session_state(key):
+        if key in st.session_state:
+            if st.session_state[key]:
+                st.session_state.country = st.session_state[key]
+
+    countries_list = users.get_country_list()
+    countries_list.insert(0, "All")
+
+    if placement == "side":
+        country = st.sidebar.selectbox(
+            label="Select a country",
+            options=countries_list,
+            index=0,
+            key=key,
+            on_change=update_country_session_state(key),
+        )
+    else:
+        country = st.selectbox(
+            label="Select a country",
+            options=countries_list,
+            index=0,
+            key=key,
+            on_change=update_country_session_state(key),
+        )
+    country_list = [country]
+    return country_list
 
 
 # This method uses the key parameter of the selectbox
 # to automatically ad the selection to session state.
-def language_selector():
+def language_selector(placement="side", key="lang_key"):
+    # this is a callback for language_selector
+    def update_language_session_state(key):
+        if key in st.session_state:
+            if st.session_state[key]:
+                st.session_state.language = st.session_state[key]
+
     df = users.get_language_list()
     df.insert(0, "All")
 
-    language = st.sidebar.selectbox(
-        label="Select a language",
-        options=df,
-        index=0,
-        key="lang_key",
-        on_change=update_language_session_state,
-    )
+    if placement == "side":
+        language = st.sidebar.selectbox(
+            label="Select a language",
+            options=df,
+            index=0,
+            key=key,
+            on_change=update_language_session_state(key),
+        )
+    else:
+        language = st.selectbox(
+            label="Select a language",
+            options=df,
+            index=0,
+            key=key,
+            on_change=update_language_session_state(key),
+        )
+
     return language
 
 
 # Pass a unique key into the function in order to use this on multiple pages safely
-def multi_select_all(available_options, title, key):
+def multi_select_all(available_options, placement="side", title="", key="key"):
     available_options.insert(0, "All")
 
     # If a user switches to another page and comes back, selected options is dropped from session state
@@ -233,21 +273,37 @@ def multi_select_all(available_options, title, key):
                     available_options
                 )  # Allow multiple selections
 
-    st.sidebar.multiselect(
-        label=title,
-        options=available_options,
-        key=key,
-        max_selections=st.session_state["max_selections"],
-        on_change=options_select,  # Pass the function without calling it
-        format_func=lambda x: "All" if x == "All" else f"{x}",
-    )
-
-    # Display options based on selection state
-    if "All" in st.session_state[key]:
-        st.sidebar.write("You selected all options.")
+    if placement == "side":
+        st.sidebar.multiselect(
+            label=title,
+            options=available_options,
+            key=key,
+            max_selections=st.session_state["max_selections"],
+            on_change=options_select,  # Pass the function without calling it
+            format_func=lambda x: "All" if x == "All" else f"{x}",
+        )
+        # Display options based on selection state
+        if "All" in st.session_state[key]:
+            st.sidebar.write("You selected all options.")
+        else:
+            st.sidebar.write(f"You selected {len(st.session_state[key])} options: ")
+            st.sidebar.write(st.session_state[key])
     else:
-        st.sidebar.write(f"You selected {len(st.session_state[key])} options: ")
-        st.sidebar.write(st.session_state[key])
+        st.multiselect(
+            label=title,
+            options=available_options,
+            key=key,
+            max_selections=st.session_state["max_selections"],
+            on_change=options_select,  # Pass the function without calling it
+            format_func=lambda x: "All" if x == "All" else f"{x}",
+        )
+
+        # Display options based on selection state
+        if "All" in st.session_state[key]:
+            st.write("You selected all options.")
+        else:
+            st.write(f"You selected {len(st.session_state[key])} options: ")
+            st.write(st.session_state[key])
 
     return (
         available_options[1:]
@@ -284,7 +340,7 @@ def paginated_dataframe(df, keys):
     bottom_menu = st.columns((4, 1, 1))
     with bottom_menu[2]:
         batch_size = st.selectbox(
-            "Page Size", options=[50, 100, 500], key=keys[3], index=1
+            "Page Size", options=[500, 1000, 1500], key=keys[3], index=0
         )
     with bottom_menu[1]:
         total_pages = int(len(df) / batch_size) if int(len(df) / batch_size) > 0 else 1
@@ -295,7 +351,9 @@ def paginated_dataframe(df, keys):
         st.markdown(f"Page **{current_page}** of **{total_pages}** ")
 
     pages = split_frame(df, batch_size)
-    pagination.dataframe(data=pages[current_page - 1], use_container_width=True)
+    pagination.dataframe(
+        hide_index=True, data=pages[current_page - 1], use_container_width=True
+    )
 
 
 def top_campaigns_by_downloads_barchart(n):
