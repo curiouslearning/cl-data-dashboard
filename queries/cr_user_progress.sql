@@ -26,7 +26,7 @@ WITH
       ELSE
       0
     END
-      ) AS level_completed,
+      ) AS level_completed_count,
     SUM(CASE
         WHEN event_name = 'puzzle_completed' THEN 1
       ELSE
@@ -44,7 +44,13 @@ WITH
       ELSE
       0
     END
-      ) AS tapped_start_count
+      ) AS tapped_start_count,
+    SUM(CASE
+        WHEN event_name = 'download_completed' THEN 1
+      ELSE
+      0
+    END
+      ) AS download_completed_count,
   FROM
     `ftm-b9d99.analytics_159643920.events_20*` AS a,
     UNNEST(event_params) AS app_params,
@@ -63,12 +69,15 @@ WITH
   ON
     b.app_language = LOWER(REGEXP_EXTRACT(app_params.value.string_value, '[?&]cr_lang=([^&]+)'))
   WHERE
-    event_name IN ('tapped_start',
+    event_name IN (
+      'download_completed',
+      'tapped_start',
       'selected_level',
       'puzzle_completed',
       'level_completed')
     AND app_params.key = 'page_location'
     AND app_params.value.string_value LIKE '%https://feedthemonster.curiouscontent.org%'
+    AND device.web_info.hostname LIKE 'feedthemonster.curiouscontent.org%'
     AND version_params.key = 'version_number'
   GROUP BY
     user_pseudo_id,
@@ -87,10 +96,11 @@ SELECT
   max_game_level,
   app_version,
   CASE
-    WHEN level_completed > 0 THEN 'level_completed'
+    WHEN level_completed_count > 0 THEN 'level_completed'
     WHEN puzzle_completed_count > 0 THEN 'puzzle_completed'
     WHEN selected_level_count > 0 THEN 'selected_level'
     WHEN tapped_start_count > 0 THEN 'tapped_start'
+    WHEN download_completed_count > 0 THEN 'download_completed'
   ELSE
   NULL
 END
