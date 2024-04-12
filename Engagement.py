@@ -62,7 +62,10 @@ if len(daterange) == 2 and len(countries_list) > 0:
     col3.metric(label="Game Completion Avg", value=f"{total:.2f}%")
 
     st.divider()
+    st.subheader("Levels reached per language")
+    uic.levels_line_chart(daterange, countries_list, app=app, language=language)
 
+    st.divider()
     st.subheader("Engagement across the world")
     uic.stats_by_country_map(daterange, countries_list, app=app, language=language)
     st.divider()
@@ -75,13 +78,3 @@ if len(daterange) == 2 and len(countries_list) > 0:
         uic.top_gpc_bar_chart(daterange, countries_list, app=app, language=language)
     with c2:
         uic.top_gca_bar_chart(daterange, countries_list, app=app, language=language)
-
-    st.divider()
-    st.subheader("Engagement over time")
-    option = st.radio(
-        "Select a statistic", ("LR", "LA"), index=0, horizontal=True, key="A"
-    )
-
-    uic.LR_LA_line_chart_over_time(
-        daterange, countries_list, option, app=app, language=language
-    )

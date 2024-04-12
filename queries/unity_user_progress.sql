@@ -1,13 +1,25 @@
 WITH
   all_events AS (
   SELECT
-    distinct(user_pseudo_id),
+    DISTINCT(user_pseudo_id),
     app_info.id AS app_id,
     CAST(DATE(TIMESTAMP_MICROS(user_first_touch_timestamp)) AS DATE) AS first_open,
     geo.country AS country,
     LOWER(REGEXP_EXTRACT(app_info.id, r'(?i)feedthemonster(.*)')) AS app_language,
-    min(app_info.version) AS app_version,
+    MIN(app_info.version) AS app_version,
     b.max_level AS max_game_level,
+    MIN(
+      CASE
+        WHEN event_name = 'GamePlay' THEN CASE
+        WHEN params.key = 'action'
+      AND params.value.string_value LIKE 'LevelSuccess%' THEN PARSE_DATE('%Y%m%d', event_date)
+      ELSE
+      NULL
+    END
+      ELSE
+      NULL
+    END
+      ) AS la_date,
     MAX(
       CASE
         WHEN event_name = 'GamePlay' THEN CASE
@@ -127,11 +139,11 @@ WITH
   ON
     b.app_language = LOWER(REGEXP_EXTRACT(app_info.id, r'(?i)feedthemonster(.*)'))
   WHERE
-   ( (event_name = 'GamePlay'
-     AND params.key = 'action'
-     AND params.value.string_value LIKE 'LevelSuccess%'
-     or params.value.string_value LIKE 'SegmentSuccess%')
-    OR (event_name = 'session_start'))
+    ( (event_name = 'GamePlay'
+        AND params.key = 'action'
+        AND params.value.string_value LIKE 'LevelSuccess%'
+        OR params.value.string_value LIKE 'SegmentSuccess%')
+      OR (event_name = 'session_start'))
     AND LOWER(app_info.id) LIKE '%feedthemonster%'
     AND CAST(DATE(TIMESTAMP_MICROS(user_first_touch_timestamp)) AS DATE) BETWEEN '2021-01-01'
     AND CURRENT_DATE()
@@ -151,6 +163,7 @@ SELECT
   max_user_level,
   max_game_level,
   app_version,
+  la_date,
   CASE
     WHEN level_completed_count > 0 THEN 'level_completed'
     WHEN puzzle_completed_count > 0 THEN 'puzzle_completed'
@@ -171,4 +184,5 @@ GROUP BY
   6,
   7,
   8,
-  9
+  9,
+  10

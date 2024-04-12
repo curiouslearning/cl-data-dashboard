@@ -32,7 +32,13 @@ def stats_by_country_map(daterange, countries_list, app="Both", language="All"):
         projection="natural earth",
         locationmode="country names",
     )
-    country_fig.update_layout(geo=dict(bgcolor="rgba(0,0,0,0)"))
+
+    country_fig.update_layout(
+        height=500,
+        margin=dict(l=10, r=1, b=0, t=10, pad=4),
+        geo=dict(bgcolor="rgba(0,0,0,0)"),
+        #       paper_bgcolor="LightSteelBlue",
+    )
     country_fig.update_geos(fitbounds="locations")
     st.plotly_chart(country_fig)
 
@@ -161,6 +167,7 @@ def LR_LA_line_chart_over_time(
     df_user_list = metrics.filter_user_data(
         daterange, countries_list, option, app=app, language=language
     )
+
     if option == "LA":
         groupby = "LA Date"
         title = "Daily Learners Acquired"
@@ -251,8 +258,13 @@ def spend_by_country_map():
         projection="natural earth",
         locationmode="country names",
     )
-    country_fig.update_layout(geo=dict(bgcolor="rgba(0,0,0,0)"))
+
     country_fig.update_geos(fitbounds="locations")
+    country_fig.update_layout(
+        height=500,
+        margin=dict(l=10, r=1, b=10, t=10, pad=4),
+        geo=dict(bgcolor="rgba(0,0,0,0)"),
+    )
     st.plotly_chart(country_fig)
 
 
@@ -311,3 +323,44 @@ def create_engagement_figure(funnel_data=[], key=""):
     )
 
     return fig
+
+
+# Show the count of users max level for each level in the game
+def levels_line_chart(daterange, countries_list, app="Both", language="All"):
+    df_user_list = metrics.filter_user_data(
+        daterange, countries_list, stat="LA", app=app, language=language
+    )
+
+    # Group by date, country, and app_language, then count the users
+    df = (
+        df_user_list.groupby(["max_user_level", "app_language"])
+        .size()
+        .reset_index(name="count")
+    )
+
+    # Calculate percent drop for hover text
+    df["percent_drop"] = df.groupby("app_language")["count"].pct_change() * 100
+
+    # Create separate traces for each app_language
+    traces = []
+    for app_language, data in df.groupby("app_language"):
+        trace = go.Scatter(
+            x=data["max_user_level"],
+            y=data["count"],
+            mode="lines+markers",
+            name=app_language,
+            hovertemplate="Max Level: %{x}<br>Count: %{y}<br>Percent Drop: %{customdata:.2f}%<br>App Language: %{text}",
+            customdata=data["percent_drop"],
+            text=data["app_language"],  # Include app_language in hover text
+        )
+        traces.append(trace)
+
+    # Create a Plotly layout
+    layout = go.Layout(
+        xaxis=dict(title="Levels"),
+        yaxis=dict(title="Users"),
+        height=500,
+    )
+    # Create a Plotly figure with all traces
+    fig = go.Figure(data=traces, layout=layout)
+    st.plotly_chart(fig, use_container_width=True)

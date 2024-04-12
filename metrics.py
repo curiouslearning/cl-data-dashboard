@@ -118,6 +118,9 @@ def filter_user_data(
         f"@daterange[0] <= first_open <= @daterange[1]",
     ]
 
+    if stat == "LA":
+        conditions.append("max_user_level >= 1")
+
     if countries_list[0] != "All":
         conditions.append(
             f"country.isin(@countries_list)",

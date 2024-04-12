@@ -8,6 +8,19 @@ WITH
     LOWER(REGEXP_EXTRACT(app_params.value.string_value, '[?&]cr_lang=([^&]+)')) AS app_language,
     MIN(version_params.value.string_value )AS app_version,
     b.max_level AS max_game_level,
+    MIN(
+      CASE
+        WHEN event_name = 'level_completed' THEN CASE
+        WHEN success_params.key = 'success_or_failure'
+      AND success_params.value.string_value = 'success'
+      AND level_params.key = 'level_number' THEN PARSE_DATE('%Y%m%d', event_date)
+      ELSE
+      NULL
+    END
+      ELSE
+      NULL
+    END
+      ) AS la_date,
     MAX(
       CASE
         WHEN event_name = 'level_completed' THEN CASE
@@ -69,8 +82,7 @@ WITH
   ON
     b.app_language = LOWER(REGEXP_EXTRACT(app_params.value.string_value, '[?&]cr_lang=([^&]+)'))
   WHERE
-    event_name IN (
-      'download_completed',
+    event_name IN ( 'download_completed',
       'tapped_start',
       'selected_level',
       'puzzle_completed',
@@ -95,6 +107,7 @@ SELECT
   max_user_level,
   max_game_level,
   app_version,
+  la_date,
   CASE
     WHEN level_completed_count > 0 THEN 'level_completed'
     WHEN puzzle_completed_count > 0 THEN 'puzzle_completed'
@@ -117,4 +130,5 @@ GROUP BY
   6,
   7,
   8,
-  9
+  9,
+  10

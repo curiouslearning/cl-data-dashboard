@@ -9,7 +9,9 @@ import users
 
 def get_bq_client():
     credentials = get_gcp_credentials()
-    bq_client = bigquery.Client(credentials=credentials)
+    bq_client = bigquery.Client(
+        credentials=credentials, project="dataexploration-193817"
+    )
     return bq_client
 
 

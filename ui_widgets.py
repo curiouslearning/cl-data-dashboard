@@ -177,13 +177,22 @@ def ads_platform_selector():
     return platform
 
 
-def app_selector():
-    app = st.sidebar.radio(
-        label="Application",
-        options=["Unity", "CR", "Both"],
-        horizontal=True,
-        index=2,
-    )
+def app_selector(placement="side"):
+    
+    if placement == "side":
+            app = st.sidebar.radio(
+                label="Application",
+                options=["Unity", "CR", "Both"],
+                horizontal=True,
+                index=2,
+            )
+    else:
+            app = st.radio(
+                label="Application",
+                options=["Unity", "CR", "Both"],
+                horizontal=True,
+                index=2,
+            )
     return app
 
 
@@ -297,13 +306,6 @@ def multi_select_all(available_options, placement="side", title="", key="key"):
             on_change=options_select,  # Pass the function without calling it
             format_func=lambda x: "All" if x == "All" else f"{x}",
         )
-
-        # Display options based on selection state
-        if "All" in st.session_state[key]:
-            st.write("You selected all options.")
-        else:
-            st.write(f"You selected {len(st.session_state[key])} options: ")
-            st.write(st.session_state[key])
 
     return (
         available_options[1:]
