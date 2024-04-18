@@ -32,7 +32,7 @@ if "df_campaigns" in st.session_state:
 
         if len(dff) > 0:
             keys = [2, 3, 4, 5, 6]
-            ui.paginated_dataframe(dff, keys)
+            ui.paginated_dataframe(dff, keys, sort_col="campaign_name")
         else:
             st.text("No data for selected period")
 
@@ -43,6 +43,6 @@ if "df_campaigns" in st.session_state:
         if len(dfg) > 0:
             keys = [7, 8, 9, 10, 11]
             dfg.sort_values(by="button_clicks")
-            ui.paginated_dataframe(dfg, keys)
+            ui.paginated_dataframe(dfg, keys, sort_col="campaign_name")
         else:
             st.text("No data for selected period")

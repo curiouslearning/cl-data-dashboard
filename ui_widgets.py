@@ -178,21 +178,21 @@ def ads_platform_selector():
 
 
 def app_selector(placement="side"):
-    
+
     if placement == "side":
-            app = st.sidebar.radio(
-                label="Application",
-                options=["Unity", "CR", "Both"],
-                horizontal=True,
-                index=2,
-            )
+        app = st.sidebar.radio(
+            label="Application",
+            options=["Unity", "CR", "Both"],
+            horizontal=True,
+            index=2,
+        )
     else:
-            app = st.radio(
-                label="Application",
-                options=["Unity", "CR", "Both"],
-                horizontal=True,
-                index=2,
-            )
+        app = st.radio(
+            label="Application",
+            options=["Unity", "CR", "Both"],
+            horizontal=True,
+            index=2,
+        )
     return app
 
 
@@ -320,8 +320,8 @@ def split_frame(input_df, rows):
     return df
 
 
-def paginated_dataframe(df, keys):
-
+def paginated_dataframe(df, keys, sort_col="campaign_name"):
+    df.sort_values(by=sort_col)
     top_menu = st.columns(3)
     with top_menu[0]:
         sort = st.radio(

@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from rich import print as print
 import campaigns
+from collections import defaultdict
 
 
 @st.cache_data(show_spinner="Fetching Google Campaign Data", ttl="1d")
@@ -10,6 +11,7 @@ def get_google_campaign_data():
     sql_query = f"""
         SELECT
         metrics.campaign_id,
+        metrics.segments_date as segment_date,
         campaigns.campaign_name,
         0 as mobile_app_install,
         metrics_clicks as clicks,
@@ -45,6 +47,7 @@ def get_fb_campaign_data():
     sql_query = f"""
             SELECT 
             campaign_id,
+            data_date_start as segment_date ,
             campaign_name,
             PARSE_NUMERIC(a.value) as mobile_app_install,  
             clicks,
@@ -131,9 +134,8 @@ def get_google_campaign_conversions():
 
 def rollup_campaign_data(df):
 
-    df = df.groupby("campaign_id", as_index=False).agg(
+    df = df.groupby(["campaign_id", "campaign_name"], as_index=False).agg(
         {
-            "campaign_name": "last",
             "campaign_start_date": "first",
             "campaign_end_date": "first",
             "mobile_app_install": "sum",
@@ -145,7 +147,6 @@ def rollup_campaign_data(df):
             "impressions": "sum",
         }
     )
-
     return df
 
 
