@@ -63,7 +63,8 @@ def get_fb_campaign_data():
             JOIN UNNEST(actions) as a
             WHERE a.action_type = 'mobile_app_install'
             and
-            d.start_time >= '2021-01-01';
+            d.start_time >= '2021-01-01'
+            order by data_date_start desc;
 
              """
 
@@ -132,10 +133,15 @@ def get_google_campaign_conversions():
     return df
 
 
+# This function takes a campaign based dataframe and sums it up into a single row per campaign.  The original dataframe
+# has many entries per campaign based on daily extractions.
 def rollup_campaign_data(df):
 
+    # This will roll everything up except when there is multiple campaign names
+    # for a campaign_id.  This happens when campaigns are renamed.
     df = df.groupby(["campaign_id", "campaign_name"], as_index=False).agg(
         {
+            "segment_date": "last",
             "campaign_start_date": "first",
             "campaign_end_date": "first",
             "mobile_app_install": "sum",
@@ -147,6 +153,38 @@ def rollup_campaign_data(df):
             "impressions": "sum",
         }
     )
+
+    # find duplicate campaign_ids, create a dataframe for them and remove from original
+    duplicates = df[df.duplicated("campaign_id", keep=False)]
+    df = df.drop_duplicates("campaign_id", keep=False)
+
+    # Get the newest campaign info according to segment date and use its campaign_name
+    # for the other campaign names.
+    duplicates = duplicates.sort_values(by="segment_date", ascending=False)
+    duplicates["campaign_name"] = duplicates.groupby("campaign_id")[
+        "campaign_name"
+    ].transform("first")
+
+    # Do another rollup on the duplicates.  This time the campaign name will be the same
+    # so we can take any of them
+    combined = duplicates.groupby(["campaign_id"], as_index=False).agg(
+        {
+            "campaign_name": "last",
+            "campaign_start_date": "first",
+            "campaign_end_date": "first",
+            "mobile_app_install": "sum",
+            "source": "first",
+            "clicks": "sum",
+            "reach": "sum",
+            "cost": "sum",
+            "cpc": "sum",
+            "impressions": "sum",
+        }
+    )
+
+    #put it all back together
+    df = pd.concat([df, combined])
+
     return df
 
 

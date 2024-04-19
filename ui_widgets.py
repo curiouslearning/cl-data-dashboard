@@ -321,7 +321,7 @@ def split_frame(input_df, rows):
 
 
 def paginated_dataframe(df, keys, sort_col="campaign_name"):
-    df.sort_values(by=sort_col)
+    df = df.sort_values(by=sort_col)
     top_menu = st.columns(3)
     with top_menu[0]:
         sort = st.radio(
