@@ -14,6 +14,7 @@ settings.initialize()
 settings.init_campaign_data()
 settings.init_user_list()
 
+ui.colorize_multiselect_options()
 app = ui.app_selector()
 language = ui.language_selector()  # puts selection in session state
 countries_list = users.get_country_list()

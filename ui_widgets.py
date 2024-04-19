@@ -6,6 +6,8 @@ from dateutil.relativedelta import relativedelta
 import users
 import calendar
 import plost
+import re
+from streamlit_option_menu import option_menu
 
 min_date = dt.datetime(2021, 1, 1).date()
 max_date = dt.date.today()
@@ -121,6 +123,8 @@ def custom_date_selection_slider():
 
 
 def custom_date_selection(placement="side", key=""):
+    min_date = dt.datetime.now().date() - dt.timedelta(30)
+
     if placement == "side":
         date_range = st.sidebar.date_input("Pick a date", (min_date, max_date), key=key)
     else:
@@ -196,6 +200,27 @@ def app_selector(placement="side"):
     return app
 
 
+def colorize_multiselect_options() -> None:
+    colors = [
+        "#394a51",
+        "#7fa99b",
+        "#fbf2d5",
+        "#fdc57b",
+    ]
+
+    rules = ""
+    n_colors = len(colors)
+
+    for i, color in enumerate(colors):
+        rules += f""".stMultiSelect div[data-baseweb="select"] span[data-baseweb="tag"]:nth-child({n_colors}n+{i}){{background-color: {color};}}"""
+
+    st.markdown(f"<style>{rules}</style>", unsafe_allow_html=True)
+
+
+# with open("style.css") as f:
+#     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+
+
 # Pass a unique key into the function in order to use this on multiple pages safely
 def country_selector(placement="side", title="", key="key"):
     def update_country_session_state(key):
@@ -214,6 +239,7 @@ def country_selector(placement="side", title="", key="key"):
             key=key,
             on_change=update_country_session_state(key),
         )
+
     else:
         country = st.selectbox(
             label="Select a country",
@@ -222,6 +248,7 @@ def country_selector(placement="side", title="", key="key"):
             key=key,
             on_change=update_country_session_state(key),
         )
+
     country_list = [country]
     return country_list
 
@@ -291,12 +318,7 @@ def multi_select_all(available_options, placement="side", title="", key="key"):
             on_change=options_select,  # Pass the function without calling it
             format_func=lambda x: "All" if x == "All" else f"{x}",
         )
-        # Display options based on selection state
-        if "All" in st.session_state[key]:
-            st.sidebar.write("You selected all options.")
-        else:
-            st.sidebar.write(f"You selected {len(st.session_state[key])} options: ")
-            st.sidebar.write(st.session_state[key])
+
     else:
         st.multiselect(
             label=title,
@@ -413,6 +435,7 @@ def calendar_selector(placement="side", key=""):
         "Select year",
         "Select month",
         "Select custom range",
+        "Presets",
     )
 
     with st.expander("Date"):
@@ -433,7 +456,75 @@ def calendar_selector(placement="side", key=""):
         elif option == "Select month":
             key = key + "x"
             selected_date = month_selector(placement, key=key)
+        elif option == "Presets":
+            selected_date = presets_selector(placement, key=key)
         else:
             selected_date = custom_date_selection(placement, key=key)
 
     return selected_date, option
+
+
+presets = [
+    "Last 7 days",
+    "Last 14 days",
+    "Last 30 days",
+    "Last 90 days",
+]
+
+
+def presets_selector(placement="side", key=""):
+    dates = []
+    styles = {
+        "container": {"padding": "0!important", "background-color": "#fafafa"},
+        "icon": {"color": "orange", "font-size": "15px"},
+        "nav-link": {
+            "font-size": "12px",
+            "text-align": "left",
+            "margin": "2px",
+            "--hover-color": "#eee",
+        },
+        "nav-link-selected": {"background-color": "#394a51"},
+    }
+
+    if placement == "side":
+
+        with st.sidebar:
+            preset = option_menu(
+                None,
+                presets,
+                icons=["peace", "yin-yang", "sun", "heart"],
+                orientation="horizontal",
+                styles=styles,
+            )
+    else:
+        preset = option_menu(
+            None,
+            presets,
+            icons=["peace", "yin-yang", "sun", "heart"],
+            orientation="horizontal",
+            styles=styles,
+        )
+
+    if preset:
+        dates = calculate_preset_dates(preset)
+
+    return dates
+
+
+def calculate_preset_dates(preset):
+    today = dt.date.today()
+    this_year = dt.datetime.now().year
+    this_month = dt.datetime.now().month
+
+    pattern = r"\d+"
+    numeric_part = re.findall(pattern, preset)
+
+    # Converting the extracted numeric part to an integer
+    numeric_part = int(
+        numeric_part[0]
+    )  # numeric_part[0] contains the first (and only) element of the list
+
+    start_date = dt.datetime.now().date() - dt.timedelta(numeric_part)
+    end_date = dt.datetime.now().date()
+
+    return [start_date, end_date]

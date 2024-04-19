@@ -14,6 +14,9 @@ ui.display_definitions_table()
 
 settings.initialize()
 settings.init_user_list()
+
+ui.colorize_multiselect_options()
+
 selected_date, option = ui.calendar_selector()
 daterange = ui.convert_date_to_range(selected_date, option)
 

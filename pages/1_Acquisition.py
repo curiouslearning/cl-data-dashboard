@@ -12,7 +12,7 @@ ui.display_definitions_table()
 settings.initialize()
 settings.init_campaign_data()
 settings.init_user_list()
-
+ui.colorize_multiselect_options()
 uic.lrc_scatter_chart()
 st.divider()
 st.subheader("Campaign Timelines")

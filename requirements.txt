@@ -10,3 +10,4 @@ numpy
 millify
 plost
 plotly
+streamlit_option_menu
