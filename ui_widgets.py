@@ -512,9 +512,6 @@ def presets_selector(placement="side", key=""):
 
 
 def calculate_preset_dates(preset):
-    today = dt.date.today()
-    this_year = dt.datetime.now().year
-    this_month = dt.datetime.now().month
 
     pattern = r"\d+"
     numeric_part = re.findall(pattern, preset)
