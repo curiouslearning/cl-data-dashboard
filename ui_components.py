@@ -9,9 +9,6 @@ import metrics
 from millify import prettify
 import ui_widgets as ui
 
-min_date = dt.datetime(2021, 1, 1).date()
-max_date = dt.date.today()
-
 
 def stats_by_country_map(daterange, countries_list, app="Both", language="All"):
     option = ui.stats_radio_selector()
@@ -204,7 +201,7 @@ def lrc_scatter_chart():
     # Convert the numpy array to a Python list
 
     df_counts = metrics.get_country_counts(
-        [min_date, max_date], countries_list, stat="LR"
+        [dt.datetime(2021, 1, 1).date(), dt.date.today()], countries_list, stat="LR"
     )
 
     option = st.radio("Select a statistic", ("LRC", "LAC"), index=0, horizontal=True)

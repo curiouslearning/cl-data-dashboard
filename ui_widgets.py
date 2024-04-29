@@ -9,9 +9,6 @@ import plost
 import re
 from streamlit_option_menu import option_menu
 
-min_date = dt.datetime(2021, 1, 1).date()
-max_date = dt.date.today()
-
 
 def display_definitions_table():
     expander = st.expander("Definitions")
@@ -110,7 +107,7 @@ def month_selector(placement="side", key=""):
 
 
 def custom_date_selection_slider():
-    # date_range = st.sidebar.date_input("Pick a date", (min_date, max_date))
+
     today = dt.datetime.now().date()
     last_year = dt.date(today.year, 1, 1) - relativedelta(years=1)
 
@@ -126,9 +123,11 @@ def custom_date_selection(placement="side", key=""):
     min_date = dt.datetime.now().date() - dt.timedelta(30)
 
     if placement == "side":
-        date_range = st.sidebar.date_input("Pick a date", (min_date, max_date), key=key)
+        date_range = st.sidebar.date_input(
+            "Pick a date", (min_date, dt.date.today()), key=key
+        )
     else:
-        date_range = st.date_input("Pick a date", (min_date, max_date), key=key)
+        date_range = st.date_input("Pick a date", (min_date, dt.date.today()), key=key)
 
     return date_range
 
@@ -140,7 +139,7 @@ def convert_date_to_range(selected_date, option):
         last = dt.date(selected_date, 12, 31)
         return [first, last]
     elif option == "All time":
-        return [min_date, max_date]
+        return [dt.datetime(2021, 1, 1).date(), dt.date.today()]
     elif option == "Select month":
         month = selected_date[0]
         year = selected_date[1]
@@ -452,7 +451,7 @@ def calendar_selector(placement="side", key=""):
         if option == "Select year":
             selected_date = year_selector(placement=placement, key=key)
         elif option == "All time":
-            selected_date = [min_date, max_date]
+            selected_date = [dt.datetime(2021, 1, 1).date(), dt.date.today()]
         elif option == "Select month":
             key = key + "x"
             selected_date = month_selector(placement, key=key)

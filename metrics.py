@@ -5,9 +5,6 @@ import numpy as np
 import datetime as dt
 import users
 
-min_date = dt.datetime(2021, 1, 1).date()
-max_date = dt.date.today()
-
 
 @st.cache_data(ttl="1d", show_spinner=False)
 def get_ave_cost_per_action(daterange):
@@ -37,7 +34,7 @@ def get_download_totals():
 
 @st.cache_data(ttl="1d", show_spinner=False)
 def get_totals_by_metric(
-    daterange=[min_date, max_date],
+    daterange=[dt.datetime(2021, 1, 1).date(), dt.date.today()],
     countries_list=[],
     stat="LR",
     cr_app_version="All",
