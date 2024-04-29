@@ -77,7 +77,7 @@ def campaign_gantt_chart():
         x_start="start_date",
         x_end="end_date",
         y="campaign_name_short",
-        height=900,
+                height=1500,
         color_continuous_scale=[
             [0, "rgb(166,206,227, 0.5)"],
             [0.05, "rgb(31,120,180,0.5)"],
@@ -99,6 +99,7 @@ def campaign_gantt_chart():
         bargap=0.2,
         xaxis_title="",
         yaxis_title="",
+        yaxis=dict(tickfont_size=8),
         title_x=0.5,  # Make title centered
         xaxis=dict(
             tickfont_size=10,

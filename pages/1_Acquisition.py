@@ -14,12 +14,7 @@ settings.init_campaign_data()
 settings.init_user_list()
 ui.colorize_multiselect_options()
 uic.lrc_scatter_chart()
-st.divider()
-st.subheader("Campaign Timelines")
-uic.campaign_gantt_chart()
-st.divider()
-st.subheader("Total Spend per Country")
-uic.spend_by_country_map()
+
 st.divider()
 st.subheader("Learners Reached Over Time")
 
@@ -41,10 +36,17 @@ with col2:
         placement="middle",
     )
 
-    option = st.radio(
-        "Select a statistic", ("LR", "LA"), index=0, horizontal=True, key="A"
-    )
+
+option = st.radio("Select a statistic", ("LR", "LA"), index=0, horizontal=True, key="A")
 if (len(countries_list)) > 0 and (len(daterange) == 2):
     uic.LR_LA_line_chart_over_time(
         daterange, countries_list, app=app, language=language, option=option
     )
+
+st.divider()
+st.subheader("Total Spend per Country")
+uic.spend_by_country_map()
+
+st.divider()
+st.subheader("Campaign Timelines")
+uic.campaign_gantt_chart()
