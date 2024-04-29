@@ -21,9 +21,14 @@ def stats_by_country_map(daterange, countries_list, app="Both", language="All"):
         locations="country",
         color=str(option),
         color_continuous_scale=[
-            "#1584A3",
-            "#DB830F",
-            "#E6DF15",
+            "#F9FAFA",
+            "#7ef7f7",
+            "#a9b6b5",
+            "#d0a272",
+            "#e48f35",
+            "#a18292",
+            "#85526c",
+            "#48636e",
         ],
         height=600,
         projection="natural earth",
@@ -247,9 +252,14 @@ def spend_by_country_map():
         locations="country",
         color="cost",
         color_continuous_scale=[
-            "#1584A3",
-            "#DB830F",
-            "#E6DF15",
+            "#F9FAFA",
+            "#7ef7f7",
+            "#a9b6b5",
+            "#d0a272",
+            "#e48f35",
+            "#a18292",
+            "#85526c",
+            "#48636e",
         ],
         height=600,
         projection="natural earth",
@@ -258,7 +268,7 @@ def spend_by_country_map():
 
     country_fig.update_geos(fitbounds="locations")
     country_fig.update_layout(
-        height=500,
+        height=600,
         margin=dict(l=10, r=1, b=10, t=10, pad=4),
         geo=dict(bgcolor="rgba(0,0,0,0)"),
     )
