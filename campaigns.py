@@ -102,7 +102,7 @@ def add_campaign_country(df):
     df["country"] = df["campaign_name"].str.extract(regex_pattern)[0].str.strip()
 
     # Remove the word "Campaign" if it exists
-    regex_pattern = "\s*(.*)Campaign"
+    regex_pattern = r"\s*(.*)Campaign"
     extracted = df["country"].str.extract(regex_pattern)
 
     # Replace NaN values (no match) with the original values=
@@ -182,7 +182,7 @@ def rollup_campaign_data(df):
         }
     )
 
-    #put it all back together
+    # put it all back together
     df = pd.concat([df, combined])
 
     return df
