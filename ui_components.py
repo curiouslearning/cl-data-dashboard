@@ -77,7 +77,7 @@ def campaign_gantt_chart():
         x_start="start_date",
         x_end="end_date",
         y="campaign_name_short",
-                height=1500,
+        height=1500,
         color_continuous_scale=[
             [0, "rgb(166,206,227, 0.5)"],
             [0.05, "rgb(31,120,180,0.5)"],
@@ -113,9 +113,10 @@ def campaign_gantt_chart():
             tickformat="%x\n",
         ),
     )
+
     hovertemp = "<b>Date: </b> %{x} <br>"
     hovertemp += "<b>Campaign: </b> %{customdata[0]} <br>"
-    hovertemp += "<b>Cost: </b> %{customdata[1]} <br>"
+    hovertemp += "<b>Cost: </b> %{customdata[1]:$,.2f}<br>"
     fig.update_traces(hoverinfo="text", hovertemplate=hovertemp)
     fig.update_xaxes(
         tickangle=0, tickfont=dict(family="Rockwell", color="#A9A9A9", size=12)
@@ -253,18 +254,19 @@ def spend_by_country_map():
         locations="country",
         color="cost",
         color_continuous_scale=[
-            "#F9FAFA",
-            "#7ef7f7",
-            "#a9b6b5",
-            "#d0a272",
-            "#e48f35",
-            "#a18292",
-            "#85526c",
-            "#48636e",
+            [0, "rgb(166,206,227, 0.5)"],
+            [0.05, "rgb(31,120,180,0.5)"],
+            [0.1, "rgb(178,223,138,0.5)"],
+            [0.3, "rgb(51,160,44,0.5)"],
+            [0.6, "rgb(251,154,153,0.5)"],
+            [1, "rgb(227,26,28,0.5)"],
         ],
         height=600,
         projection="natural earth",
         locationmode="country names",
+        hover_data={
+            "cost": ":$,.2f",
+        },
     )
 
     country_fig.update_geos(fitbounds="locations")
