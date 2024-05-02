@@ -46,6 +46,7 @@ if len(daterange) == 2 and len(countries_list) > 0:
     total = metrics.get_totals_by_metric(
         daterange, countries_list, "PC", app=app, language=language
     )
+
     col2.metric(label="Puzzle Completed", value=prettify(int(total)))
 
     total = metrics.get_totals_by_metric(
@@ -78,6 +79,6 @@ if len(daterange) == 2 and len(countries_list) > 0:
     )
     c1, c2 = st.columns(2)
     with c1:
-        uic.top_gpc_bar_chart(daterange, countries_list, app=app, language=language)
+        uic.top_gpp_bar_chart(daterange, countries_list, app=app, language=language)
     with c2:
         uic.top_gca_bar_chart(daterange, countries_list, app=app, language=language)

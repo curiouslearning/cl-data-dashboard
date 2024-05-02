@@ -23,10 +23,11 @@ with col1:
 
     selected_date, option = ui.calendar_selector(placement="middle")
     daterange = ui.convert_date_to_range(selected_date, option)
-    app = ui.app_selector(placement="middle")
-    language = ui.language_selector(
-        placement="middle"
-    )  # puts selection in session state
+    start = daterange[0].strftime("%m-%d-%Y")
+    end = daterange[1].strftime("%m-%d-%Y")
+    st.text("Date Range:")
+    st.text(start + " - " + end)
+
 with col2:
     countries_list = users.get_country_list()
     countries_list = ui.multi_select_all(
@@ -35,9 +36,14 @@ with col2:
         key="LA_LR_Time",
         placement="middle",
     )
+    option = st.radio(
+        "Select a statistic", ("LR", "LA"), index=0, horizontal=True, key="A"
+    )
+with col3:
+    app = ui.app_selector(placement="middle")
+    language = ui.language_selector(placement="middle")
 
 
-option = st.radio("Select a statistic", ("LR", "LA"), index=0, horizontal=True, key="A")
 if (len(countries_list)) > 0 and (len(daterange) == 2):
     uic.LR_LA_line_chart_over_time(
         daterange, countries_list, app=app, language=language, option=option

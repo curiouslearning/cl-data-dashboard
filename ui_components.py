@@ -12,9 +12,8 @@ import ui_widgets as ui
 
 def stats_by_country_map(daterange, countries_list, app="Both", language="All"):
     option = ui.stats_radio_selector()
-    df = metrics.get_country_counts(
-        daterange, countries_list, option, app, language=language
-    )
+
+    df = metrics.get_country_counts(daterange, countries_list, app, language=language)
 
     country_fig = px.choropleth(
         df,
@@ -33,6 +32,13 @@ def stats_by_country_map(daterange, countries_list, app="Both", language="All"):
         height=600,
         projection="natural earth",
         locationmode="country names",
+        hover_data={
+            "LR": ":,",
+            "PC": ":,",
+            "LA": ":,",
+            "GPP": ":,",
+            "GCA": ":,",
+        },
     )
 
     country_fig.update_layout(
@@ -41,6 +47,7 @@ def stats_by_country_map(daterange, countries_list, app="Both", language="All"):
         geo=dict(bgcolor="rgba(0,0,0,0)"),
         #       paper_bgcolor="LightSteelBlue",
     )
+
     country_fig.update_geos(fitbounds="locations")
     st.plotly_chart(country_fig)
 
@@ -127,10 +134,13 @@ def campaign_gantt_chart():
     )  # Display the plotly chart in Streamlit
 
 
-def top_gpc_bar_chart(daterange, countries_list, app="Both", language="All"):
+def top_gpp_bar_chart(daterange, countries_list, app="Both", language="All"):
     df = metrics.get_country_counts(
-        daterange, countries_list, "GPP", app, language
-    ).head(10)
+        daterange, countries_list, app=app, language=language
+    )
+
+    df = df[["country", "GPP"]].sort_values(by="GPP", ascending=False).head(10)
+
     df.rename(columns={"country": "Country"}, inplace=True)
     fig = px.bar(
         df, x="Country", y="GPP", color="Country", title="Top 10 Countries by GPP %"
@@ -140,26 +150,49 @@ def top_gpc_bar_chart(daterange, countries_list, app="Both", language="All"):
 
 def top_gca_bar_chart(daterange, countries_list, app="Both", language="All"):
     df = metrics.get_country_counts(
-        daterange, countries_list, "GCA", app, language
-    ).head(10)
+        daterange, countries_list, app=app, language=language
+    )
+
+    df = df[["country", "GCA"]].sort_values(by="GCA", ascending=False).head(10)
     df.rename(columns={"country": "Country"}, inplace=True)
     fig = px.bar(
-        df, x="Country", y="GCA", color="Country", title="Top 10 Countries by GCA %"
+        df,
+        x="Country",
+        y="GCA",
+        color="Country",
+        title="Top 10 Countries by GCA %",
     )
     st.plotly_chart(fig, use_container_width=True)
 
 
 def top_LR_LC_bar_chart(daterange, countries_list, option, app="Both", language="All"):
     df = metrics.get_country_counts(
-        daterange, countries_list, str(option), app=app, language=language
-    ).head(10)
+        daterange, countries_list, app=app, language=language
+    )
+
+    df = (
+        df[["country", "LR", "LA"]]
+        .sort_values(by=option, ascending=False)
+        .head(10)
+        .round(2)
+    )
 
     title = "Top 10 Countries by " + str(option)
     fig = go.Figure(
         data=[
-            go.Bar(name="LR", x=df["country"], y=df["LR"]),
-            go.Bar(name="LA", x=df["country"], y=df["LA"]),
-        ]
+            go.Bar(
+                name="LR",
+                x=df["country"],
+                y=df["LR"],
+                hovertemplate="Country: %{x}<br>LR: %{y:,.0f}<extra></extra>",
+            ),
+            go.Bar(
+                name="LA",
+                x=df["country"],
+                y=df["LA"],
+                hovertemplate="Country: %{x}<br>LA: %{y:,.0f}<extra></extra>",
+            ),
+        ],
     )
     fig.update_layout(title_text=title)
     st.plotly_chart(fig, use_container_width=True)
@@ -208,7 +241,7 @@ def lrc_scatter_chart():
     # Convert the numpy array to a Python list
 
     df_counts = metrics.get_country_counts(
-        [dt.datetime(2021, 1, 1).date(), dt.date.today()], countries_list, stat="LR"
+        [dt.datetime(2021, 1, 1).date(), dt.date.today()], countries_list
     )
 
     option = st.radio("Select a statistic", ("LRC", "LAC"), index=0, horizontal=True)
@@ -228,7 +261,6 @@ def lrc_scatter_chart():
 
     merged_df[option] = merged_df[option].fillna(0)
     scatter_df = merged_df[["country", "cost", option, x]]
-
     fig = px.scatter(
         scatter_df,
         x=x,
@@ -236,7 +268,21 @@ def lrc_scatter_chart():
         color="country",
         title="Reach to Cost",
     )
+
+    # Update hovertemplate to include commas and dollar sign for numbers
+    fig.update_traces(
+        hovertemplate="Country: %{text}<br>"
+        + x
+        + ": %{x:,}<br>"
+        + option
+        + ": $%{y:,.2f}<extra></extra>",
+        text=scatter_df["country"],  # Adding country names to hover text
+    )
+
+    # Show legend
     fig.update_traces(showlegend=True)
+
+    # Plot the chart
     st.plotly_chart(fig, use_container_width=True)
 
 

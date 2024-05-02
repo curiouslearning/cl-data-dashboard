@@ -32,7 +32,6 @@ def get_download_totals():
     return total_fb, total_goog
 
 
-@st.cache_data(ttl="1d", show_spinner=False)
 def get_totals_by_metric(
     daterange=[dt.datetime(2021, 1, 1).date(), dt.date.today()],
     countries_list=[],
@@ -96,6 +95,8 @@ def get_totals_by_metric(
             return level_completed_count
 
 
+# Takes the complete user lists and filters based on input data, and returns
+# a new filtered dataset
 def filter_user_data(
     daterange=[],
     countries_list=[],
@@ -145,7 +146,12 @@ def filter_user_data(
         df = df[(df["gpc"] >= 90)]
         return df
 
-    # All other stat options (LA,PC,TS,SL)
+    if stat == "PC":
+        conditions.append(
+            "(furthest_event == 'puzzle_completed' or furthest_event == 'level_completed' )"
+        )
+
+    # All other stat options (LA)
     query = " and ".join(conditions)
 
     df = df_user_list.query(query)
@@ -179,87 +185,67 @@ def get_GC_avg(daterange, countries_list, app="Both", language="All"):
 
 # Returns a DataFrame list of countries and the number of users per country
 @st.cache_data(ttl="1d", show_spinner=False)
-def get_country_counts(daterange, countries_list, stat, app="Both", language="All"):
+def get_country_counts(daterange, countries_list, app="Both", language="All"):
 
-    if stat == "LR" or stat == "LA":
-        primary_stat = stat
-        secondary_stat = "LR" if stat == "LA" else "LA"
+    dfLR = (
+        filter_user_data(daterange, countries_list, "LR", app=app, language=language)
+        .groupby("country")
+        .size()
+        .to_frame(name="LR")
+        .reset_index()
+    )
+    dfLA = (
+        filter_user_data(daterange, countries_list, "LA", app=app, language=language)
+        .groupby("country")
+        .size()
+        .to_frame(name="LA")
+        .reset_index()
+    )
+    country_counts = dfLR.merge(dfLA, on="country", how="left").fillna(0)
 
-        df_primary = filter_user_data(
-            daterange, countries_list, primary_stat, app=app, language=language
-        )
-        df_secondary = filter_user_data(
-            daterange, countries_list, secondary_stat, app=app, language=language
-        )
+    #### GPP ###
+    df = filter_user_data(
+        daterange, countries_list, stat="LA", app=app, language=language
+    )
+    avg_gpc_per_country = df.groupby("country")["gpc"].mean().round(2)
+    dfGPP = pd.DataFrame(
+        {
+            "country": avg_gpc_per_country.index,
+            "GPP": avg_gpc_per_country.values,
+        }
+    ).fillna(0)
 
-        primary_counts = (
-            df_primary.groupby("country")
-            .size()
-            .to_frame(name=primary_stat)
-            .reset_index()
-        )
-        secondary_counts = (
-            df_secondary.groupby("country")
-            .size()
-            .to_frame(name=secondary_stat)
-            .reset_index()
-        )
+    country_counts = country_counts.merge(dfGPP, on="country", how="left").fillna(0)
 
-        country_counts = (
-            primary_counts.merge(secondary_counts, on="country", how="left")
-            .fillna(0)
-            .sort_values(by=stat, ascending=False)
-        )
-    elif stat == "GPP":
-        df = filter_user_data(
-            daterange, countries_list, stat="LA", app=app, language=language
-        )
-        # Calculate the average GPP per country
-        avg_gpc_per_country = df.groupby("country")["gpc"].mean().round(2)
-        # Create a new DataFrame with the average GPC per country
-        country_counts = (
-            pd.DataFrame(
-                {
-                    "country": avg_gpc_per_country.index,
-                    "GPP": avg_gpc_per_country.values,
-                }
-            )
-            .sort_values(by="GPP", ascending=False)
-            .fillna(0)
-        )
+    dfPC = (
+        filter_user_data(daterange, countries_list, "PC", app=app, language=language)
+        .groupby("country")
+        .size()
+        .to_frame(name="PC")
+        .reset_index()
+    )
 
-    elif stat == "PC":
-        df = filter_user_data(
-            daterange, countries_list, stat="PC", app=app, language=language
-        )
-        country_counts = df.groupby("country").size().to_frame(name="PC").reset_index()
+    country_counts = country_counts.merge(dfPC, on="country", how="left").fillna(0)
+    df = filter_user_data(
+        daterange, countries_list, stat="LA", app=app, language=language
+    )
+    gpc_gt_90_counts = df[df["gpc"] >= 90].groupby("country")["user_pseudo_id"].count()
+    total_user_counts = df.groupby("country")["user_pseudo_id"].count()
 
-    elif stat == "GCA":
-        df = filter_user_data(
-            daterange, countries_list, stat="LA", app=app, language=language
-        )
-        gpc_gt_90_counts = (
-            df[df["gpc"] >= 90].groupby("country")["user_pseudo_id"].count()
-        )
-        total_user_counts = df.groupby("country")["user_pseudo_id"].count()
+    # Reset index to bring "country" back as a column
+    gpc_gt_90_counts = gpc_gt_90_counts.reset_index()
+    total_user_counts = total_user_counts.reset_index()
 
-        # Reset index to bring "country" back as a column
-        gpc_gt_90_counts = gpc_gt_90_counts.reset_index()
-        total_user_counts = total_user_counts.reset_index()
+    # Merge the counts into a single DataFrame
+    gca = pd.merge(
+        gpc_gt_90_counts.rename(columns={"user_pseudo_id": "gpc_gt_90_users"}),
+        total_user_counts.rename(columns={"user_pseudo_id": "total_users"}),
+        on="country",
+    )
 
-        # Merge the counts into a single DataFrame
-        country_counts = pd.merge(
-            gpc_gt_90_counts.rename(columns={"user_pseudo_id": "gpc_gt_90_users"}),
-            total_user_counts.rename(columns={"user_pseudo_id": "total_users"}),
-            on="country",
-        )
-
-        # Calculate the percentage and add it as a new column
-        country_counts["GCA"] = (
-            country_counts["gpc_gt_90_users"] / country_counts["total_users"] * 100
-        )
-        country_counts.sort_values(by="GCA", ascending=False, inplace=True)
-
-    else:
-        raise Exception("Invalid stat choice")
+    # Calculate the percentage and add it as a new column
+    gca["GCA"] = gca["gpc_gt_90_users"] / gca["total_users"] * 100
+    country_counts = (
+        country_counts.merge(gca, on="country", how="left").round(2).fillna(0)
+    )
     return country_counts
