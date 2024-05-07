@@ -261,26 +261,20 @@ def lrc_scatter_chart():
 
     merged_df[option] = merged_df[option].fillna(0)
     scatter_df = merged_df[["country", "cost", option, x]]
+    scatter_df["cost"] = "$" + scatter_df["cost"].apply(lambda x: "{:,.2f}".format(x))
+    scatter_df["LRC"] = "$" + scatter_df["LRC"].apply(lambda x: "{:,.2f}".format(x))
+    scatter_df["LR"] = scatter_df["LR"].apply(lambda x: "{:,}".format(x))
+    print(scatter_df)
     fig = px.scatter(
         scatter_df,
-        x=x,
-        y=option,
+        x="LR",
+        y="LRC",
         color="country",
         title="Reach to Cost",
+        hover_data={
+            "cost": True,
+        },
     )
-
-    # Update hovertemplate to include commas and dollar sign for numbers
-    fig.update_traces(
-        hovertemplate="Country: %{text}<br>"
-        + x
-        + ": %{x:,}<br>"
-        + option
-        + ": $%{y:,.2f}<extra></extra>",
-        text=scatter_df["country"],  # Adding country names to hover text
-    )
-
-    # Show legend
-    fig.update_traces(showlegend=True)
 
     # Plot the chart
     st.plotly_chart(fig, use_container_width=True)
