@@ -264,7 +264,7 @@ def lrc_scatter_chart():
     scatter_df["cost"] = "$" + scatter_df["cost"].apply(lambda x: "{:,.2f}".format(x))
     scatter_df["LRC"] = "$" + scatter_df["LRC"].apply(lambda x: "{:,.2f}".format(x))
     scatter_df["LR"] = scatter_df["LR"].apply(lambda x: "{:,}".format(x))
-    print(scatter_df)
+
     fig = px.scatter(
         scatter_df,
         x="LR",
