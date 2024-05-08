@@ -261,9 +261,6 @@ def lrc_scatter_chart():
 
     merged_df[option] = merged_df[option].fillna(0)
     scatter_df = merged_df[["country", "cost", option, x]]
-    scatter_df["cost"] = "$" + scatter_df["cost"].apply(lambda x: "{:,.2f}".format(x))
-    scatter_df["LRC"] = "$" + scatter_df["LRC"].apply(lambda x: "{:,.2f}".format(x))
-    scatter_df["LR"] = scatter_df["LR"].apply(lambda x: "{:,}".format(x))
 
     fig = px.scatter(
         scatter_df,
@@ -272,7 +269,9 @@ def lrc_scatter_chart():
         color="country",
         title="Reach to Cost",
         hover_data={
-            "cost": True,
+            "cost": ":$,.2f",
+            "LRC": ":$,.2f",
+            "LR": ":,",
         },
     )
 
