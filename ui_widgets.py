@@ -5,12 +5,88 @@ from rich import print
 from dateutil.relativedelta import relativedelta
 import users
 import calendar
-import plost
 import re
 from streamlit_option_menu import option_menu
 
+level_definitions = pd.DataFrame(
+    [
+        [
+            "LR",
+            "Learner Reached",
+            "The number of users that downloaded and opened the app",
+            "COUNT(Learners Reached)",
+        ],
+        [
+            "PC",
+            "Puzzle Complete / Drgged a Stone",
+            "The number of users that have completed at least one puzzle",
+            "",
+        ],
+        [
+            "LA",
+            "Learner Acquisition",
+            "The number of users that have completed at least one FTM level.",
+            "COUNT(Learners Acquired)",
+        ],
+        [
+            "GPP",
+            "Game Progress Percent",
+            "The percentage of FTM levels completed from total levels",
+            "Max Level Reached / Total Levels",
+        ],
+        [
+            "GCA",
+            "Game Completion Average",
+            "The percentage of FTM learners acquired who have completed the game",
+            "Learners wh completed 90% of the levels / Total learners",
+        ],
+        [
+            "GCC",
+            "Game Completion Cost",
+            "The cost (USD) associated with one learner completing over 90% of FTM levels.",
+            "Total Spend / EstRA * LA",
+        ],
+        [
+            "LAC",
+            "Learner Acquisition Cost",
+            "The cost (USD) of acquiring one learner.",
+            "Total Spend / LA",
+        ],
+    ],
+    columns=["Acronym", "Name", "Definition", "Formula"],
+)
+level_percent_definitions = pd.DataFrame(
+    [
+        [
+            "DC over LR",
+            "Downloads Completed divided by Learners Reached",
+        ],
+        [
+            "TS over LR",
+            "Tapped Start divided by Learners Reached",
+        ],
+        [
+            "SL over LR",
+            "Selected Level divided by Learners Reached",
+        ],
+        [
+            "PC over LR",
+            "Puzzle Completed divided by Learners Reached",
+        ],
+        [
+            "LA over LR",
+            "Learner Acquired (Level completed) divided by Learners Reached",
+        ],
+        [
+            "GC over LR",
+            "Game Complted divided by Learners Reached",
+        ],
+    ],
+    columns=["Name", "Definition"],
+)
 
-def display_definitions_table():
+
+def display_definitions_table(def_df):
     expander = st.expander("Definitions")
     # CSS to inject contained in a string
     hide_table_row_index = """
@@ -21,53 +97,6 @@ def display_definitions_table():
                 """
     # Inject CSS with Markdown
     st.markdown(hide_table_row_index, unsafe_allow_html=True)
-    def_df = pd.DataFrame(
-        [
-            [
-                "LR",
-                "Learner Reached",
-                "The number of users that downloaded and opened the app",
-                "COUNT(Learners Reached)",
-            ],
-            [
-                "PC",
-                "Puzzle Complete / Drgged a Stone",
-                "The number of users that have completed at least one puzzle",
-                "",
-            ],
-            [
-                "LA",
-                "Learner Acquisition",
-                "The number of users that have completed at least one FTM level.",
-                "COUNT(Learners Acquired)",
-            ],
-            [
-                "GPP",
-                "Game Progress Percent",
-                "The percentage of FTM levels completed from total levels",
-                "Max Level Reached / Total Levels",
-            ],
-            [
-                "GCA",
-                "Game Completion Average",
-                "The percentage of FTM learners acquired who have completed the game",
-                "Learners wh completed 90% of the levels / Total learners",
-            ],
-            [
-                "GCC",
-                "Game Completion Cost",
-                "The cost (USD) associated with one learner completing over 90% of FTM levels.",
-                "Total Spend / EstRA * LA",
-            ],
-            [
-                "LAC",
-                "Learner Acquisition Cost",
-                "The cost (USD) of acquiring one learner.",
-                "Total Spend / LA",
-            ],
-        ],
-        columns=["Acronym", "Name", "Definition", "Formula"],
-    )
     expander.table(def_df)
 
 
@@ -216,72 +245,30 @@ def colorize_multiselect_options() -> None:
     st.markdown(f"<style>{rules}</style>", unsafe_allow_html=True)
 
 
-# with open("style.css") as f:
-#     st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-
-
-# Pass a unique key into the function in order to use this on multiple pages safely
-def country_selector(placement="side", title="", key="key"):
-    def update_country_session_state(key):
-        if key in st.session_state:
-            if st.session_state[key]:
-                st.session_state.country = st.session_state[key]
-
-    countries_list = users.get_country_list()
-    countries_list.insert(0, "All")
+# Restricts selection to a single country
+def single_selector(selections, placement="side", title="", key="key"):
+    # first time called for list, add 'All' option
+    if selections[0] != "All":
+        selections.insert(0, "All")
 
     if placement == "side":
-        country = st.sidebar.selectbox(
-            label="Select a country",
-            options=countries_list,
+        selection = st.sidebar.selectbox(
+            label=title,
+            options=selections,
             index=0,
             key=key,
-            on_change=update_country_session_state(key),
         )
 
     else:
-        country = st.selectbox(
-            label="Select a country",
-            options=countries_list,
+        selection = st.selectbox(
+            label=title,
+            options=selections,
             index=0,
             key=key,
-            on_change=update_country_session_state(key),
         )
 
-    country_list = [country]
-    return country_list
-
-
-# This method uses the key parameter of the selectbox
-# to automatically ad the selection to session state.
-def language_selector(placement="side", key="lang_key"):
-    # this is a callback for language_selector
-    def update_language_session_state(key):
-        if key in st.session_state:
-            if st.session_state[key]:
-                st.session_state.language = st.session_state[key]
-
-    df = users.get_language_list()
-    df.insert(0, "All")
-
-    if placement == "side":
-        language = st.sidebar.selectbox(
-            label="Select a language",
-            options=df,
-            index=0,
-            key=key,
-            on_change=update_language_session_state(key),
-        )
-    else:
-        language = st.selectbox(
-            label="Select a language",
-            options=df,
-            index=0,
-            key=key,
-            on_change=update_language_session_state(key),
-        )
-
-    return language
+    selection_list = [selection]
+    return selection_list
 
 
 # Pass a unique key into the function in order to use this on multiple pages safely
@@ -379,29 +366,6 @@ def paginated_dataframe(df, keys, sort_col="campaign_name"):
     )
 
 
-def top_campaigns_by_downloads_barchart(n):
-    df_campaigns = st.session_state.df_campaigns
-    df = df_campaigns.filter(["campaign_name", "mobile_app_install"], axis=1)
-    pivot_df = pd.pivot_table(
-        df, index=["campaign_name"], aggfunc={"mobile_app_install": "sum"}
-    )
-
-    df = pivot_df.sort_values(by=["mobile_app_install"], ascending=False)
-    df.reset_index(inplace=True)
-    df = df.rename(
-        columns={"campaign_name": "Campaign", "mobile_app_install": "Installs"}
-    )
-    df = df.head(n)
-    plost.bar_chart(
-        data=df,
-        bar="Installs",
-        value="Campaign",
-        direction="vertical",
-        use_container_width=True,
-        legend="bottom",
-    )
-
-
 def stats_radio_selector():
     radio_markdown = """
     Learners Reached | Learners Acquired | Game Progress Percent | Game Completion Average 
@@ -428,7 +392,7 @@ def app_version_selector(placement="side", key=""):
     return version
 
 
-def calendar_selector(placement="side", key=""):
+def calendar_selector(placement="side", key="", index=0):
     options = (
         "All time",
         "Select year",
@@ -441,11 +405,11 @@ def calendar_selector(placement="side", key=""):
 
         if placement == "side":
             option = st.sidebar.radio(
-                label="Select a date range", options=options, index=0, key=key + "1"
+                label="Select a date range", options=options, index=index, key=key + "1"
             )
         else:
             option = st.radio(
-                label="Select a date range", options=options, index=0, key=key + "1"
+                label="Select a date range", options=options, index=index, key=key + "1"
             )
 
         if option == "Select year":
@@ -456,7 +420,7 @@ def calendar_selector(placement="side", key=""):
             key = key + "x"
             selected_date = month_selector(placement, key=key)
         elif option == "Presets":
-            selected_date = presets_selector(placement, key=key)
+            selected_date = presets_selector(placement, key=key, index=3)
         else:
             selected_date = custom_date_selection(placement, key=key)
 
@@ -471,8 +435,9 @@ presets = [
 ]
 
 
-def presets_selector(placement="side", key=""):
+def presets_selector(placement="side", key="", index=1):
     dates = []
+    icons = ["peace", "yin-yang", "sun", "heart"]
     styles = {
         "container": {"padding": "0!important", "background-color": "#fafafa"},
         "icon": {"color": "orange", "font-size": "15px"},
@@ -489,21 +454,24 @@ def presets_selector(placement="side", key=""):
 
         with st.sidebar:
             preset = option_menu(
-                None,
-                presets,
-                icons=["peace", "yin-yang", "sun", "heart"],
+                menu_title="",
+                options=presets,
+                icons=icons,
                 orientation="horizontal",
                 styles=styles,
+                key=key,
+                default_index=index,
             )
     else:
         preset = option_menu(
-            None,
-            presets,
+            menu_title="",
+            options=presets,
             icons=["peace", "yin-yang", "sun", "heart"],
             orientation="horizontal",
             styles=styles,
+            key=key,
+            default_index=index,
         )
-
     if preset:
         dates = calculate_preset_dates(preset)
 
@@ -524,3 +492,54 @@ def calculate_preset_dates(preset):
     end_date = dt.datetime.now().date()
 
     return [start_date, end_date]
+
+
+def compare_funnel_level_widget(placement="side", key=""):
+    if placement == "side":
+        toggle = st.sidebar.radio(
+            options=[
+                "Compare to Initial",
+                "Compare to Previous",
+            ],
+            label="",
+            horizontal=True,
+            index=0,
+            key=key,
+        )
+    else:
+        toggle = st.radio(
+            options=[
+                "Compare to Initial",
+                "Compare to Previous",
+            ],
+            label="",
+            horizontal=True,
+            index=0,
+            key=key,
+        )
+    return toggle
+
+
+def level_comparison_selector(placement="side"):
+    col1, col2 = st.columns(2)
+    levels = ["LR", "DC", "TS", "SL", "PC", "LA", "GC"]
+    upper_level = bottom_level = ""
+    if placement == "side":
+        bottom_level = st.sidebar.selectbox(
+            label="Bottom level", options=levels, key="lcs-1", index=5
+        )
+        index_selected = levels.index(bottom_level)
+        upper_levels = levels[:index_selected]
+        upper_level = st.sidebar.selectbox(
+            label="Upper level", options=upper_levels, key="lcs-2"
+        )
+    else:
+        bottom_level = col1.selectbox(
+            label="Bottom level", options=levels, key="lcs-3", index=5
+        )
+        index_selected = levels.index(bottom_level)
+        upper_levels = levels[:index_selected]
+        upper_level = col2.selectbox(
+            label="Upper level", options=upper_levels, key="lcs-4"
+        )
+    return upper_level, bottom_level

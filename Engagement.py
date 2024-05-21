@@ -10,8 +10,7 @@ import users
 st.set_page_config(layout="wide")
 st.title("Curious Learning Dashboard")
 
-ui.display_definitions_table()
-
+ui.display_definitions_table(ui.level_definitions)
 settings.initialize()
 settings.init_user_list()
 
@@ -20,11 +19,14 @@ ui.colorize_multiselect_options()
 selected_date, option = ui.calendar_selector()
 daterange = ui.convert_date_to_range(selected_date, option)
 
-language = ui.language_selector()  # puts selection in session state
+languages = users.get_language_list()
+language = ui.single_selector(
+    languages, title="Select a language", placement="side", key="e-1"
+)
 
 countries_list = users.get_country_list()
 countries_list = ui.multi_select_all(
-    countries_list, title="Country Selection", key="engagement_page"
+    countries_list, title="Country Selection", key="e-2"
 )
 
 app = ui.app_selector()

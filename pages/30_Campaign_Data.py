@@ -17,7 +17,6 @@ col1, col2 = st.columns(2)
 
 # In the case of datepicker, don't do anything until both start and end dates are picked
 
-
 total_fb, total_goog = metrics.get_download_totals()
 
 col1.metric(label="INSTALLS FROM FACEBOOK", value=prettify(int(total_fb)))

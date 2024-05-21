@@ -8,10 +8,12 @@ import users
 
 st.title("Curious Learning Dashboard")
 
-ui.display_definitions_table()
+
 settings.initialize()
 settings.init_campaign_data()
 settings.init_user_list()
+
+ui.display_definitions_table(ui.level_definitions)
 ui.colorize_multiselect_options()
 uic.lrc_scatter_chart()
 
@@ -37,11 +39,14 @@ with col2:
         placement="middle",
     )
     option = st.radio(
-        "Select a statistic", ("LR", "LA"), index=0, horizontal=True, key="A"
+        "Select a statistic", ("LR", "LA"), index=0, horizontal=True, key="a-1"
     )
 with col3:
     app = ui.app_selector(placement="middle")
-    language = ui.language_selector(placement="middle")
+    languages = users.get_language_list()
+    language = ui.single_selector(
+        languages, placement="middle", title="Select a language", key="a-2"
+    )
 
 
 if (len(countries_list)) > 0 and (len(daterange) == 2):

@@ -2,18 +2,27 @@ import streamlit as st
 import pandas as pd
 import datetime as dt
 from rich import print
-import users
 import plotly.express as px
 import plotly.graph_objects as go
 import metrics
 from millify import prettify
 import ui_widgets as ui
+import numpy as np
+import plost
+
+default_daterange = [dt.datetime(2021, 1, 1).date(), dt.date.today()]
 
 
 def stats_by_country_map(daterange, countries_list, app="Both", language="All"):
     option = ui.stats_radio_selector()
 
-    df = metrics.get_country_counts(daterange, countries_list, app, language=language)
+    df = metrics.get_counts(
+        type="country",
+        daterange=daterange,
+        countries_list=countries_list,
+        app=app,
+        language=language,
+    )
 
     country_fig = px.choropleth(
         df,
@@ -135,8 +144,12 @@ def campaign_gantt_chart():
 
 
 def top_gpp_bar_chart(daterange, countries_list, app="Both", language="All"):
-    df = metrics.get_country_counts(
-        daterange, countries_list, app=app, language=language
+    df = metrics.get_counts(
+        type="country",
+        daterange=daterange,
+        countries_list=countries_list,
+        app=app,
+        language=language,
     )
 
     df = df[["country", "GPP"]].sort_values(by="GPP", ascending=False).head(10)
@@ -149,8 +162,12 @@ def top_gpp_bar_chart(daterange, countries_list, app="Both", language="All"):
 
 
 def top_gca_bar_chart(daterange, countries_list, app="Both", language="All"):
-    df = metrics.get_country_counts(
-        daterange, countries_list, app=app, language=language
+    df = metrics.get_counts(
+        type="country",
+        daterange=daterange,
+        countries_list=countries_list,
+        app=app,
+        language=language,
     )
 
     df = df[["country", "GCA"]].sort_values(by="GCA", ascending=False).head(10)
@@ -166,8 +183,12 @@ def top_gca_bar_chart(daterange, countries_list, app="Both", language="All"):
 
 
 def top_LR_LC_bar_chart(daterange, countries_list, option, app="Both", language="All"):
-    df = metrics.get_country_counts(
-        daterange, countries_list, app=app, language=language
+    df = metrics.get_counts(
+        type="country",
+        daterange=daterange,
+        countries_list=countries_list,
+        app=app,
+        language=language,
     )
 
     df = (
@@ -240,8 +261,10 @@ def lrc_scatter_chart():
 
     # Convert the numpy array to a Python list
 
-    df_counts = metrics.get_country_counts(
-        [dt.datetime(2021, 1, 1).date(), dt.date.today()], countries_list
+    df_counts = metrics.get_counts(
+        type="country",
+        daterange=default_daterange,
+        countries_list=countries_list,
     )
 
     option = st.radio("Select a statistic", ("LRC", "LAC"), index=0, horizontal=True)
@@ -260,18 +283,23 @@ def lrc_scatter_chart():
     # Fill NaN values in LRC column with 0
 
     merged_df[option] = merged_df[option].fillna(0)
+
     scatter_df = merged_df[["country", "cost", option, x]]
+    scatter_df["cost"] = "$" + scatter_df["cost"].apply(lambda x: "{:,.2f}".format(x))
+    scatter_df[option] = "$" + scatter_df[option].apply(lambda x: "{:,.2f}".format(x))
+    scatter_df[x] = scatter_df[x].apply(lambda x: "{:,}".format(x))
 
     fig = px.scatter(
         scatter_df,
-        x="LR",
-        y="LRC",
+        x=x,
+        y=option,
         color="country",
         title="Reach to Cost",
         hover_data={
+            "cost": True,
             "cost": ":$,.2f",
-            "LRC": ":$,.2f",
-            "LR": ":,",
+            option: ":$,.2f",
+            x: ":,",
         },
     )
 
@@ -279,6 +307,7 @@ def lrc_scatter_chart():
     st.plotly_chart(fig, use_container_width=True)
 
 
+@st.cache_data(ttl="1d", show_spinner=False)
 def spend_by_country_map():
 
     if "df_campaigns" not in st.session_state:
@@ -317,6 +346,7 @@ def spend_by_country_map():
     st.plotly_chart(country_fig)
 
 
+@st.cache_data(ttl="1d", show_spinner=False)
 def campaign_funnel_chart():
     df_campaigns = st.session_state.df_campaigns
     impressions = df_campaigns["impressions"].sum()
@@ -411,5 +441,263 @@ def levels_line_chart(daterange, countries_list, app="Both", language="All"):
         height=500,
     )
     # Create a Plotly figure with all traces
+    fig = go.Figure(data=traces, layout=layout)
+    st.plotly_chart(fig, use_container_width=True)
+
+
+@st.cache_data(ttl="1d", show_spinner=False)
+def funnel_change_line_chart(
+    daterange=default_daterange, language=["All"], countries_list=["All"], toggle=""
+):
+    weeks = metrics.weeks_since(daterange)
+    df = pd.DataFrame(columns=["start_date", "LR", "DC", "TS", "SL", "PC", "LA"])
+    for i in range(1, weeks + 1):
+        end_date = dt.datetime.now().date()
+        start_date = dt.datetime.now().date() - dt.timedelta(i * 7)
+        daterange = [start_date, end_date]
+
+        DC = metrics.get_totals_by_metric(
+            daterange,
+            stat="DC",
+            language=language,
+            countries_list=countries_list,
+            app="CR",
+        )
+        SL = metrics.get_totals_by_metric(
+            daterange,
+            stat="SL",
+            language=language,
+            countries_list=countries_list,
+            app="CR",
+        )
+        TS = metrics.get_totals_by_metric(
+            daterange,
+            stat="TS",
+            language=language,
+            countries_list=countries_list,
+            app="CR",
+        )
+
+        PC = metrics.get_totals_by_metric(
+            daterange,
+            stat="PC",
+            language=language,
+            countries_list=countries_list,
+            app="CR",
+        )
+        LA = metrics.get_totals_by_metric(
+            daterange,
+            stat="LA",
+            language=language,
+            countries_list=countries_list,
+            app="CR",
+        )
+        LR = metrics.get_totals_by_metric(
+            daterange,
+            stat="LR",
+            language=language,
+            countries_list=countries_list,
+            app="CR",
+        )
+        GC = metrics.get_totals_by_metric(
+            daterange,
+            stat="GC",
+            language=language,
+            countries_list=countries_list,
+            app="CR",
+        )
+
+        entry = pd.DataFrame.from_dict(
+            {
+                "start_date": [start_date],
+                "LR": [LR],
+                "DC": [DC],
+                "TS": [TS],
+                "SL": [SL],
+                "PC": [PC],
+                "LA": [LA],
+                "GC": [GC],
+            }
+        )
+
+        df = pd.concat([df.reset_index(drop=True), entry], ignore_index=True)
+
+    try:
+        df["start_date"] = df["start_date"]
+        df["DC over LR"] = np.where(df["LR"] == 0, 0, (df["DC"] / df["LR"]) * 100)
+        df["DC over LR"] = df["DC over LR"].astype(int)
+
+        df["TS over LR"] = np.where(df["LR"] == 0, 0, (df["TS"] / df["LR"]) * 100)
+        df["TS over LR"] = df["TS over LR"].astype(int)
+
+        df["TS over DC"] = np.where(df["DC"] == 0, 0, (df["TS"] / df["DC"]) * 100)
+        df["TS over DC"] = df["TS over DC"].astype(int)
+
+        df["SL over LR"] = np.where(df["LR"] == 0, 0, (df["SL"] / df["LR"]) * 100)
+        df["SL over LR"] = df["SL over LR"].astype(int)
+
+        df["SL over TS"] = np.where(df["TS"] == 0, 0, (df["SL"] / df["TS"]) * 100)
+        df["SL over TS"] = df["SL over TS"].astype(int)
+
+        df["PC over LR"] = np.where(df["LR"] == 0, 0, (df["PC"] / df["LR"]) * 100)
+        df["PC over LR"] = df["PC over LR"].astype(int)
+
+        df["PC over SL"] = np.where(df["SL"] == 0, 0, (df["PC"] / df["SL"]) * 100)
+        df["PC over SL"] = df["PC over SL"].astype(int)
+
+        df["LA over LR"] = np.where(df["LR"] == 0, 0, (df["LA"] / df["LR"]) * 100)
+        df["LA over LR"] = df["LA over LR"].astype(int)
+
+        df["LA over PC"] = np.where(df["PC"] == 0, 0, (df["LA"] / df["PC"]) * 100)
+        df["LA over PC"] = df["LA over PC"].astype(int)
+
+        df["GC over LR"] = np.where(df["LR"] == 0, 0, (df["GC"] / df["LR"]) * 100)
+        df["GC over LR"] = df["GC over LR"].astype(int)
+
+        df["GC over LA"] = np.where(df["LA"] == 0, 0, (df["GC"] / df["LA"]) * 100)
+        df["GC over LA"] = df["GC over LA"].astype(int)
+
+        if toggle == "Compare to Previous":
+
+            df2 = df[
+                [
+                    "start_date",
+                    "DC over LR",
+                    "TS over DC",
+                    "SL over TS",
+                    "PC over SL",
+                    "LA over PC",
+                    "GC over LA",
+                ]
+            ]
+        else:
+            df2 = df[
+                [
+                    "start_date",
+                    "DC over LR",
+                    "TS over LR",
+                    "SL over LR",
+                    "PC over LR",
+                    "LA over LR",
+                    "GC over LR",
+                ]
+            ]
+
+        df2["start_date"] = pd.to_datetime(df2["start_date"])
+
+        # Create traces for each column
+        traces = []
+        for column in df2.columns[1:]:
+            traces.append(
+                go.Scatter(
+                    x=df2["start_date"],
+                    y=df2[column],
+                    mode="lines+markers",
+                    name=column,
+                    hovertemplate="%{y}%<br>",
+                )
+            )
+
+        # Create layout
+        layout = go.Layout(
+            title="Line Chart",
+            xaxis=dict(title="Date"),
+            yaxis=dict(title="Percent"),
+        )
+
+        # Create figure
+        fig = go.Figure(data=traces, layout=layout)
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.dataframe(df, hide_index=True)
+
+    except Exception as e:
+        st.write("No data")
+
+
+def top_campaigns_by_downloads_barchart(n):
+    df_campaigns = st.session_state.df_campaigns
+    df = df_campaigns.filter(["campaign_name", "mobile_app_install"], axis=1)
+    pivot_df = pd.pivot_table(
+        df, index=["campaign_name"], aggfunc={"mobile_app_install": "sum"}
+    )
+
+    df = pivot_df.sort_values(by=["mobile_app_install"], ascending=False)
+    df.reset_index(inplace=True)
+    df = df.rename(
+        columns={"campaign_name": "Campaign", "mobile_app_install": "Installs"}
+    )
+    df = df.head(n)
+    plost.bar_chart(
+        data=df,
+        bar="Installs",
+        value="Campaign",
+        direction="vertical",
+        use_container_width=True,
+        legend="bottom",
+    )
+
+
+@st.cache_data(ttl="1d", show_spinner=False)
+def funnel_change_by_language_chart(
+    languages, countries_list, daterange, upper_level, bottom_level
+):
+
+    weeks = metrics.weeks_since(daterange)
+    df = pd.DataFrame(columns=["start_date"] + languages)
+
+    for i in range(1, weeks + 1):
+        end_date = dt.datetime.now().date()
+        start_date = dt.datetime.now().date() - dt.timedelta(i * 7)
+        daterange = [start_date, end_date]
+
+        for language in languages:
+            language = [language]
+
+            bottom_level_value = metrics.get_totals_by_metric(
+                daterange,
+                stat=bottom_level,
+                language=language,
+                countries_list=countries_list,
+                app="CR",
+            )
+            upper_level_value = metrics.get_totals_by_metric(
+                daterange,
+                stat=upper_level,
+                language=language,
+                countries_list=countries_list,
+                app="CR",
+            )
+
+            try:
+                df.loc[i, language] = round(
+                    (bottom_level_value / upper_level_value) * 100, 2
+                )
+            except:
+                df.loc[i, language] = 0
+            df.loc[i, "start_date"] = start_date
+
+    # Create traces for each column provided it has a value
+    traces = []
+    for column in df.columns[1:]:
+
+        traces.append(
+            go.Scatter(
+                x=df["start_date"],
+                y=df[column],
+                mode="lines+markers",
+                name=column,
+                hovertemplate="%{y}%<br>",
+            )
+        )
+
+    # Create layout
+    layout = go.Layout(
+        title="",
+        xaxis=dict(title="Date"),
+        yaxis=dict(title="Percent of upper level"),
+    )
+
+    # Create figure
     fig = go.Figure(data=traces, layout=layout)
     st.plotly_chart(fig, use_container_width=True)

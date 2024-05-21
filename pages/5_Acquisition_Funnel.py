@@ -16,10 +16,15 @@ settings.init_user_list()
 
 ui.colorize_multiselect_options()
 app = ui.app_selector()
-language = ui.language_selector()  # puts selection in session state
+
+languages = users.get_language_list()
+language = ui.single_selector(
+    languages, placement="middle", title="Select a language", key="af-1"
+)
+
 countries_list = users.get_country_list()
 countries_list = ui.multi_select_all(
-    countries_list, title="Country Selection", key="funnel_compare_key"
+    countries_list, title="Country Selection", key="af-2"
 )
 
 selected_date, option = ui.calendar_selector()
