@@ -35,3 +35,5 @@ env.bak/
 venv.bak/
 .DS_Store
 
+.streamlit/secrets.toml
+
