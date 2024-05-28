@@ -8,3 +8,7 @@ Curious Learning External Dashboard
 3. cd to ./cl-data-dashboard
 4. pip install -r requirements.txt
 5. streamlit run Engagement.py
+
+OR 
+docker build --no-cache --platform linux/amd64  -t gcr.io/dataexploration-193817/cl-data-dashboard:latest .
+docker push gcr.io/dataexploration-193817/cl-data-dashboard:latest
