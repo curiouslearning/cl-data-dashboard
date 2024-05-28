@@ -9,6 +9,7 @@ import users
 
 st.set_page_config(layout="wide")
 st.title("Curious Learning Dashboard")
+st.subheader("Page Purpose: Explore the user statistics")
 
 ui.display_definitions_table(ui.level_definitions)
 settings.initialize()
