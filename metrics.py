@@ -4,34 +4,9 @@ import pandas as pd
 import numpy as np
 import datetime as dt
 import users
+import campaigns
 
 default_daterange = [dt.datetime(2021, 1, 1).date(), dt.date.today()]
-
-
-@st.cache_data(ttl="1d", show_spinner=False)
-def get_ave_cost_per_action(daterange):
-    df_campaigns = st.session_state.df_campaigns
-
-    df = df_campaigns.query(
-        "@daterange[0] <= day <= @daterange[1] and mobile_app_install > 0"
-    )
-
-    total_downloads = df["mobile_app_install"].sum()
-    total_cost = df["cost"].sum()
-
-    if total_downloads > 0:
-        return float(total_cost) / float(total_downloads)
-
-    return 0
-
-
-def get_download_totals():
-    df_campaigns = st.session_state.df_campaigns
-    total_fb = df_campaigns["mobile_app_install"].sum()
-
-    total_goog = df_campaigns["button_clicks"].sum()
-
-    return total_fb, total_goog
 
 
 def get_totals_by_metric(
@@ -42,6 +17,7 @@ def get_totals_by_metric(
     app="Both",
     language="All",
 ):
+
     # if no list passed in then get the full list
     if len(countries_list) == 0:
         countries_list = users.get_country_list()
@@ -108,6 +84,7 @@ def filter_user_data(
     language=["All"],
 ):
     if "df_user_list" and "df_first_open" not in st.session_state:
+        print("PROBLEM!")
         return pd.DataFrame()
 
     df_user_list = st.session_state.df_user_list
@@ -179,6 +156,74 @@ def get_GC_avg(daterange, countries_list, app="Both", language="All"):
     return 0 if cohort_count == 0 else gc_count / cohort_count * 100
 
 
+# Returns a DataFrame list of countries and the number of users per country
+@st.cache_data(ttl="1d", show_spinner=False)
+def get_country_counts(daterange, countries_list, app="Both", language=["All"]):
+
+    dfLR = (
+        filter_user_data(daterange, countries_list, "LR", app=app, language=language)
+        .groupby("country")
+        .size()
+        .to_frame(name="LR")
+        .reset_index()
+    )
+    dfLA = (
+        filter_user_data(daterange, countries_list, "LA", app=app, language=language)
+        .groupby("country")
+        .size()
+        .to_frame(name="LA")
+        .reset_index()
+    )
+    country_counts = dfLR.merge(dfLA, on="country", how="left").fillna(0)
+
+    #### GPP ###
+    df = filter_user_data(
+        daterange, countries_list, stat="LA", app=app, language=language
+    )
+    avg_gpc_per_country = df.groupby("country")["gpc"].mean().round(2)
+    dfGPP = pd.DataFrame(
+        {
+            "country": avg_gpc_per_country.index,
+            "GPP": avg_gpc_per_country.values,
+        }
+    ).fillna(0)
+
+    country_counts = country_counts.merge(dfGPP, on="country", how="left").fillna(0)
+
+    dfPC = (
+        filter_user_data(daterange, countries_list, "PC", app=app, language=language)
+        .groupby("country")
+        .size()
+        .to_frame(name="PC")
+        .reset_index()
+    )
+
+    country_counts = country_counts.merge(dfPC, on="country", how="left").fillna(0)
+    df = filter_user_data(
+        daterange, countries_list, stat="LA", app=app, language=language
+    )
+    gpc_gt_90_counts = df[df["gpc"] >= 90].groupby("country")["user_pseudo_id"].count()
+    total_user_counts = df.groupby("country")["user_pseudo_id"].count()
+
+    # Reset index to bring "country" back as a column
+    gpc_gt_90_counts = gpc_gt_90_counts.reset_index()
+    total_user_counts = total_user_counts.reset_index()
+
+    # Merge the counts into a single DataFrame
+    gca = pd.merge(
+        gpc_gt_90_counts.rename(columns={"user_pseudo_id": "gpc_gt_90_users"}),
+        total_user_counts.rename(columns={"user_pseudo_id": "total_users"}),
+        on="country",
+    )
+
+    # Calculate the percentage and add it as a new column
+    gca["GCA"] = gca["gpc_gt_90_users"] / gca["total_users"] * 100
+    country_counts = (
+        country_counts.merge(gca, on="country", how="left").round(2).fillna(0)
+    )
+    return country_counts
+
+
 def weeks_since(daterange):
     current_date = dt.datetime.now()
     daterange_datetime = dt.datetime.combine(daterange[0], dt.datetime.min.time())
@@ -216,20 +261,19 @@ def get_counts(
     counts = dfLR.merge(dfLA, on=type, how="left").fillna(0)
 
     #### GPP ###
-    df = filter_user_data(
-        daterange, countries_list, stat="LA", app=app, language=language
-    )
-    avg_gpc = df.groupby(type)["gpc"].mean().round(2)
-    dfGPP = pd.DataFrame(
-        {
-            type: avg_gpc.index,
-            "GPP": avg_gpc.values,
-        }
-    ).fillna(0)
+    #    df = filter_user_data(
+    #       daterange, countries_list, stat="LA", app=app, language=language
+    #   )
+    #  avg_gpc_per_country = df.groupby("country")["gpc"].mean().round(2)
+    #   dfGPP = pd.DataFrame(
+    #       {
+    #           "country": avg_gpc_per_country.index,
+    #          "GPP": avg_gpc_per_country.values,
+    #      }
+    #    ).fillna(0)
 
-    counts = counts.merge(dfGPP, on=type, how="left").fillna(0)
+    #   country_counts = country_counts.merge(dfGPP, on="country", how="left").fillna(0)
 
-    #### PC ###
     dfPC = (
         filter_user_data(daterange, countries_list, "PC", app=app, language=language)
         .groupby(type)
@@ -237,9 +281,8 @@ def get_counts(
         .to_frame(name="PC")
         .reset_index()
     )
-    counts = counts.merge(dfPC, on=type, how="left").fillna(0)
 
-    #### GPC and GCA ###
+    counts = counts.merge(dfPC, on=type, how="left").fillna(0)
     df = filter_user_data(
         daterange, countries_list, stat="LA", app=app, language=language
     )
@@ -261,3 +304,69 @@ def get_counts(
     gca["GCA"] = gca["gpc_gt_90_users"] / gca["total_users"] * 100
     counts = counts.merge(gca, on=type, how="left").round(2).fillna(0)
     return counts
+
+
+@st.cache_data(ttl="1d", show_spinner=False)
+def get_campaigns_by_date(daterange):
+    df_campaigns_all = st.session_state.df_campaigns_all
+
+    conditions = [
+        f"@daterange[0] <= segment_date <= @daterange[1]",
+    ]
+
+    query = " and ".join(conditions)
+    df = df_campaigns_all.query(query)
+
+    df = campaigns.rollup_campaign_data(df)
+    df = campaigns.add_google_button_clicks(df, daterange)
+
+    return df
+
+
+@st.cache_data(ttl="1d", show_spinner="Building table")
+def build_campaign_table(df, daterange):
+
+    df = (
+        df.groupby(["country", "app_language"], as_index=False)
+        .agg(
+            {
+                "cost": "sum",
+            }
+        )
+        .round(2)
+    )
+
+    stats = ["LR", "PC", "LA"]
+    for idx, row in df.iterrows():
+        country_list = [row["country"]]
+        language = [row["app_language"].lower()]
+
+        for stat in stats:
+
+            result = get_totals_by_metric(
+                countries_list=country_list,
+                language=language,
+                daterange=daterange,
+                stat=stat,
+                app="CR",
+            )
+            df.at[idx, stat] = result
+            df.at[idx, stat + "C"] = (
+                (df.at[idx, "cost"] / result).round(2) if result != 0 else 0
+            )
+            if stat == "LR":
+                LR = result
+            elif stat == "PC":
+                PC = result
+            else:
+                LA = result
+        try:
+            LA_LR = round(LA / LR, 2) * 100
+            PC_LR = round(PC / LR, 2) * 100
+        except ZeroDivisionError:
+            LA_LR = 0
+            PC_LR = 0
+        df.at[idx, "PC_LR"] = PC_LR
+        df.at[idx, "LA_LR"] = LA_LR
+
+    return df

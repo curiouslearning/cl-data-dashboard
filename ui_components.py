@@ -9,6 +9,7 @@ from millify import prettify
 import ui_widgets as ui
 import numpy as np
 import plost
+from concurrent.futures import ThreadPoolExecutor
 
 default_daterange = [dt.datetime(2021, 1, 1).date(), dt.date.today()]
 
@@ -16,13 +17,7 @@ default_daterange = [dt.datetime(2021, 1, 1).date(), dt.date.today()]
 def stats_by_country_map(daterange, countries_list, app="Both", language="All"):
     option = ui.stats_radio_selector()
 
-    df = metrics.get_counts(
-        type="country",
-        daterange=daterange,
-        countries_list=countries_list,
-        app=app,
-        language=language,
-    )
+    df = metrics.get_country_counts(daterange, countries_list, app, language=language)
 
     country_fig = px.choropleth(
         df,
@@ -144,12 +139,8 @@ def campaign_gantt_chart():
 
 
 def top_gpp_bar_chart(daterange, countries_list, app="Both", language="All"):
-    df = metrics.get_counts(
-        type="country",
-        daterange=daterange,
-        countries_list=countries_list,
-        app=app,
-        language=language,
+    df = metrics.get_country_counts(
+        daterange, countries_list, app=app, language=language
     )
 
     df = df[["country", "GPP"]].sort_values(by="GPP", ascending=False).head(10)
@@ -162,12 +153,8 @@ def top_gpp_bar_chart(daterange, countries_list, app="Both", language="All"):
 
 
 def top_gca_bar_chart(daterange, countries_list, app="Both", language="All"):
-    df = metrics.get_counts(
-        type="country",
-        daterange=daterange,
-        countries_list=countries_list,
-        app=app,
-        language=language,
+    df = metrics.get_country_counts(
+        daterange, countries_list, app=app, language=language
     )
 
     df = df[["country", "GCA"]].sort_values(by="GCA", ascending=False).head(10)
@@ -183,12 +170,8 @@ def top_gca_bar_chart(daterange, countries_list, app="Both", language="All"):
 
 
 def top_LR_LC_bar_chart(daterange, countries_list, option, app="Both", language="All"):
-    df = metrics.get_counts(
-        type="country",
-        daterange=daterange,
-        countries_list=countries_list,
-        app=app,
-        language=language,
+    df = metrics.get_country_counts(
+        daterange, countries_list, app=app, language=language
     )
 
     df = (
@@ -261,10 +244,8 @@ def lrc_scatter_chart():
 
     # Convert the numpy array to a Python list
 
-    df_counts = metrics.get_counts(
-        type="country",
-        daterange=default_daterange,
-        countries_list=countries_list,
+    df_counts = metrics.get_country_counts(
+        [dt.datetime(2021, 1, 1).date(), dt.date.today()], countries_list
     )
 
     option = st.radio("Select a statistic", ("LRC", "LAC"), index=0, horizontal=True)
@@ -283,23 +264,22 @@ def lrc_scatter_chart():
     # Fill NaN values in LRC column with 0
 
     merged_df[option] = merged_df[option].fillna(0)
-
     scatter_df = merged_df[["country", "cost", option, x]]
     scatter_df["cost"] = "$" + scatter_df["cost"].apply(lambda x: "{:,.2f}".format(x))
-    scatter_df[option] = "$" + scatter_df[option].apply(lambda x: "{:,.2f}".format(x))
-    scatter_df[x] = scatter_df[x].apply(lambda x: "{:,}".format(x))
+    scatter_df["LRC"] = "$" + scatter_df["LRC"].apply(lambda x: "{:,.2f}".format(x))
+    scatter_df["LR"] = scatter_df["LR"].apply(lambda x: "{:,}".format(x))
 
     fig = px.scatter(
         scatter_df,
-        x=x,
-        y=option,
+        x="LR",
+        y="LRC",
         color="country",
         title="Reach to Cost",
         hover_data={
             "cost": True,
             "cost": ":$,.2f",
-            option: ":$,.2f",
-            x: ":,",
+            "LRC": ":$,.2f",
+            "LR": ":,",
         },
     )
 
@@ -644,52 +624,53 @@ def funnel_change_by_language_chart(
 ):
 
     weeks = metrics.weeks_since(daterange)
+    end_date = dt.datetime.now().date()
+
+    # Precompute date ranges
+    date_ranges = [
+        (end_date - dt.timedelta(i * 7), end_date - dt.timedelta((i - 1) * 7))
+        for i in range(1, weeks + 1)
+    ]
+
     df = pd.DataFrame(columns=["start_date"] + languages)
 
-    for i in range(1, weeks + 1):
-        end_date = dt.datetime.now().date()
-        start_date = dt.datetime.now().date() - dt.timedelta(i * 7)
+    for start_date, end_date in date_ranges:
         daterange = [start_date, end_date]
+        df.loc[len(df), "start_date"] = start_date
 
         for language in languages:
-            language = [language]
-
+            language_list = [language]
             bottom_level_value = metrics.get_totals_by_metric(
                 daterange,
                 stat=bottom_level,
-                language=language,
+                language=language_list,
                 countries_list=countries_list,
                 app="CR",
             )
             upper_level_value = metrics.get_totals_by_metric(
                 daterange,
                 stat=upper_level,
-                language=language,
+                language=language_list,
                 countries_list=countries_list,
                 app="CR",
             )
-
             try:
-                df.loc[i, language] = round(
-                    (bottom_level_value / upper_level_value) * 100, 2
-                )
-            except:
-                df.loc[i, language] = 0
-            df.loc[i, "start_date"] = start_date
+                percentage = round((bottom_level_value / upper_level_value) * 100, 2)
+            except ZeroDivisionError:
+                percentage = 0
+            df.loc[df["start_date"] == start_date, language] = percentage
 
     # Create traces for each column provided it has a value
-    traces = []
-    for column in df.columns[1:]:
-
-        traces.append(
-            go.Scatter(
-                x=df["start_date"],
-                y=df[column],
-                mode="lines+markers",
-                name=column,
-                hovertemplate="%{y}%<br>",
-            )
+    traces = [
+        go.Scatter(
+            x=df["start_date"],
+            y=df[column],
+            mode="lines+markers",
+            name=column,
+            hovertemplate="%{y}%<br>",
         )
+        for column in df.columns[1:]
+    ]
 
     # Create layout
     layout = go.Layout(

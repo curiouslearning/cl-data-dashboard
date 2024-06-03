@@ -5,6 +5,9 @@ import campaigns
 from rich import print
 import pandas as pd
 import users
+import datetime as dt
+
+default_daterange = [dt.datetime(2021, 1, 1).date(), dt.date.today()]
 
 
 def get_bq_client():
@@ -47,25 +50,23 @@ def init_user_list():
 
 # Get the campaign data from BigQuery, roll it up per campaign
 def init_campaign_data():
-    df_fb = campaigns.get_fb_campaign_data()
-    df_fb = campaigns.rollup_campaign_data(df_fb)
+    df_fb_all = campaigns.get_fb_campaign_data()
 
-    df_goog = campaigns.get_google_campaign_data()
-    df_goog = campaigns.rollup_campaign_data(df_goog)
+    df_goog_all = campaigns.get_google_campaign_data()
+    df_campaigns_all = pd.concat([df_goog_all, df_fb_all])
+    df_campaigns_all = campaigns.add_country_and_language(df_campaigns_all)
 
-    df_goog = campaigns.add_google_button_clicks(df_goog)
+    df_campaigns = campaigns.rollup_campaign_data(df_campaigns_all)
 
-    df_campaigns = pd.concat([df_goog, df_fb])
+    df_campaigns = campaigns.add_country_and_language(df_campaigns)
 
-    df_campaigns = campaigns.add_campaign_country(df_campaigns)
-
-    # Just moving country ahead in the dataframe
-    col = df_campaigns.pop("country")
-    df_campaigns.insert(2, col.name, col)
-    df_campaigns.reset_index(drop=True, inplace=True)
+    df_campaigns = campaigns.add_google_button_clicks(df_campaigns, default_daterange)
 
     if "df_campaigns" not in st.session_state:
         st.session_state["df_campaigns"] = df_campaigns
+
+    if "df_campaigns_all" not in st.session_state:
+        st.session_state["df_campaigns_all"] = df_campaigns_all
 
 
 def init_cr_app_version_list():
