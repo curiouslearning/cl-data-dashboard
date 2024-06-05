@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from rich import print as print
 import campaigns
-from collections import defaultdict
+import metrics
 
 
 @st.cache_data(show_spinner="Fetching Google Campaign Data", ttl="1d")
@@ -226,3 +226,69 @@ def add_google_button_clicks(df, daterange):
     )
 
     return df_goog
+
+
+@st.cache_data(ttl="1d", show_spinner=False)
+def get_campaigns_by_date(daterange):
+    df_campaigns_all = st.session_state.df_campaigns_all
+
+    conditions = [
+        f"@daterange[0] <= segment_date <= @daterange[1]",
+    ]
+
+    query = " and ".join(conditions)
+    df = df_campaigns_all.query(query)
+
+    df = campaigns.rollup_campaign_data(df)
+    df = campaigns.add_google_button_clicks(df, daterange)
+
+    return df
+
+
+@st.cache_data(ttl="1d", show_spinner=True)
+def build_campaign_table(df, daterange):
+
+    df = (
+        df.groupby(["country", "app_language"], as_index=False)
+        .agg(
+            {
+                "cost": "sum",
+            }
+        )
+        .round(2)
+    )
+
+    stats = ["LR", "PC", "LA"]
+    for idx, row in df.iterrows():
+        country_list = [row["country"]]
+        language = [row["app_language"].lower()]
+
+        for stat in stats:
+
+            result = metrics.get_totals_by_metric(
+                countries_list=country_list,
+                language=language,
+                daterange=daterange,
+                stat=stat,
+                app="CR",
+            )
+            df.at[idx, stat] = result
+            df.at[idx, stat + "C"] = (
+                (df.at[idx, "cost"] / result).round(2) if result != 0 else 0
+            )
+            if stat == "LR":
+                LR = result
+            elif stat == "PC":
+                PC = result
+            else:
+                LA = result
+        try:
+            LA_LR = round(LA / LR, 2) * 100
+            PC_LR = round(PC / LR, 2) * 100
+        except ZeroDivisionError:
+            LA_LR = 0
+            PC_LR = 0
+        df.at[idx, "PC_LR"] = PC_LR
+        df.at[idx, "LA_LR"] = LA_LR
+
+    return df

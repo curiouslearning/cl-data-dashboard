@@ -1,7 +1,7 @@
 import streamlit as st
 import settings
-import metrics
 from millify import prettify
+import campaigns
 
 import ui_widgets as ui
 
@@ -21,7 +21,7 @@ daterange = ui.convert_date_to_range(selected_date, option)
 
 # In the case of datepicker, don't do anything until both start and end dates are picked
 if len(daterange) > 1:
-    df_campaigns = metrics.get_campaigns_by_date(daterange)
+    df_campaigns = campaigns.get_campaigns_by_date(daterange)
 
     # Drop the campaigns that don't meet the naming convention
     condition = (df_campaigns["app_language"].isna()) | (df_campaigns["country"].isna())
@@ -36,7 +36,7 @@ if len(daterange) > 1:
     df_campaigns.reset_index(drop=True, inplace=True)
 
     st.header("Marketing Performance Table")
-    df = metrics.build_campaign_table(df_campaigns, daterange)
+    df = campaigns.build_campaign_table(df_campaigns, daterange)
     keys = [12, 13, 14, 15, 16]
     ui.paginated_dataframe(df, keys, sort_col="country")
 

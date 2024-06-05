@@ -287,7 +287,7 @@ def lrc_scatter_chart():
     st.plotly_chart(fig, use_container_width=True)
 
 
-@st.cache_data(ttl="1d", show_spinner=False)
+# @st.cache_data(ttl="1d", show_spinner=False)
 def spend_by_country_map():
 
     if "df_campaigns" not in st.session_state:
@@ -425,174 +425,142 @@ def levels_line_chart(daterange, countries_list, app="Both", language="All"):
     st.plotly_chart(fig, use_container_width=True)
 
 
-@st.cache_data(ttl="1d", show_spinner=False)
+# @st.cache_data(ttl="1d", show_spinner=False)
 def funnel_change_line_chart(
-    daterange=default_daterange, language=["All"], countries_list=["All"], toggle=""
+    daterange=default_daterange, languages=["All"], countries_list=["All"], toggle=""
 ):
     weeks = metrics.weeks_since(daterange)
-    df = pd.DataFrame(columns=["start_date", "LR", "DC", "TS", "SL", "PC", "LA"])
+
     for i in range(1, weeks + 1):
         end_date = dt.datetime.now().date()
         start_date = dt.datetime.now().date() - dt.timedelta(i * 7)
         daterange = [start_date, end_date]
 
-        DC = metrics.get_totals_by_metric(
-            daterange,
-            stat="DC",
-            language=language,
+        df = metrics.build_funnel_dataframe(
+            index_col="start_date",
+            daterange=daterange,
+            languages=languages,
             countries_list=countries_list,
-            app="CR",
-        )
-        SL = metrics.get_totals_by_metric(
-            daterange,
-            stat="SL",
-            language=language,
-            countries_list=countries_list,
-            app="CR",
-        )
-        TS = metrics.get_totals_by_metric(
-            daterange,
-            stat="TS",
-            language=language,
-            countries_list=countries_list,
-            app="CR",
         )
 
-        PC = metrics.get_totals_by_metric(
-            daterange,
-            stat="PC",
-            language=language,
-            countries_list=countries_list,
-            app="CR",
-        )
-        LA = metrics.get_totals_by_metric(
-            daterange,
-            stat="LA",
-            language=language,
-            countries_list=countries_list,
-            app="CR",
-        )
-        LR = metrics.get_totals_by_metric(
-            daterange,
-            stat="LR",
-            language=language,
-            countries_list=countries_list,
-            app="CR",
-        )
-        GC = metrics.get_totals_by_metric(
-            daterange,
-            stat="GC",
-            language=language,
-            countries_list=countries_list,
-            app="CR",
-        )
-
-        entry = pd.DataFrame.from_dict(
-            {
-                "start_date": [start_date],
-                "LR": [LR],
-                "DC": [DC],
-                "TS": [TS],
-                "SL": [SL],
-                "PC": [PC],
-                "LA": [LA],
-                "GC": [GC],
-            }
-        )
-
-        df = pd.concat([df.reset_index(drop=True), entry], ignore_index=True)
-
+    df["start_date"] = df["start_date"]
     try:
-        df["start_date"] = df["start_date"]
         df["DC over LR"] = np.where(df["LR"] == 0, 0, (df["DC"] / df["LR"]) * 100)
         df["DC over LR"] = df["DC over LR"].astype(int)
+    except ZeroDivisionError:
+        df["DC over LR"] = 0
 
+    try:
         df["TS over LR"] = np.where(df["LR"] == 0, 0, (df["TS"] / df["LR"]) * 100)
         df["TS over LR"] = df["TS over LR"].astype(int)
+    except ZeroDivisionError:
+        df["TS over LR"] = 0
 
+    try:
         df["TS over DC"] = np.where(df["DC"] == 0, 0, (df["TS"] / df["DC"]) * 100)
         df["TS over DC"] = df["TS over DC"].astype(int)
+    except ZeroDivisionError:
+        df["TS over DC"] = 0
 
+    try:
         df["SL over LR"] = np.where(df["LR"] == 0, 0, (df["SL"] / df["LR"]) * 100)
         df["SL over LR"] = df["SL over LR"].astype(int)
+    except ZeroDivisionError:
+        df["SL over LR"] = 0
 
+    try:
         df["SL over TS"] = np.where(df["TS"] == 0, 0, (df["SL"] / df["TS"]) * 100)
         df["SL over TS"] = df["SL over TS"].astype(int)
+    except ZeroDivisionError:
+        df["SL over TS"] = 0
 
+    try:
         df["PC over LR"] = np.where(df["LR"] == 0, 0, (df["PC"] / df["LR"]) * 100)
         df["PC over LR"] = df["PC over LR"].astype(int)
+    except ZeroDivisionError:
+        df["PC over LR"] = 0
 
+    try:
         df["PC over SL"] = np.where(df["SL"] == 0, 0, (df["PC"] / df["SL"]) * 100)
         df["PC over SL"] = df["PC over SL"].astype(int)
+    except ZeroDivisionError:
+        df["PC over SL"] = 0
 
+    try:
         df["LA over LR"] = np.where(df["LR"] == 0, 0, (df["LA"] / df["LR"]) * 100)
         df["LA over LR"] = df["LA over LR"].astype(int)
+    except ZeroDivisionError:
+        df["LA over LR"] = 0
 
+    try:
         df["LA over PC"] = np.where(df["PC"] == 0, 0, (df["LA"] / df["PC"]) * 100)
         df["LA over PC"] = df["LA over PC"].astype(int)
+    except ZeroDivisionError:
+        df["LA over PC"] = 0
 
+    try:
         df["GC over LR"] = np.where(df["LR"] == 0, 0, (df["GC"] / df["LR"]) * 100)
         df["GC over LR"] = df["GC over LR"].astype(int)
+    except ZeroDivisionError:
+        df["GC over LR"] = 0
 
+    try:
         df["GC over LA"] = np.where(df["LA"] == 0, 0, (df["GC"] / df["LA"]) * 100)
         df["GC over LA"] = df["GC over LA"].astype(int)
+    except ZeroDivisionError:
+        df["GC over LA"] = 0
 
-        if toggle == "Compare to Previous":
+    if toggle == "Compare to Previous":
 
-            df2 = df[
-                [
-                    "start_date",
-                    "DC over LR",
-                    "TS over DC",
-                    "SL over TS",
-                    "PC over SL",
-                    "LA over PC",
-                    "GC over LA",
-                ]
+        df2 = df[
+            [
+                "start_date",
+                "DC over LR",
+                "TS over DC",
+                "SL over TS",
+                "PC over SL",
+                "LA over PC",
+                "GC over LA",
             ]
-        else:
-            df2 = df[
-                [
-                    "start_date",
-                    "DC over LR",
-                    "TS over LR",
-                    "SL over LR",
-                    "PC over LR",
-                    "LA over LR",
-                    "GC over LR",
-                ]
+        ]
+    else:
+        df2 = df[
+            [
+                "start_date",
+                "DC over LR",
+                "TS over LR",
+                "SL over LR",
+                "PC over LR",
+                "LA over LR",
+                "GC over LR",
             ]
+        ]
 
-        df2["start_date"] = pd.to_datetime(df2["start_date"])
+    df2["start_date"] = pd.to_datetime(df2["start_date"])
 
-        # Create traces for each column
-        traces = []
-        for column in df2.columns[1:]:
-            traces.append(
-                go.Scatter(
-                    x=df2["start_date"],
-                    y=df2[column],
-                    mode="lines+markers",
-                    name=column,
-                    hovertemplate="%{y}%<br>",
-                )
+    # Create traces for each column
+    traces = []
+    for column in df2.columns[1:]:
+        traces.append(
+            go.Scatter(
+                x=df2["start_date"],
+                y=df2[column],
+                mode="lines+markers",
+                name=column,
+                hovertemplate="%{y}%<br>",
             )
-
-        # Create layout
-        layout = go.Layout(
-            title="Line Chart",
-            xaxis=dict(title="Date"),
-            yaxis=dict(title="Percent"),
         )
 
-        # Create figure
-        fig = go.Figure(data=traces, layout=layout)
-        st.plotly_chart(fig, use_container_width=True)
+    # Create layout
+    layout = go.Layout(
+        title="Line Chart",
+        xaxis=dict(title="Date"),
+        yaxis=dict(title="Percent"),
+    )
 
-        st.dataframe(df, hide_index=True)
-
-    except Exception as e:
-        st.write("No data")
+    # Create figure
+    fig = go.Figure(data=traces, layout=layout)
+    st.plotly_chart(fig, use_container_width=True)
 
 
 def top_campaigns_by_downloads_barchart(n):
@@ -618,7 +586,7 @@ def top_campaigns_by_downloads_barchart(n):
     )
 
 
-@st.cache_data(ttl="1d", show_spinner=False)
+# @st.cache_data(ttl="1d", show_spinner=False)
 def funnel_change_by_language_chart(
     languages, countries_list, daterange, upper_level, bottom_level
 ):
@@ -681,4 +649,41 @@ def funnel_change_by_language_chart(
 
     # Create figure
     fig = go.Figure(data=traces, layout=layout)
+    fig.update_layout(
+        margin=dict(l=10, r=1, b=0, t=10, pad=4),
+        geo=dict(bgcolor="rgba(0,0,0,0)"),
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def top_tilted_funnel(languages, countries_list, daterange, option):
+
+    df = metrics.build_funnel_dataframe(
+        index_col="language",
+        daterange=daterange,
+        languages=languages,
+        countries_list=countries_list,
+    )
+
+    fig = go.Figure()
+
+    # Adding each metric as a bar
+    levels = ["LR", "DC", "TS", "PC", "LA", "GC"]
+    for level in levels:
+        fig.add_trace(go.Bar(x=df["language"], y=df[level], name=level))
+
+    title = "Top 10 Countries by " + str(option)
+    fig.update_layout(
+        barmode="group",
+        title="Language Metrics",
+        xaxis_title="Language",
+        yaxis_title="Total",
+        legend_title="Levels",
+        template="plotly_white",
+        title_text=title,
+        margin=dict(l=10, r=1, b=0, t=10, pad=4),
+        geo=dict(bgcolor="rgba(0,0,0,0)"),
+    )
+
     st.plotly_chart(fig, use_container_width=True)

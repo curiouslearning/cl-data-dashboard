@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import datetime as dt
 import users
-import campaigns
+import metrics
 
 default_daterange = [dt.datetime(2021, 1, 1).date(), dt.date.today()]
 
@@ -127,6 +127,7 @@ def filter_user_data(
 
     # All other stat options (LA)
     query = " and ".join(conditions)
+
     df = df_user_list.query(query)
     return df
 
@@ -307,66 +308,98 @@ def get_counts(
 
 
 @st.cache_data(ttl="1d", show_spinner=False)
-def get_campaigns_by_date(daterange):
-    df_campaigns_all = st.session_state.df_campaigns_all
+def build_funnel_dataframe(
+    index_col="language",
+    daterange=default_daterange,
+    languages=["All"],
+    countries_list=["All"],
+):
+    df = pd.DataFrame(columns=[index_col, "LR", "DC", "TS", "SL", "PC", "LA"])
+    if index_col == "start_date":
+        weeks = metrics.weeks_since(daterange)
+        iteration = range(1, weeks + 1)
+    elif index_col == "language":
+        iteration = languages
 
-    conditions = [
-        f"@daterange[0] <= segment_date <= @daterange[1]",
-    ]
+    results = []
 
-    query = " and ".join(conditions)
-    df = df_campaigns_all.query(query)
+    for i in iteration:
+        if index_col == "language":
+            language = [i]
+        else:
+            language = languages
+            end_date = dt.datetime.now().date()
+            start_date = dt.datetime.now().date() - dt.timedelta(i * 7)
+            daterange = [start_date, end_date]
 
-    df = campaigns.rollup_campaign_data(df)
-    df = campaigns.add_google_button_clicks(df, daterange)
-
-    return df
-
-
-@st.cache_data(ttl="1d", show_spinner="Building table")
-def build_campaign_table(df, daterange):
-
-    df = (
-        df.groupby(["country", "app_language"], as_index=False)
-        .agg(
-            {
-                "cost": "sum",
-            }
+        DC = metrics.get_totals_by_metric(
+            daterange,
+            stat="DC",
+            language=language,
+            countries_list=countries_list,
+            app="CR",
         )
-        .round(2)
-    )
+        SL = metrics.get_totals_by_metric(
+            daterange,
+            stat="SL",
+            language=language,
+            countries_list=countries_list,
+            app="CR",
+        )
+        TS = metrics.get_totals_by_metric(
+            daterange,
+            stat="TS",
+            language=language,
+            countries_list=countries_list,
+            app="CR",
+        )
 
-    stats = ["LR", "PC", "LA"]
-    for idx, row in df.iterrows():
-        country_list = [row["country"]]
-        language = [row["app_language"].lower()]
+        PC = metrics.get_totals_by_metric(
+            daterange,
+            stat="PC",
+            language=language,
+            countries_list=countries_list,
+            app="CR",
+        )
+        LA = metrics.get_totals_by_metric(
+            daterange,
+            stat="LA",
+            language=language,
+            countries_list=countries_list,
+            app="CR",
+        )
+        LR = metrics.get_totals_by_metric(
+            daterange,
+            stat="LR",
+            language=language,
+            countries_list=countries_list,
+            app="CR",
+        )
+        GC = metrics.get_totals_by_metric(
+            daterange,
+            stat="GC",
+            language=language,
+            countries_list=countries_list,
+            app="CR",
+        )
 
-        for stat in stats:
+        entry = {
+            "LR": LR,
+            "DC": DC,
+            "TS": TS,
+            "SL": SL,
+            "PC": PC,
+            "LA": LA,
+            "GC": GC,
+        }
 
-            result = get_totals_by_metric(
-                countries_list=country_list,
-                language=language,
-                daterange=daterange,
-                stat=stat,
-                app="CR",
-            )
-            df.at[idx, stat] = result
-            df.at[idx, stat + "C"] = (
-                (df.at[idx, "cost"] / result).round(2) if result != 0 else 0
-            )
-            if stat == "LR":
-                LR = result
-            elif stat == "PC":
-                PC = result
-            else:
-                LA = result
-        try:
-            LA_LR = round(LA / LR, 2) * 100
-            PC_LR = round(PC / LR, 2) * 100
-        except ZeroDivisionError:
-            LA_LR = 0
-            PC_LR = 0
-        df.at[idx, "PC_LR"] = PC_LR
-        df.at[idx, "LA_LR"] = LA_LR
+        if index_col == "language":
+            entry["language"] = language[0]
+        else:
+            entry["start_date"] = start_date
+
+        results.append(entry)
+
+    df = pd.DataFrame(results)
 
     return df
