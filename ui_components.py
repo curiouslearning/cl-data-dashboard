@@ -430,6 +430,7 @@ def funnel_change_line_chart(
     daterange=default_daterange, languages=["All"], countries_list=["All"], toggle=""
 ):
     weeks = metrics.weeks_since(daterange)
+    weeks = 1 if weeks == 0 else weeks
 
     for i in range(1, weeks + 1):
         end_date = dt.datetime.now().date()
@@ -443,7 +444,7 @@ def funnel_change_line_chart(
             countries_list=countries_list,
         )
 
-    df["start_date"] = df["start_date"]
+    # df["start_date"] = df["start_date"]
     try:
         df["DC over LR"] = np.where(df["LR"] == 0, 0, (df["DC"] / df["LR"]) * 100)
         df["DC over LR"] = df["DC over LR"].astype(int)
@@ -673,7 +674,7 @@ def top_tilted_funnel(languages, countries_list, daterange, option):
     for level in levels:
         fig.add_trace(go.Bar(x=df["language"], y=df[level], name=level))
 
-    title = "Top 10 Countries by " + str(option)
+    title = ""
     fig.update_layout(
         barmode="group",
         title="Language Metrics",
@@ -682,7 +683,7 @@ def top_tilted_funnel(languages, countries_list, daterange, option):
         legend_title="Levels",
         template="plotly_white",
         title_text=title,
-        margin=dict(l=10, r=1, b=0, t=10, pad=4),
+        #    margin=dict(l=10, r=1, b=0, t=10, pad=4),
         geo=dict(bgcolor="rgba(0,0,0,0)"),
     )
 
