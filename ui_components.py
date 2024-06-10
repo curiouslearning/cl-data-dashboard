@@ -287,7 +287,7 @@ def lrc_scatter_chart():
     st.plotly_chart(fig, use_container_width=True)
 
 
-# @st.cache_data(ttl="1d", show_spinner=False)
+@st.cache_data(ttl="1d", show_spinner=False)
 def spend_by_country_map():
 
     if "df_campaigns" not in st.session_state:
@@ -425,7 +425,7 @@ def levels_line_chart(daterange, countries_list, app="Both", language="All"):
     st.plotly_chart(fig, use_container_width=True)
 
 
-# @st.cache_data(ttl="1d", show_spinner=False)
+@st.cache_data(ttl="1d", show_spinner=False)
 def funnel_change_line_chart(
     daterange=default_daterange, languages=["All"], countries_list=["All"], toggle=""
 ):

@@ -27,6 +27,7 @@ def get_users_list():
                 """
 
     df_user_list = bq_client.query(sql_query).to_dataframe()
+
     df_unity_users = df_user_list[
         df_user_list["app_id"].str.lower().str.contains("feedthemonster")
     ]
@@ -38,8 +39,22 @@ def get_users_list():
                 first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE() 
             """
 
-    df_first_open = bq_client.query(sql_query).to_dataframe()
-    df_first_open = pd.concat([df_first_open, df_unity_users], ignore_index=True)
+    df_cr_users = bq_client.query(sql_query).to_dataframe()
+
+    df_first_open = pd.concat([df_cr_users, df_unity_users], ignore_index=True)
+
+    df_first_open["app_language"] = df_first_open["app_language"].replace(
+        "ukranian", "ukrainian"
+    )
+    df_first_open["app_language"] = df_first_open["app_language"].replace(
+        "malgache", "malagasy"
+    )
+    df_user_list["app_language"] = df_user_list["app_language"].replace(
+        "ukranian", "ukrainian"
+    )
+    df_user_list["app_language"] = df_user_list["app_language"].replace(
+        "malgache", "malagasy"
+    )
 
     return df_user_list, df_first_open
 
@@ -50,7 +65,7 @@ def get_language_list():
     if "bq_client" in st.session_state:
         bq_client = st.session_state.bq_client
         sql_query = f"""
-                    SELECT app_language
+                    SELECT display_language
                     FROM `dataexploration-193817.user_data.language_max_level`
                     ;
                     """
@@ -60,6 +75,7 @@ def get_language_list():
             return pd.DataFrame()
 
         df = pd.DataFrame(rows)
+        df.drop_duplicates(inplace=True)
         lang_list = np.array(df.values).flatten().tolist()
         lang_list = [x.strip(" ") for x in lang_list]
     return lang_list
