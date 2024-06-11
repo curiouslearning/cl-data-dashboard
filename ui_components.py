@@ -56,7 +56,7 @@ def stats_by_country_map(daterange, countries_list, app="Both", language="All"):
     st.plotly_chart(country_fig)
 
 
-@st.cache_data(ttl="1d")
+# @st.cache_data(ttl="1d")
 def campaign_gantt_chart():
     df1 = st.session_state.df_campaigns
     df1["campaign_start_date"] = pd.to_datetime(df1["campaign_start_date"]).dt.date
@@ -287,7 +287,7 @@ def lrc_scatter_chart():
     st.plotly_chart(fig, use_container_width=True)
 
 
-@st.cache_data(ttl="1d", show_spinner=False)
+# @st.cache_data(ttl="1d", show_spinner=False)
 def spend_by_country_map():
 
     if "df_campaigns" not in st.session_state:
