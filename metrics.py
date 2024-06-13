@@ -403,3 +403,73 @@ def build_funnel_dataframe(
     df = pd.DataFrame(results)
 
     return df
+
+def add_level_percents(df):
+
+    try:
+        df["DC over LR"] = np.where(df["LR"] == 0, 0, (df["DC"] / df["LR"]) * 100)
+        df["DC over LR"] = df["DC over LR"].astype(int)
+    except ZeroDivisionError:
+        df["DC over LR"] = 0
+
+    try:
+        df["TS over LR"] = np.where(df["LR"] == 0, 0, (df["TS"] / df["LR"]) * 100)
+        df["TS over LR"] = df["TS over LR"].astype(int)
+    except ZeroDivisionError:
+        df["TS over LR"] = 0
+
+    try:
+        df["TS over DC"] = np.where(df["DC"] == 0, 0, (df["TS"] / df["DC"]) * 100)
+        df["TS over DC"] = df["TS over DC"].astype(int)
+    except ZeroDivisionError:
+        df["TS over DC"] = 0
+
+    try:
+        df["SL over LR"] = np.where(df["LR"] == 0, 0, (df["SL"] / df["LR"]) * 100)
+        df["SL over LR"] = df["SL over LR"].astype(int)
+    except ZeroDivisionError:
+        df["SL over LR"] = 0
+
+    try:
+        df["SL over TS"] = np.where(df["TS"] == 0, 0, (df["SL"] / df["TS"]) * 100)
+        df["SL over TS"] = df["SL over TS"].astype(int)
+    except ZeroDivisionError:
+        df["SL over TS"] = 0
+
+    try:
+        df["PC over LR"] = np.where(df["LR"] == 0, 0, (df["PC"] / df["LR"]) * 100)
+        df["PC over LR"] = df["PC over LR"].astype(int)
+    except ZeroDivisionError:
+        df["PC over LR"] = 0
+
+    try:
+        df["PC over SL"] = np.where(df["SL"] == 0, 0, (df["PC"] / df["SL"]) * 100)
+        df["PC over SL"] = df["PC over SL"].astype(int)
+    except ZeroDivisionError:
+        df["PC over SL"] = 0
+
+    try:
+        df["LA over LR"] = np.where(df["LR"] == 0, 0, (df["LA"] / df["LR"]) * 100)
+        df["LA over LR"] = df["LA over LR"].astype(int)
+    except ZeroDivisionError:
+        df["LA over LR"] = 0
+
+    try:
+        df["LA over PC"] = np.where(df["PC"] == 0, 0, (df["LA"] / df["PC"]) * 100)
+        df["LA over PC"] = df["LA over PC"].astype(int)
+    except ZeroDivisionError:
+        df["LA over PC"] = 0
+
+    try:
+        df["GC over LR"] = np.where(df["LR"] == 0, 0, (df["GC"] / df["LR"]) * 100)
+        df["GC over LR"] = df["GC over LR"].astype(int)
+    except ZeroDivisionError:
+        df["GC over LR"] = 0
+
+    try:
+        df["GC over LA"] = np.where(df["LA"] == 0, 0, (df["GC"] / df["LA"]) * 100)
+        df["GC over LA"] = df["GC over LA"].astype(int)
+    except ZeroDivisionError:
+        df["GC over LA"] = 0
+        
+    return df

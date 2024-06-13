@@ -9,7 +9,7 @@ from millify import prettify
 import ui_widgets as ui
 import numpy as np
 import plost
-from concurrent.futures import ThreadPoolExecutor
+import users
 
 default_daterange = [dt.datetime(2021, 1, 1).date(), dt.date.today()]
 
@@ -56,7 +56,7 @@ def stats_by_country_map(daterange, countries_list, app="Both", language="All"):
     st.plotly_chart(country_fig)
 
 
-# @st.cache_data(ttl="1d")
+@st.cache_data(ttl="1d")
 def campaign_gantt_chart():
     df1 = st.session_state.df_campaigns
     df1["campaign_start_date"] = pd.to_datetime(df1["campaign_start_date"]).dt.date
@@ -425,7 +425,7 @@ def levels_line_chart(daterange, countries_list, app="Both", language="All"):
     st.plotly_chart(fig, use_container_width=True)
 
 
-@st.cache_data(ttl="1d", show_spinner=False)
+# @st.cache_data(ttl="1d", show_spinner=False)
 def funnel_change_line_chart(
     daterange=default_daterange, languages=["All"], countries_list=["All"], toggle=""
 ):
@@ -444,72 +444,7 @@ def funnel_change_line_chart(
             countries_list=countries_list,
         )
 
-    # df["start_date"] = df["start_date"]
-    try:
-        df["DC over LR"] = np.where(df["LR"] == 0, 0, (df["DC"] / df["LR"]) * 100)
-        df["DC over LR"] = df["DC over LR"].astype(int)
-    except ZeroDivisionError:
-        df["DC over LR"] = 0
-
-    try:
-        df["TS over LR"] = np.where(df["LR"] == 0, 0, (df["TS"] / df["LR"]) * 100)
-        df["TS over LR"] = df["TS over LR"].astype(int)
-    except ZeroDivisionError:
-        df["TS over LR"] = 0
-
-    try:
-        df["TS over DC"] = np.where(df["DC"] == 0, 0, (df["TS"] / df["DC"]) * 100)
-        df["TS over DC"] = df["TS over DC"].astype(int)
-    except ZeroDivisionError:
-        df["TS over DC"] = 0
-
-    try:
-        df["SL over LR"] = np.where(df["LR"] == 0, 0, (df["SL"] / df["LR"]) * 100)
-        df["SL over LR"] = df["SL over LR"].astype(int)
-    except ZeroDivisionError:
-        df["SL over LR"] = 0
-
-    try:
-        df["SL over TS"] = np.where(df["TS"] == 0, 0, (df["SL"] / df["TS"]) * 100)
-        df["SL over TS"] = df["SL over TS"].astype(int)
-    except ZeroDivisionError:
-        df["SL over TS"] = 0
-
-    try:
-        df["PC over LR"] = np.where(df["LR"] == 0, 0, (df["PC"] / df["LR"]) * 100)
-        df["PC over LR"] = df["PC over LR"].astype(int)
-    except ZeroDivisionError:
-        df["PC over LR"] = 0
-
-    try:
-        df["PC over SL"] = np.where(df["SL"] == 0, 0, (df["PC"] / df["SL"]) * 100)
-        df["PC over SL"] = df["PC over SL"].astype(int)
-    except ZeroDivisionError:
-        df["PC over SL"] = 0
-
-    try:
-        df["LA over LR"] = np.where(df["LR"] == 0, 0, (df["LA"] / df["LR"]) * 100)
-        df["LA over LR"] = df["LA over LR"].astype(int)
-    except ZeroDivisionError:
-        df["LA over LR"] = 0
-
-    try:
-        df["LA over PC"] = np.where(df["PC"] == 0, 0, (df["LA"] / df["PC"]) * 100)
-        df["LA over PC"] = df["LA over PC"].astype(int)
-    except ZeroDivisionError:
-        df["LA over PC"] = 0
-
-    try:
-        df["GC over LR"] = np.where(df["LR"] == 0, 0, (df["GC"] / df["LR"]) * 100)
-        df["GC over LR"] = df["GC over LR"].astype(int)
-    except ZeroDivisionError:
-        df["GC over LR"] = 0
-
-    try:
-        df["GC over LA"] = np.where(df["LA"] == 0, 0, (df["GC"] / df["LA"]) * 100)
-        df["GC over LA"] = df["GC over LA"].astype(int)
-    except ZeroDivisionError:
-        df["GC over LA"] = 0
+    df = metrics.add_level_percents(df)
 
     if toggle == "Compare to Previous":
 
@@ -646,6 +581,7 @@ def funnel_change_by_language_chart(
         title="",
         xaxis=dict(title="Date"),
         yaxis=dict(title="Percent of upper level"),
+        legend={"traceorder": "normal"},
     )
 
     # Create figure
@@ -688,3 +624,104 @@ def top_tilted_funnel(languages, countries_list, daterange, option):
     )
 
     st.plotly_chart(fig, use_container_width=True)
+
+
+def bottom_languages_per_level():
+    selection = st.radio(label="Choose view", options=["Top performing","Worst performing"],horizontal=True)
+    if selection == "Top performing":
+        ascending = False
+    else:
+        ascending = True
+    
+    languages = users.get_language_list()
+    df = metrics.build_funnel_dataframe(index_col="language", languages=languages)
+    # Remove anything where Learners Reached = 0
+    df = df[df["LR"] != 0]
+
+    df = metrics.add_level_percents(df)
+
+    dfDCLR = (
+        df.sort_values(by="DC over LR", ascending=ascending)
+        .head(10)
+        .loc[:, ["DC over LR", "language"]]
+    ).reset_index(drop=True)
+
+    dfTSDC = (
+        df.sort_values(by="TS over DC", ascending=ascending)
+        .head(10)
+        .loc[:, ["TS over DC", "language"]]
+    ).reset_index(drop=True)
+    dfSLTS = (
+        df.sort_values(by="SL over TS", ascending=ascending)
+        .head(10)
+        .loc[:, ["SL over TS", "language"]]
+    ).reset_index(drop=True)
+    dfPCSL = (
+        df.sort_values(by="PC over SL", ascending=ascending)
+        .head(10)
+        .loc[:, ["PC over SL", "language"]]
+    ).reset_index(drop=True)
+    dfLAPC = (
+        df.sort_values(by="LA over PC", ascending=ascending)
+        .head(10)
+        .loc[:, ["LA over PC", "language"]]
+    ).reset_index(drop=True)
+
+    st.markdown(
+        """
+    <style>
+    [data-testid="stMetricValue"] {
+        font-size: 16px;
+    }
+    </style>
+    """,
+        unsafe_allow_html=True,
+    )
+
+    col0, col1, col2, col3, col4, col5, = st.columns(6)
+
+    with col0:
+        st.caption("Download Completed")
+        st.caption("")
+        st.caption("Tapped Start")
+        st.caption("")
+        st.caption("Selected Level")
+        st.caption("")
+        st.caption("Puzzle Completed")
+        st.caption("")
+        st.caption("Learner Acquired")
+        st.caption("")
+        st.caption("Game Completed")
+    with col1:
+        st.metric(label=dfDCLR["language"].loc[0], value=f"{dfDCLR["DC over LR"].loc[0]:.2f}%")
+        st.metric(label=dfTSDC["language"].loc[0], value=f"{dfTSDC["TS over DC"].loc[0]:.2f}%")
+        st.metric(label=dfSLTS["language"].loc[0], value=f"{dfSLTS["SL over TS"].loc[0]:.2f}%")
+        st.metric(label=dfPCSL["language"].loc[0], value=f"{dfPCSL["PC over SL"].loc[0]:.2f}%")
+        st.metric(label=dfLAPC["language"].loc[0], value=f"{dfLAPC["LA over PC"].loc[0]:.2f}%")
+    with col2:
+        st.metric(label=dfDCLR["language"].loc[1], value=f"{dfDCLR["DC over LR"].loc[1]:.2f}%")
+        st.metric(label=dfTSDC["language"].loc[1], value=f"{dfTSDC["TS over DC"].loc[1]:.2f}%")
+        st.metric(label=dfSLTS["language"].loc[1], value=f"{dfSLTS["SL over TS"].loc[1]:.2f}%")
+        st.metric(label=dfPCSL["language"].loc[1], value=f"{dfPCSL["PC over SL"].loc[1]:.2f}%")
+        st.metric(label=dfLAPC["language"].loc[1], value=f"{dfLAPC["LA over PC"].loc[1]:.2f}%")
+    with col3:
+        st.metric(label=dfDCLR["language"].loc[2], value=f"{dfDCLR["DC over LR"].loc[2]:.2f}%")
+        st.metric(label=dfTSDC["language"].loc[2], value=f"{dfTSDC["TS over DC"].loc[2]:.2f}%")
+        st.metric(label=dfSLTS["language"].loc[2], value=f"{dfSLTS["SL over TS"].loc[2]:.2f}%")
+        st.metric(label=dfPCSL["language"].loc[2], value=f"{dfPCSL["PC over SL"].loc[2]:.2f}%")
+        st.metric(label=dfLAPC["language"].loc[2], value=f"{dfLAPC["LA over PC"].loc[2]:.2f}%")
+    with col4:
+        st.metric(label=dfDCLR["language"].loc[3], value=f"{dfDCLR["DC over LR"].loc[3]:.2f}%")
+        st.metric(label=dfTSDC["language"].loc[3], value=f"{dfTSDC["TS over DC"].loc[3]:.2f}%")
+        st.metric(label=dfSLTS["language"].loc[3], value=f"{dfSLTS["SL over TS"].loc[3]:.2f}%")
+        st.metric(label=dfPCSL["language"].loc[3], value=f"{dfPCSL["PC over SL"].loc[3]:.2f}%")
+        st.metric(label=dfLAPC["language"].loc[3], value=f"{dfLAPC["LA over PC"].loc[3]:.2f}%")
+    with col5:
+        st.metric(label=dfDCLR["language"].loc[4], value=f"{dfDCLR["DC over LR"].loc[4]:.2f}%")
+        st.metric(label=dfTSDC["language"].loc[4], value=f"{dfTSDC["TS over DC"].loc[4]:.2f}%")
+        st.metric(label=dfSLTS["language"].loc[4], value=f"{dfSLTS["SL over TS"].loc[4]:.2f}%")
+        st.metric(label=dfPCSL["language"].loc[4], value=f"{dfPCSL["PC over SL"].loc[4]:.2f}%")
+        st.metric(label=dfLAPC["language"].loc[4], value=f"{dfLAPC["LA over PC"].loc[4]:.2f}%")
+
+ 
+ 
