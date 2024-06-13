@@ -14,7 +14,8 @@ RUN git clone https://github.com/curiouslearning/cl-data-dashboard.git .
 
 RUN pip3 install -r requirements.txt
 
-COPY .streamlit/secrets.toml .streamlit/secrets.toml
+RUN gcloud secrets versions access latest --secret="streamlit-secrets" > .streamlit/secrets.toml
+
 
 EXPOSE 8080
 
