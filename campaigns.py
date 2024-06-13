@@ -152,6 +152,7 @@ def get_google_campaign_conversions(daterange):
 
 # This function takes a campaign based dataframe and sums it up into a single row per campaign.  The original dataframe
 # has many entries per campaign based on daily extractions.
+@st.cache_data(show_spinner=False, ttl="1d")
 def rollup_campaign_data(df):
     aggregation = {
         "segment_date": "last",

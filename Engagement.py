@@ -74,7 +74,11 @@ if len(daterange) == 2 and len(countries_list) > 0:
 
     st.divider()
     st.subheader("Engagement across the world")
-    uic.stats_by_country_map(daterange, countries_list, app=app, language=language)
+
+    option = ui.stats_radio_selector()
+    uic.stats_by_country_map(
+        daterange, countries_list, app=app, language=language, option=option
+    )
     st.divider()
     option = st.radio("Select a statistic", ("LR", "LA"), index=0, horizontal=True)
     uic.top_LR_LC_bar_chart(

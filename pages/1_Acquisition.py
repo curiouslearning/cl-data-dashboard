@@ -15,7 +15,9 @@ settings.init_user_list()
 
 ui.display_definitions_table(ui.level_definitions)
 ui.colorize_multiselect_options()
-uic.lrc_scatter_chart()
+
+option = st.radio("Select a statistic", ("LRC", "LAC"), index=0, horizontal=True)
+uic.lrc_scatter_chart(option)
 
 st.divider()
 st.subheader("Learners Reached Over Time")

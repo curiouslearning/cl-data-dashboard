@@ -13,9 +13,8 @@ import users
 
 default_daterange = [dt.datetime(2021, 1, 1).date(), dt.date.today()]
 
-
-def stats_by_country_map(daterange, countries_list, app="Both", language="All"):
-    option = ui.stats_radio_selector()
+@st.cache_data(ttl="1d", show_spinner=False)
+def stats_by_country_map(daterange, countries_list, app="Both", language="All", option="LR"):
 
     df = metrics.get_country_counts(daterange, countries_list, app, language=language)
 
@@ -137,7 +136,7 @@ def campaign_gantt_chart():
         fig, use_container_width=True
     )  # Display the plotly chart in Streamlit
 
-
+@st.cache_data(ttl="1d", show_spinner=False)
 def top_gpp_bar_chart(daterange, countries_list, app="Both", language="All"):
     df = metrics.get_country_counts(
         daterange, countries_list, app=app, language=language
@@ -151,7 +150,7 @@ def top_gpp_bar_chart(daterange, countries_list, app="Both", language="All"):
     )
     st.plotly_chart(fig, use_container_width=True)
 
-
+@st.cache_data(ttl="1d", show_spinner=False)
 def top_gca_bar_chart(daterange, countries_list, app="Both", language="All"):
     df = metrics.get_country_counts(
         daterange, countries_list, app=app, language=language
@@ -168,7 +167,7 @@ def top_gca_bar_chart(daterange, countries_list, app="Both", language="All"):
     )
     st.plotly_chart(fig, use_container_width=True)
 
-
+@st.cache_data(ttl="1d", show_spinner=False)
 def top_LR_LC_bar_chart(daterange, countries_list, option, app="Both", language="All"):
     df = metrics.get_country_counts(
         daterange, countries_list, app=app, language=language
@@ -201,7 +200,7 @@ def top_LR_LC_bar_chart(daterange, countries_list, option, app="Both", language=
     fig.update_layout(title_text=title)
     st.plotly_chart(fig, use_container_width=True)
 
-
+@st.cache_data(ttl="1d", show_spinner=False)
 def LR_LA_line_chart_over_time(
     daterange, countries_list, option, app="Both", language="All"
 ):
@@ -236,8 +235,8 @@ def LR_LA_line_chart_over_time(
 
     st.plotly_chart(fig, use_container_width=True)
 
-
-def lrc_scatter_chart():
+@st.cache_data(ttl="1d", show_spinner=False)
+def lrc_scatter_chart(option):
     df_campaigns = st.session_state.df_campaigns
     countries_list = df_campaigns["country"].unique()
     countries_list = list(countries_list)
@@ -248,7 +247,6 @@ def lrc_scatter_chart():
         [dt.datetime(2021, 1, 1).date(), dt.date.today()], countries_list
     )
 
-    option = st.radio("Select a statistic", ("LRC", "LAC"), index=0, horizontal=True)
     x = "LR" if option == "LRC" else "LA"
     df_campaigns = df_campaigns.groupby("country")["cost"].sum().round(2).reset_index()
 
@@ -287,7 +285,7 @@ def lrc_scatter_chart():
     st.plotly_chart(fig, use_container_width=True)
 
 
-# @st.cache_data(ttl="1d", show_spinner=False)
+@st.cache_data(ttl="1d", show_spinner=False)
 def spend_by_country_map():
 
     if "df_campaigns" not in st.session_state:
@@ -385,6 +383,7 @@ def create_engagement_figure(funnel_data=[], key=""):
 
 
 # Show the count of users max level for each level in the game
+@st.cache_data(ttl="1d", show_spinner=False)
 def levels_line_chart(daterange, countries_list, app="Both", language="All"):
     df_user_list = metrics.filter_user_data(
         daterange, countries_list, stat="LA", app=app, language=language
@@ -425,7 +424,7 @@ def levels_line_chart(daterange, countries_list, app="Both", language="All"):
     st.plotly_chart(fig, use_container_width=True)
 
 
-# @st.cache_data(ttl="1d", show_spinner=False)
+@st.cache_data(ttl="1d", show_spinner=False)
 def funnel_change_line_chart(
     daterange=default_daterange, languages=["All"], countries_list=["All"], toggle=""
 ):
@@ -498,7 +497,7 @@ def funnel_change_line_chart(
     fig = go.Figure(data=traces, layout=layout)
     st.plotly_chart(fig, use_container_width=True)
 
-
+@st.cache_data(ttl="1d", show_spinner=False)
 def top_campaigns_by_downloads_barchart(n):
     df_campaigns = st.session_state.df_campaigns
     df = df_campaigns.filter(["campaign_name", "mobile_app_install"], axis=1)
@@ -522,7 +521,7 @@ def top_campaigns_by_downloads_barchart(n):
     )
 
 
-# @st.cache_data(ttl="1d", show_spinner=False)
+@st.cache_data(ttl="1d", show_spinner=False)
 def funnel_change_by_language_chart(
     languages, countries_list, daterange, upper_level, bottom_level
 ):
@@ -593,7 +592,7 @@ def funnel_change_by_language_chart(
 
     st.plotly_chart(fig, use_container_width=True)
 
-
+@st.cache_data(ttl="1d", show_spinner=False)
 def top_tilted_funnel(languages, countries_list, daterange, option):
 
     df = metrics.build_funnel_dataframe(
@@ -625,9 +624,8 @@ def top_tilted_funnel(languages, countries_list, daterange, option):
 
     st.plotly_chart(fig, use_container_width=True)
 
-
-def bottom_languages_per_level():
-    selection = st.radio(label="Choose view", options=["Top performing","Worst performing"],horizontal=True)
+@st.cache_data(ttl="1d", show_spinner=False)
+def bottom_languages_per_level(selection):
     if selection == "Top performing":
         ascending = False
     else:
