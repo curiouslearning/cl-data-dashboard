@@ -29,7 +29,8 @@ ENV PROJECT_ID="dataexploration-193817"
 
 
 # Ensure the directory for the secrets exists
-RUN mkdir -p /app/.streamlit
+RUN mkdir -p /cl-data-dashboard/.streamlit
+RUN mkdir -p /secret
 
 RUN git clone https://github.com/curiouslearning/cl-data-dashboard.git .
 
