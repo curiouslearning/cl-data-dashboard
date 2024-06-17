@@ -19,12 +19,14 @@ RUN curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyri
 
 # Update and install the Google Cloud SDK
 RUN apt-get update && apt-get install -y google-cloud-sdk
+RUN pip3 install --upgrade google-cloud-secret-manager
 
-# Set environment variable for gcloud
+# Set environment variables for gcloud
 ENV PATH $PATH:/root/google-cloud-sdk/bin
-
-# Set environment variable for the secret
 ENV SECRET_NAME="streamlit-secrets"
+ENV PROJECT_ID="dataexploration-193817"
+
+
 
 # Ensure the directory for the secrets exists
 RUN mkdir -p /app/.streamlit
@@ -35,8 +37,7 @@ RUN pip3 install -r requirements.txt
 
 
 #RUN  gcloud config set account streamlit-data-dash@dataexploration-193817.iam.gserviceaccount.com
-RUN gcloud config set auth/impersonate_service_account streamlit-data-dash@dataexploration-193817.iam.gserviceaccount.com
-RUN gcloud auth list
+
 RUN gcloud secrets versions access latest --project="dataexploration-193817" --secret="streamlit-secrets" > .streamlit/secrets.toml
 
 
