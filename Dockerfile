@@ -35,7 +35,7 @@ RUN git clone https://github.com/curiouslearning/cl-data-dashboard.git .
 
 RUN pip3 install -r requirements.txt
 
-RUN curl -o /secret/keyfile.json https://storage.cloud.google.com/dataexploration-193817_cloudbuild/servicekey.json
+RUN wget  https://storage.cloud.google.com/dataexploration-193817_cloudbuild/servicekey.json > /secret/keyfile.json
 ENV GOOGLE_APPLICATION_CREDENTIALS=/secret/keyfile.json
 
 RUN gcloud secrets versions access latest --project=$PROJECT_ID --secret=$SECRET_NAME > .streamlit/secrets.toml
