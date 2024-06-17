@@ -40,7 +40,6 @@ ENV GOOGLE_APPLICATION_CREDENTIALS=/secret/keyfile.json
 
 RUN gcloud secrets versions access latest --project=$PROJECT_ID --secret=$SECRET_NAME > .streamlit/secrets.toml
 
-
 EXPOSE 8080
 
 CMD ["streamlit", "run", "Engagement.py", "--server.port=8080"]
