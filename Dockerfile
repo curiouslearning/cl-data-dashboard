@@ -29,11 +29,11 @@ ENV PROJECT_ID="dataexploration-193817"
 
 
 # Ensure the directory for the secrets exists
-RUN mkdir -p /cl-data-dashboard/.streamlit
-RUN mkdir -p /secret
+
 
 RUN git clone https://github.com/curiouslearning/cl-data-dashboard.git .
-
+RUN mkdir -p /cl-data-dashboard/.streamlit
+RUN mkdir -p /secret
 RUN pip3 install -r requirements.txt
 
 RUN wget  https://storage.cloud.google.com/dataexploration-193817_cloudbuild/servicekey.json > /secret/keyfile.json
