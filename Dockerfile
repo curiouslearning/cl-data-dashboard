@@ -35,10 +35,10 @@ RUN git clone https://github.com/curiouslearning/cl-data-dashboard.git .
 
 RUN pip3 install -r requirements.txt
 
+RUN curl -o /secret/keyfile.json https://storage.cloud.google.com/dataexploration-193817_cloudbuild/servicekey.json
+ENV GOOGLE_APPLICATION_CREDENTIALS=/secret/keyfile.json
 
-#RUN  gcloud config set account streamlit-data-dash@dataexploration-193817.iam.gserviceaccount.com
-
-RUN gcloud secrets versions access latest --project="dataexploration-193817" --secret="streamlit-secrets" > .streamlit/secrets.toml
+RUN gcloud secrets versions access latest --project=$PROJECT_ID --secret=$SECRET_NAME > .streamlit/secrets.toml
 
 
 EXPOSE 8080
