@@ -33,8 +33,6 @@ RUN git clone https://github.com/curiouslearning/cl-data-dashboard.git .
 
 RUN pip3 install -r requirements.txt
 
-#COPY dataexploration-193817-df8853d577aa.json /app/dataexploration-193817-df8853d577aa.json
-
 
 #RUN  gcloud config set account streamlit-data-dash@dataexploration-193817.iam.gserviceaccount.com
 RUN gcloud config set auth/impersonate_service_account streamlit-data-dash@dataexploration-193817.iam.gserviceaccount.com
