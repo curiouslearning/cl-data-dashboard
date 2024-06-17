@@ -35,8 +35,6 @@ RUN pip3 install -r requirements.txt
 
 #COPY dataexploration-193817-df8853d577aa.json /app/dataexploration-193817-df8853d577aa.json
 
-# Set the environment variable for Google Application Credentials
-#ENV GOOGLE_APPLICATION_CREDENTIALS=/app/dataexploration-193817-df8853d577aa.json
 
 RUN  gcloud config set account streamlit-data-dash@dataexploration-193817.iam.gserviceaccount.com
 RUN gcloud secrets versions access latest --project="dataexploration-193817" --secret="streamlit-secrets" > .streamlit/secrets.toml
