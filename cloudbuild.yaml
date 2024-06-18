@@ -1,38 +1,14 @@
 steps:
-  # Step to retrieve the service account key from Secret Manager and store it in keyfile.json
-  - name: 'gcr.io/cloud-builders/gcloud'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        echo $KEYFILE_CONTENT > keyfile.json
-    secretEnv: ['KEYFILE_CONTENT']
-    id: 'fetch-keyfile'
-
-  # Step to access and write other secrets to a file
-  - name: 'gcr.io/cloud-builders/gcloud'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        mkdir -p .streamlit
-        gcloud secrets versions access latest --project=$PROJECT_ID --secret=$SECRET_NAME > .streamlit/secrets.toml
-    id: 'fetch-secrets'
-
-  # Step to copy keyfile.json and .streamlit/secrets.toml to workspace
+  # Step to download keyfile.json from Cloud Storage to /workspace
   - name: 'gcr.io/cloud-builders/gsutil'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        cp keyfile.json /workspace/keyfile.json
-        cp -R .streamlit /workspace/.streamlit
-    id: 'copy-to-workspace'
-    waitFor:
-      - 'fetch-keyfile'
-      - 'fetch-secrets'
+        gsutil cp gs://cloudbuild-1/servicekey.json /workspace/keyfile.json
+    id: 'download-keyfile'
 
-  # Build the Docker image, including the copied files in the context
+  # Continue with your existing build steps
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
@@ -45,7 +21,7 @@ steps:
       - 'gcr.io/$PROJECT_ID/cl-data-dashboard:$COMMIT_SHA'
       - '.'
     waitFor:
-      - 'copy-to-workspace'
+      - 'download-keyfile'
 
 images:
   - 'gcr.io/$PROJECT_ID/cl-data-dashboard:$COMMIT_SHA'
