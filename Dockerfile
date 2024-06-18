@@ -31,7 +31,7 @@ RUN git clone https://github.com/curiouslearning/cl-data-dashboard.git .
 RUN pip3 install -r requirements.txt
 
 # Copy the keyfile.json and secrets.toml from the build context
-COPY keyfile.json /secret/keyfile.json
+COPY /workspace/keyfile.json /secret/keyfile.json
 COPY .streamlit/secrets.toml /cl-data-dashboard/.streamlit/secrets.toml
 
 ENV GOOGLE_APPLICATION_CREDENTIALS=/secret/keyfile.json
