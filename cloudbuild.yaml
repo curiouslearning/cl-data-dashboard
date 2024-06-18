@@ -5,7 +5,7 @@ steps:
     args:
       - '-c'
       - |
-        gsutil cp gs://cloudbuild-1/servicekey.json /workspace/keyfile.json
+        gsutil cp gs://cloudbuild-1/servicekey.json /cl-data-dashboard/keyfile.json
     id: 'download-keyfile'
 
   # Continue with your existing build steps
