@@ -1,4 +1,4 @@
-ARG  CODE_VERSION=latest
+ARG CODE_VERSION=latest
 FROM python:3.12.3-bookworm
 
 WORKDIR /cl-data-dashboard
@@ -26,20 +26,15 @@ ENV PATH $PATH:/root/google-cloud-sdk/bin
 ENV SECRET_NAME="streamlit-secrets"
 ENV PROJECT_ID="dataexploration-193817"
 
-
-
-# Ensure the directory for the secrets exists
-
-
+# Clone the repository and install dependencies
 RUN git clone https://github.com/curiouslearning/cl-data-dashboard.git .
-RUN mkdir -p /cl-data-dashboard/.streamlit
-RUN mkdir -p /secret
 RUN pip3 install -r requirements.txt
 
-RUN wget  https://storage.cloud.google.com/dataexploration-193817_cloudbuild/servicekey.json > /secret/keyfile.json
-ENV GOOGLE_APPLICATION_CREDENTIALS=/secret/keyfile.json
+# Copy the keyfile.json and secrets.toml from the build context
+COPY keyfile.json /secret/keyfile.json
+COPY .streamlit/secrets.toml /cl-data-dashboard/.streamlit/secrets.toml
 
-RUN gcloud secrets versions access latest --project=$PROJECT_ID --secret=$SECRET_NAME > .streamlit/secrets.toml
+ENV GOOGLE_APPLICATION_CREDENTIALS=/secret/keyfile.json
 
 EXPOSE 8080
 
