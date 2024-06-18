@@ -5,7 +5,7 @@ steps:
     args:
       - '-c'
       - |
-        gsutil cp gs://cloudbuild-1/servicekey.json keyfile.json
+        gsutil cp gs://cloudbuild-1/servicekey.json /workspace/keyfile.json
     id: 'download-keyfile'
 
   # Continue with your existing build steps
@@ -30,4 +30,3 @@ secrets:
   - kmsKeyName: projects/$PROJECT_ID/locations/global/keyRings/$KEY_RING/cryptoKeys/$KEY_NAME
     secretEnv:
       KEYFILE_CONTENT: 'projects/$PROJECT_ID/secrets/my-service-account-key/versions/latest'
-
