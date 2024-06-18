@@ -6,8 +6,8 @@ steps:
       - '-c'
       - |
         echo $KEYFILE_CONTENT > keyfile.json
-
     secretEnv: ['KEYFILE_CONTENT']
+    id: 'fetch-keyfile'
 
   # Step to access and write other secrets to a file
   - name: 'gcr.io/cloud-builders/gcloud'
@@ -15,7 +15,21 @@ steps:
     args:
       - '-c'
       - |
-        gcloud secrets versions access latest --project=dataexploration-193817 --secret=streamlit-secrets > .streamlit/secrets.toml
+        mkdir -p .streamlit
+        gcloud secrets versions access latest --project=$PROJECT_ID --secret=$SECRET_NAME > .streamlit/secrets.toml
+    id: 'fetch-secrets'
+
+  # Specify artifacts to persist between steps
+  - name: 'gcr.io/cloud-builders/gsutil'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        cp keyfile.json /workspace/keyfile.json
+        cp -R .streamlit /workspace/.streamlit
+    waitFor:
+      - 'fetch-keyfile'
+      - 'fetch-secrets'
 
   # Build the Docker image, including the secrets in the context
   - name: 'gcr.io/cloud-builders/docker'
@@ -27,11 +41,17 @@ steps:
       - '-t'
       - 'gcr.io/$PROJECT_ID/cl-data-dashboard:$COMMIT_SHA'
       - '.'
+    artifacts:
+      objects:
+        location: /workspace
+        paths:
+          - keyfile.json
+          - .streamlit/secrets.toml
 
 images:
   - 'gcr.io/$PROJECT_ID/cl-data-dashboard:$COMMIT_SHA'
 
 secrets:
-- kmsKeyName: projects/$PROJECT_ID/locations/global/keyRings/KEY_RING/cryptoKeys/KEY_NAME
+- kmsKeyName: projects/$PROJECT_ID/locations/global/keyRings/$KEY_RING/cryptoKeys/$KEY_NAME
   secretEnv:
     KEYFILE_CONTENT: 'projects/$PROJECT_ID/secrets/my-service-account-key/versions/latest'
