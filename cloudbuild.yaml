@@ -4,7 +4,7 @@ steps:
   args:
     - '-c'
     - |
-      echo "PROJECT_ID: $PROJECT_ID"
+      echo "PROJECT_ID:  $PROJECT_ID"
       echo "COMMIT_SHA: $COMMIT_SHA"
       
 - name: 'gcr.io/cloud-builders/docker'
