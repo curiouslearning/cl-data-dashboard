@@ -22,7 +22,7 @@ RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.c
 #RUN pip3 install --upgrade google-cloud-secret-manager
 
 # Set environment variables for gcloud
-ENV PATH $PATH:/root/google-cloud-sdk/bin
+#ENV PATH $PATH:/root/google-cloud-sdk/bin
 ENV PROJECT_ID="dataexploration-193817"
 
 # Clone the repository and install dependencies
