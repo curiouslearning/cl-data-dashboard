@@ -29,7 +29,7 @@ ENV PROJECT_ID="dataexploration-193817"
 RUN git clone https://github.com/curiouslearning/cl-data-dashboard.git .
 RUN pip3 install -r requirements.txt
 
-RUN echo "Hello!"
+RUN echo "Hello!!"
 RUN echo $STREAMLIT_SECRETS
 RUN echo $STREAMLIT_SECRETS > /cl-data-dashboard/.streamlit/secrets.toml
 
