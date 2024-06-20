@@ -25,7 +25,7 @@ availableSecrets:
   - versionName: projects/$PROJECT_ID/secrets/streamlit-secrets/versions/latest
     env: 'STREAMLIT_SECRETS'
 
-serviceAccount: projects/$PROJECT_ID/serviceAccounts/streamlit-data-dash@dataexploration-193817.iam.gserviceaccount.com
+serviceAccount: projects/$PROJECT_ID/serviceAccounts/405806232197-compute@developer.gserviceaccount.com
 options:
   logging: CLOUD_LOGGING_ONLY
 
