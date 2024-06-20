@@ -16,13 +16,13 @@ steps:
       - '--no-cache'
       - '--platform=linux/amd64'
       - '--build-arg'
-      - 'STREAMLIT_SECRETS2=$STREAMLIT_SECRETS2'
-      - '--build-arg'
       - 'STREAMLIT_SECRETS=$(cat streamlit-secrets.txt)'
+      - '--build-arg'
+      - 'STREAMLIT_SECRETS2=$$STREAMLIT_SECRETS2'
       - '-t'
       - 'gcr.io/$PROJECT_ID/cl-data-dashboard:$COMMIT_SHA'
       - '.'
-    secretEnv: ['STREAMLIT_SECRETS,STREAMLIT_SECRETS2']  
+    secretEnv: ['STREAMLIT_SECRETS2']  
 images:
   - 'gcr.io/$PROJECT_ID/cl-data-dashboard:$COMMIT_SHA'
 
@@ -31,7 +31,8 @@ availableSecrets:
   - versionName: projects/$PROJECT_ID/secrets/streamlit-secrets/versions/latest
     env: 'STREAMLIT_SECRETS2'
 
-#serviceAccount: projects/$PROJECT_ID/serviceAccounts/streamlit-data-dash@dataexploration-193817.iam.gserviceaccount.com
+
+serviceAccount: projects/$PROJECT_ID/serviceAccounts/streamlit-data-dash@dataexploration-193817.iam.gserviceaccount.com
 options:
   logging: CLOUD_LOGGING_ONLY
 
