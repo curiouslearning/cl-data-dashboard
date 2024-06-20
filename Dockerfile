@@ -15,26 +15,22 @@ RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.c
     | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
 
 # Add Google's public key
-RUN curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
+#RUN curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
 
 # Update and install the Google Cloud SDK
-RUN apt-get update && apt-get install -y google-cloud-sdk
-RUN pip3 install --upgrade google-cloud-secret-manager
+#RUN apt-get update && apt-get install -y google-cloud-sdk
+#RUN pip3 install --upgrade google-cloud-secret-manager
 
 # Set environment variables for gcloud
 ENV PATH $PATH:/root/google-cloud-sdk/bin
-ENV SECRET_NAME="streamlit-secrets"
 ENV PROJECT_ID="dataexploration-193817"
 
 # Clone the repository and install dependencies
 RUN git clone https://github.com/curiouslearning/cl-data-dashboard.git .
 RUN pip3 install -r requirements.txt
 
-# Copy the keyfile.json and secrets.toml from the build context
-COPY /workspace/keyfile.json /secret/keyfile.json
-COPY .streamlit/secrets.toml /cl-data-dashboard/.streamlit/secrets.toml
-
-ENV GOOGLE_APPLICATION_CREDENTIALS=/secret/keyfile.json
+RUN echo $STREAMLIT_SECRETS
+RUN echo $STREAMLIT_SECRETS > /cl-data-dashboard/.streamlit/secrets.toml
 
 EXPOSE 8080
 

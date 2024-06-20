@@ -1,32 +1,31 @@
 steps:
-  # Step to download keyfile.json from Cloud Storage to /workspace
-  - name: 'gcr.io/cloud-builders/gsutil'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        gsutil cp gs://cloudbuild-1/servicekey.json /workspace/keyfile.json
-    id: 'download-keyfile'
-
-  # Continue with your existing build steps
-  - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'build'
-      - '--no-cache'
-      - '--platform'
-      - 'linux/amd64'
-      - '--build-arg'
-      - 'KEYFILE_PATH=/workspace/keyfile.json'
-      - '-t'
-      - 'gcr.io/$PROJECT_ID/cl-data-dashboard:$COMMIT_SHA'
-      - '.'
-    waitFor:
-      - 'download-keyfile'
-
+- name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'bash'
+  args:
+    - '-c'
+    - |
+      echo "PROJECT_ID: $PROJECT_ID"
+      echo "COMMIT_SHA: $COMMIT_SHA"
+      
+- name: 'gcr.io/cloud-builders/docker'
+  args:
+    - 'build'
+    - '--file=Dockerfile'
+    - '--no-cache'
+    - '--platform=linux/amd64'
+    - '-t'
+    - 'gcr.io/$PROJECT_ID/cl-data-dashboard:$COMMIT_SHA'
+    - '.'
+  secretEnv: ['STREAMLIT_SECRETS']  
 images:
   - 'gcr.io/$PROJECT_ID/cl-data-dashboard:$COMMIT_SHA'
 
-secrets:
-  - kmsKeyName: projects/$PROJECT_ID/locations/global/keyRings/$KEY_RING/cryptoKeys/$KEY_NAME
-    secretEnv:
-      KEYFILE_CONTENT: 'projects/$PROJECT_ID/secrets/my-service-account-key/versions/latest'
+availableSecrets:
+  secretManager:
+  - versionName: projects/$PROJECT_ID/secrets/streamlit-secrets/versions/latest
+    env: 'STREAMLIT_SECRETS'
+
+serviceAccount: projects/$PROJECT_ID/serviceAccounts/streamlit-data-dash@dataexploration-193817.iam.gserviceaccount.com
+options:
+  logging: CLOUD_LOGGING_ONLY
+
