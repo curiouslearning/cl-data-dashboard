@@ -33,7 +33,7 @@ steps:
 availableSecrets:
   secretManager:
   - versionName: projects/$PROJECT_ID/secrets/streamlit-secrets/versions/latest
-    env: 'STREAMLIT_SECRETS2'
+    env: STREAMLIT_SECRETS2
 
 
 serviceAccount: projects/$PROJECT_ID/serviceAccounts/streamlit-data-dash@dataexploration-193817.iam.gserviceaccount.com

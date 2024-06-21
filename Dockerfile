@@ -35,7 +35,7 @@ RUN pip3 install -r requirements.txt
 
 RUN echo " S = $STREAMLIT_SECRETS"
 RUN echo " S2 = $STREAMLIT_SECRETS2"
-RUN echo "$STREAMLIT_SECRETS" > .streamlit/secrets.toml
+RUN echo "$STREAMLIT_SECRETS2" > .streamlit/secrets.toml
 EXPOSE 8080
 
 CMD ["streamlit", "run", "Engagement.py", "--server.port=8080"]
