@@ -32,7 +32,7 @@ RUN git clone https://github.com/curiouslearning/cl-data-dashboard.git .
 RUN pip3 install -r requirements.txt
 
 
-RUN echo S = $STREAMLIT_SECRETS
+RUN echo $STREAMLIT_SECRETS
 
 RUN echo $STREAMLIT_SECRETS > .streamlit/secrets.toml
 EXPOSE 8080
