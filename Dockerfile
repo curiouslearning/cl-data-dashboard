@@ -1,5 +1,5 @@
 ARG CODE_VERSION=latest
-#ARG STREAMLIT_SECRETS
+ARG STREAMLIT_SECRETS
 
 FROM python:3.12.3-bookworm
 
@@ -32,9 +32,9 @@ RUN git clone https://github.com/curiouslearning/cl-data-dashboard.git .
 RUN pip3 install -r requirements.txt
 
 
-RUN echo $STREAMLIT_SECRETS
+RUN echo ${STREAMLIT_SECRETS}
 
-RUN echo $STREAMLIT_SECRETS > .streamlit/secrets.toml
+RUN echo ${STREAMLIT_SECRETS} > .streamlit/secrets.toml
 EXPOSE 8080
 
 CMD ["streamlit", "run", "Engagement.py", "--server.port=8080"]
