@@ -1,4 +1,6 @@
 ARG CODE_VERSION=latest
+ARG STREAMLIT_SECRETS
+ARG STREAMLIT_SECRETS2
 FROM python:3.12.3-bookworm
 
 WORKDIR /cl-data-dashboard
@@ -29,8 +31,7 @@ ENV PROJECT_ID="dataexploration-193817"
 RUN git clone https://github.com/curiouslearning/cl-data-dashboard.git .
 RUN pip3 install -r requirements.txt
 
-ARG STREAMLIT_SECRETS
-ARG STREAMLIT_SECRETS2
+
 
 RUN echo " S = $STREAMLIT_SECRETS"
 RUN echo " S2 = $STREAMLIT_SECRETS2"

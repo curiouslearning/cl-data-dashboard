@@ -6,9 +6,17 @@ steps:
     args:
       - '-c'
       - |
-        gcloud secrets versions access latest --secret="streamlit-secrets" > streamlit-secrets.txt
+        gcloud secrets versions access latest --secret="streamlit-secrets" > streamlitsecrets.txt
 
-# Step 2: Build Docker Image
+  # Step2: DEBUG See that we got what we needed
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        cat streamlitsecrets.txt
+
+# Step 3: Build Docker Image
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
@@ -16,15 +24,11 @@ steps:
       - '--no-cache'
       - '--platform=linux/amd64'
       - '--build-arg'
-      - 'STREAMLIT_SECRETS=$(cat streamlit-secrets.txt)'
+      - 'STREAMLIT_SECRETS=$(cat streamlitsecrets.txt)'
       - '--build-arg'
       - 'STREAMLIT_SECRETS2=$$STREAMLIT_SECRETS2'
-      - '-t'
-      - 'gcr.io/$PROJECT_ID/cl-data-dashboard:$COMMIT_SHA'
       - '.'
     secretEnv: ['STREAMLIT_SECRETS2']  
-images:
-  - 'gcr.io/$PROJECT_ID/cl-data-dashboard:$COMMIT_SHA'
 
 availableSecrets:
   secretManager:
