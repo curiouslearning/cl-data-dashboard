@@ -32,10 +32,9 @@ RUN git clone https://github.com/curiouslearning/cl-data-dashboard.git .
 RUN pip3 install -r requirements.txt
 
 
+RUN echo S = $STREAMLIT_SECRETS
 
-RUN echo " S = $STREAMLIT_SECRETS"
-
-RUN echo "$STREAMLIT_SECRETS" > .streamlit/secrets.toml
+RUN echo $STREAMLIT_SECRETS > .streamlit/secrets.toml
 EXPOSE 8080
 
 CMD ["streamlit", "run", "Engagement.py", "--server.port=8080"]

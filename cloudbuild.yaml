@@ -6,7 +6,7 @@ steps:
     args:
       - '-c'
       - |
-        gcloud secrets versions access latest --secret="streamlit-secrets"
+        gcloud secrets versions access latest --secret="streamlit-secrets" | tee /tmp/secret_output.txt
 
 
 # Step 3: Build Docker Image
