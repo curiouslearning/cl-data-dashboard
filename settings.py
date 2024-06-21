@@ -6,35 +6,44 @@ from rich import print
 import pandas as pd
 import users
 import datetime as dt
+from google.cloud import secretmanager
+import json
 
 default_daterange = [dt.datetime(2021, 1, 1).date(), dt.date.today()]
 
 
-def get_bq_client():
-    credentials = get_gcp_credentials()
-    bq_client = bigquery.Client(
-        credentials=credentials, project="dataexploration-193817"
-    )
-    return bq_client
-
-
 def get_gcp_credentials():
+    # first get credentials to secret manager
+    client = secretmanager.SecretManagerServiceClient()
+
+    # get the secret that holds the service account key
+    name = "projects/405806232197/secrets/service_account_json/versions/latest"
+    response = client.access_secret_version(name=name)
+    key = response.payload.data.decode("UTF-8")
+
+    # use the key to get service account credentials
+    service_account_info = json.loads(key)
     # Create BigQuery API client.
     gcp_credentials = service_account.Credentials.from_service_account_info(
-        st.secrets["gcp_service_account"],
+        service_account_info,
         scopes=[
             "https://www.googleapis.com/auth/cloud-platform",
             "https://www.googleapis.com/auth/drive",
             "https://www.googleapis.com/auth/bigquery",
         ],
     )
-    return gcp_credentials
+
+    bq_client = bigquery.Client(
+        credentials=gcp_credentials, project="dataexploration-193817"
+    )
+    return bq_client
 
 
 def initialize():
     pd.options.mode.copy_on_write = True
     pd.set_option("display.max_columns", 20)
-    bq_client = get_bq_client()
+
+    bq_client = get_gcp_credentials()
 
     if "bq_client" not in st.session_state:
         st.session_state["bq_client"] = bq_client
