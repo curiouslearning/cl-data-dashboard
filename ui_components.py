@@ -202,7 +202,7 @@ def top_LR_LC_bar_chart(daterange, countries_list, option, app="Both", language=
 
 @st.cache_data(ttl="1d", show_spinner=False)
 def LR_LA_line_chart_over_time(
-    daterange, countries_list, option, app="Both", language="All"
+    daterange, countries_list, option, app="Both", language="All",display_category="Country"
 ):
     df_user_list = metrics.filter_user_data(
         daterange, countries_list, option, app=app, language=language
@@ -217,10 +217,13 @@ def LR_LA_line_chart_over_time(
         title = "Daily Learners Reached"
         df_user_list.rename({"first_open": "LR Date"}, axis=1, inplace=True)
 
-    # Group by date and country, then count the users
-    grouped_df = (
-        df_user_list.groupby([groupby, "country"]).size().reset_index(name=option)
-    )
+    # Group by date and display_type, then count the users
+    if display_category == "Country":
+        display_group = "country"
+    elif display_category == "Language":
+        display_group = "app_language"      
+        
+    grouped_df = (df_user_list.groupby([groupby, display_group]).size().reset_index(name=option))
     grouped_df["7 Day Rolling Mean"] = grouped_df[option].rolling(14).mean()
 
     # Plotly line graph
@@ -228,7 +231,7 @@ def LR_LA_line_chart_over_time(
         grouped_df,
         x=groupby,
         y=option,
-        color="country",
+        color=display_group,
         markers=False,
         title=title,
     )
@@ -236,7 +239,7 @@ def LR_LA_line_chart_over_time(
     st.plotly_chart(fig, use_container_width=True)
 
 @st.cache_data(ttl="1d", show_spinner=False)
-def lrc_scatter_chart(option):
+def lrc_scatter_chart(daterange,option):
     df_campaigns = st.session_state.df_campaigns
     countries_list = df_campaigns["country"].unique()
     countries_list = list(countries_list)
@@ -244,7 +247,7 @@ def lrc_scatter_chart(option):
     # Convert the numpy array to a Python list
 
     df_counts = metrics.get_country_counts(
-        [dt.datetime(2021, 1, 1).date(), dt.date.today()], countries_list
+        daterange, countries_list
     )
 
     x = "LR" if option == "LRC" else "LA"
@@ -253,7 +256,7 @@ def lrc_scatter_chart(option):
     # Merge dataframes on 'country'
     merged_df = pd.merge(df_campaigns, df_counts, on="country", how="right")
 
-    min_value = 1000
+    min_value = 200
     merged_df = merged_df[(merged_df["LR"] > min_value) | (merged_df["LA"] > min_value)]
 
     # Calculate LRC
