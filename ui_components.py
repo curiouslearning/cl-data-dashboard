@@ -55,13 +55,14 @@ def stats_by_country_map(daterange, countries_list, app="Both", language="All", 
     st.plotly_chart(country_fig)
 
 
-@st.cache_data(ttl="1d")
-def campaign_gantt_chart():
+
+def campaign_gantt_chart(daterange):
+    
     df1 = st.session_state.df_campaigns
     df1["campaign_start_date"] = pd.to_datetime(df1["campaign_start_date"]).dt.date
 
     # Define the chart start date
-    chart_start = dt.datetime.strptime("2023-07-01", "%Y-%m-%d").date()
+    chart_start = daterange[0]
 
     # Query the DataFrame
     df1 = df1.query("campaign_start_date > @chart_start")
@@ -70,9 +71,11 @@ def campaign_gantt_chart():
     df1["start_date"] = pd.to_datetime(df1["campaign_start_date"])
     df1["end_date"] = pd.to_datetime(df1["campaign_end_date"])
 
-    # If campaign end dates are past today, set it to today for the chart
-    d = pd.to_datetime(dt.date.today())
-    df1.loc[df1["end_date"] > d, "end_date"] = d
+    # Remove rows where 'end_date' is greater than one year from today (likely invalid campaign)
+    today = dt.datetime.now()
+    one_year_from_today = today + dt.timedelta(days=365)
+    df1 = df1[df1["end_date"] <= one_year_from_today]
+
 
     df1["campaign_name_short"] = df1["campaign_name"].str[
         :20
@@ -81,13 +84,27 @@ def campaign_gantt_chart():
     df1 = df1[
         (df1["end_date"] - df1["start_date"]).dt.days > 1
     ]  # eliminate campaigns that didn't run longer than a day
+    rows = len(df1.index)
+
+    fontsize = 8
+    if rows > 80:
+        height = rows * 10
+    elif rows > 40 and rows <= 80:
+        height = rows * 20
+    elif  rows > 10 and rows <= 40:
+        height = rows * 30
+        fontsize = 12
+    else:
+        height = 500
+        fontsize = 18
+
 
     fig = px.timeline(
         df1,
         x_start="start_date",
         x_end="end_date",
         y="campaign_name_short",
-        height=1500,
+        height=height,
         color_continuous_scale=[
             [0, "rgb(166,206,227, 0.5)"],
             [0.05, "rgb(31,120,180,0.5)"],
@@ -100,7 +117,7 @@ def campaign_gantt_chart():
         color="cost",
         custom_data=[df1["campaign_name"], df1["cost"]],
     )
-
+    
     fig.update_yaxes(autorange="reversed")
 
     fig.update_layout(
@@ -109,7 +126,7 @@ def campaign_gantt_chart():
         bargap=0.2,
         xaxis_title="",
         yaxis_title="",
-        yaxis=dict(tickfont_size=8),
+        yaxis=dict(tickfont_size=fontsize),
         title_x=0.5,  # Make title centered
         xaxis=dict(
             tickfont_size=10,
@@ -131,7 +148,7 @@ def campaign_gantt_chart():
     fig.update_xaxes(
         tickangle=0, tickfont=dict(family="Rockwell", color="#A9A9A9", size=12)
     )
-
+    
     st.plotly_chart(
         fig, use_container_width=True
     )  # Display the plotly chart in Streamlit
@@ -250,11 +267,15 @@ def lrc_scatter_chart(daterange,option):
         daterange, countries_list
     )
 
+
     x = "LR" if option == "LRC" else "LA"
     df_campaigns = df_campaigns.groupby("country")["cost"].sum().round(2).reset_index()
 
     # Merge dataframes on 'country'
     merged_df = pd.merge(df_campaigns, df_counts, on="country", how="right")
+    if merged_df.empty:
+        st.write("No data")
+        return
 
     min_value = 200
     merged_df = merged_df[(merged_df["LR"] > min_value) | (merged_df["LA"] > min_value)]
@@ -289,12 +310,19 @@ def lrc_scatter_chart(daterange,option):
 
 
 @st.cache_data(ttl="1d", show_spinner=False)
-def spend_by_country_map():
+def spend_by_country_map(daterange):
 
-    if "df_campaigns" not in st.session_state:
+    if "df_campaigns_all" not in st.session_state:
         return pd.DataFrame()
     else:
-        df_campaigns = st.session_state.df_campaigns
+        df_campaigns = st.session_state.df_campaigns_all
+
+    conditions = [
+        f"@daterange[0] <= segment_date <= @daterange[1]",
+    ]
+
+    query = " and ".join(conditions)
+    df_campaigns = df_campaigns.query(query)
 
     df_campaigns = df_campaigns.groupby("country")["cost"].sum().round(2).reset_index()
 

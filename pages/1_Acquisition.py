@@ -56,8 +56,8 @@ if len(daterange) == 2:
 
     st.divider()
     st.subheader("Total Spend per Country")
-    uic.spend_by_country_map()
+    uic.spend_by_country_map(daterange)
 
     st.divider()
     st.subheader("Campaign Timelines")
-    uic.campaign_gantt_chart()
+    uic.campaign_gantt_chart(daterange)
