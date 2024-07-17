@@ -262,18 +262,18 @@ def get_counts(
     counts = dfLR.merge(dfLA, on=type, how="left").fillna(0)
 
     #### GPP ###
-    #    df = filter_user_data(
-    #       daterange, countries_list, stat="LA", app=app, language=language
-    #   )
-    #  avg_gpc_per_country = df.groupby("country")["gpc"].mean().round(2)
-    #   dfGPP = pd.DataFrame(
-    #       {
-    #           "country": avg_gpc_per_country.index,
-    #          "GPP": avg_gpc_per_country.values,
-    #      }
-    #    ).fillna(0)
+    df = filter_user_data(
+       daterange, countries_list, stat="LA", app=app, language=language
+       )
+    avg_gpc_per_type = df.groupby(type)["gpc"].mean().round(2)
+    dfGPP = pd.DataFrame(
+          {
+              type: avg_gpc_per_type.index,
+             "GPP": avg_gpc_per_type.values,
+            }
+    ).fillna(0)
 
-    #   country_counts = country_counts.merge(dfGPP, on="country", how="left").fillna(0)
+    counts = counts.merge(dfGPP, on=type, how="left").fillna(0)
 
     dfPC = (
         filter_user_data(daterange, countries_list, "PC", app=app, language=language)

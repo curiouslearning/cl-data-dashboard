@@ -80,12 +80,21 @@ if len(daterange) == 2 and len(countries_list) > 0:
         daterange, countries_list, app=app, language=language, option=option
     )
     st.divider()
-    option = st.radio("Select a statistic", ("LR", "LA"), index=0, horizontal=True)
+    st.subheader("Top 10's")
+
+    c1, c2, c3,c4 = st.columns(4)
+    with c1:
+        option = st.radio("Select a statistic", ("LR", "LA"), index=0, horizontal=True,key="e-3")
+    with c2:
+        display_category = st.radio(
+            "Display by", ("Country", "Language"), index=0, horizontal=True, key="e-4"
+        )
+    
     uic.top_LR_LC_bar_chart(
-        daterange, countries_list, option, app=app, language=language
+        daterange, countries_list, option, app=app, language=language,display_category=display_category
     )
     c1, c2 = st.columns(2)
     with c1:
-        uic.top_gpp_bar_chart(daterange, countries_list, app=app, language=language)
+        uic.top_gpp_bar_chart(daterange, countries_list, app=app, language=language,display_category=display_category)
     with c2:
-        uic.top_gca_bar_chart(daterange, countries_list, app=app, language=language)
+        uic.top_gca_bar_chart(daterange, countries_list, app=app, language=language,display_category=display_category)

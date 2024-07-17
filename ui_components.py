@@ -55,7 +55,7 @@ def stats_by_country_map(daterange, countries_list, app="Both", language="All", 
     st.plotly_chart(country_fig)
 
 
-
+@st.cache_data(ttl="1d", show_spinner=False)
 def campaign_gantt_chart(daterange):
     
     df1 = st.session_state.df_campaigns
@@ -154,63 +154,83 @@ def campaign_gantt_chart(daterange):
     )  # Display the plotly chart in Streamlit
 
 @st.cache_data(ttl="1d", show_spinner=False)
-def top_gpp_bar_chart(daterange, countries_list, app="Both", language="All"):
-    df = metrics.get_country_counts(
-        daterange, countries_list, app=app, language=language
+def top_gpp_bar_chart(daterange, countries_list, app="Both", language="All",display_category="Country"):
+
+    # Group by date and display_type, then count the users
+    if display_category == "Country":
+        display_group = "country"
+    elif display_category == "Language":
+        display_group = "app_language"     
+
+    df = metrics.get_counts(type=display_group,
+    daterange=daterange, countries_list=countries_list, app=app, language=language
     )
+    
+    df = df[[display_group, "GPP"]].sort_values(by="GPP", ascending=False).head(10)
 
-    df = df[["country", "GPP"]].sort_values(by="GPP", ascending=False).head(10)
-
-    df.rename(columns={"country": "Country"}, inplace=True)
     fig = px.bar(
-        df, x="Country", y="GPP", color="Country", title="Top 10 Countries by GPP %"
+        df, x=display_group, y="GPP", color=display_group, title="Top 10 Countries by GPP %"
     )
     st.plotly_chart(fig, use_container_width=True)
 
 @st.cache_data(ttl="1d", show_spinner=False)
-def top_gca_bar_chart(daterange, countries_list, app="Both", language="All"):
-    df = metrics.get_country_counts(
-        daterange, countries_list, app=app, language=language
+def top_gca_bar_chart(daterange, countries_list, app="Both", language="All",display_category="Country"):
+
+    # Group by date and display_type, then count the users
+    if display_category == "Country":
+        display_group = "country"
+    elif display_category == "Language":
+        display_group = "app_language"     
+    
+    df = metrics.get_counts(type=display_group,
+        daterange=daterange, countries_list=countries_list, app=app, language=language
     )
 
-    df = df[["country", "GCA"]].sort_values(by="GCA", ascending=False).head(10)
-    df.rename(columns={"country": "Country"}, inplace=True)
+    df = df[[display_group, "GCA"]].sort_values(by="GCA", ascending=False).head(10)
+
     fig = px.bar(
         df,
-        x="Country",
+        x=display_group,
         y="GCA",
-        color="Country",
-        title="Top 10 Countries by GCA %",
+        color=display_group,
+        title="Top 10  by GCA %",
     )
     st.plotly_chart(fig, use_container_width=True)
 
 @st.cache_data(ttl="1d", show_spinner=False)
-def top_LR_LC_bar_chart(daterange, countries_list, option, app="Both", language="All"):
-    df = metrics.get_country_counts(
-        daterange, countries_list, app=app, language=language
+def top_LR_LC_bar_chart(daterange, countries_list, option, app="Both", language="All",display_category="Country"):
+    # Group by date and display_type, then count the users
+    if display_category == "Country":
+        display_group = "country"
+    elif display_category == "Language":
+        display_group = "app_language"      
+
+    df = metrics.get_counts(type=display_group,
+        daterange=daterange, countries_list=countries_list, app=app, language=language
     )
 
+
     df = (
-        df[["country", "LR", "LA"]]
+        df[[display_group, "LR", "LA"]]
         .sort_values(by=option, ascending=False)
         .head(10)
         .round(2)
     )
 
-    title = "Top 10 Countries by " + str(option)
+    title = "Top 10 by " + str(option)
     fig = go.Figure(
         data=[
             go.Bar(
                 name="LR",
-                x=df["country"],
+                x=df[display_group],
                 y=df["LR"],
-                hovertemplate="Country: %{x}<br>LR: %{y:,.0f}<extra></extra>",
+                hovertemplate=" %{x}<br>LR: %{y:,.0f}<extra></extra>",
             ),
             go.Bar(
                 name="LA",
-                x=df["country"],
+                x=df[display_group],
                 y=df["LA"],
-                hovertemplate="Country: %{x}<br>LA: %{y:,.0f}<extra></extra>",
+                hovertemplate=" %{x}<br>LA: %{y:,.0f}<extra></extra>",
             ),
         ],
     )
@@ -284,7 +304,6 @@ def lrc_scatter_chart(daterange,option):
     merged_df[option] = (merged_df["cost"] / merged_df[x]).round(2)
 
     # Fill NaN values in LRC column with 0
-
     merged_df[option] = merged_df[option].fillna(0)
     scatter_df = merged_df[["country", "cost", option, x]]
     scatter_df["cost"] = "$" + scatter_df["cost"].apply(lambda x: "{:,.2f}".format(x))
@@ -299,7 +318,6 @@ def lrc_scatter_chart(daterange,option):
         title="Reach to Cost",
         hover_data={
             "cost": True,
-            "cost": ":$,.2f",
             option: ":$,.2f",
             x: ":,",
         },
