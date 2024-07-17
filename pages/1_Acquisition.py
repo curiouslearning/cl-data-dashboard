@@ -24,7 +24,7 @@ if len(daterange) == 2:
     uic.lrc_scatter_chart(daterange,option)
 
     st.divider()
-    st.subheader("Learners Reached Over Time")
+    st.subheader("Learners Over Time")
 
     col1, col2 = st.columns(2, gap="large")
 
