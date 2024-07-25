@@ -20,8 +20,15 @@ selected_date, option = ui.calendar_selector()
 daterange = ui.convert_date_to_range(selected_date, option)
 if len(daterange) == 2:
 
-    option = st.radio("Select a statistic", ("LRC", "LAC"), index=0, horizontal=True)
-    uic.lrc_scatter_chart(daterange,option)
+    c1, c2, c3,c4 = st.columns(4)
+    with c1:
+        option = st.radio("Select a statistic", ("LRC", "LAC"), index=0, horizontal=True)
+    with c2:
+        display_category = st.radio(
+            "Display by", ("Country", "Language"), index=0, horizontal=True, key="e-4"
+        )
+
+    uic.lrc_scatter_chart(daterange,option,display_category)
 
     st.divider()
     st.subheader("Learners Over Time")

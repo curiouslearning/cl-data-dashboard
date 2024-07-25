@@ -16,8 +16,9 @@ default_daterange = [dt.datetime(2021, 1, 1).date(), dt.date.today()]
 @st.cache_data(ttl="1d", show_spinner=False)
 def stats_by_country_map(daterange, countries_list, app="Both", language="All", option="LR"):
 
-    df = metrics.get_country_counts(daterange, countries_list, app, language=language)
-
+    df = metrics.get_counts(type="country",
+    daterange=daterange, countries_list=countries_list, app=app, language=language
+    )
     country_fig = px.choropleth(
         df,
         locations="country",
@@ -276,23 +277,29 @@ def LR_LA_line_chart_over_time(
     st.plotly_chart(fig, use_container_width=True)
 
 @st.cache_data(ttl="1d", show_spinner=False)
-def lrc_scatter_chart(daterange,option):
+def lrc_scatter_chart(daterange,option,display_category):
     df_campaigns = st.session_state.df_campaigns
-    countries_list = df_campaigns["country"].unique()
-    countries_list = list(countries_list)
 
-    # Convert the numpy array to a Python list
-
-    df_counts = metrics.get_country_counts(
-        daterange, countries_list
-    )
-
+    if display_category == "Country":
+        display_group = "country"
+        countries_list = df_campaigns["country"].unique()
+        countries_list = list(countries_list)
+        df_counts = metrics.get_counts(
+            daterange=daterange,type=display_group,countries_list=countries_list
+        )
+    elif display_category == "Language":
+        display_group = "app_language"   
+        language =  df_campaigns["app_language"].unique()  
+        language = list(language)
+        df_counts = metrics.get_counts(
+            daterange=daterange,type=display_group,language=language
+        )
 
     x = "LR" if option == "LRC" else "LA"
-    df_campaigns = df_campaigns.groupby("country")["cost"].sum().round(2).reset_index()
+    df_campaigns = df_campaigns.groupby(display_group)["cost"].sum().round(2).reset_index()
 
     # Merge dataframes on 'country'
-    merged_df = pd.merge(df_campaigns, df_counts, on="country", how="right")
+    merged_df = pd.merge(df_campaigns, df_counts, on=display_group, how="right")
     if merged_df.empty:
         st.write("No data")
         return
@@ -305,7 +312,7 @@ def lrc_scatter_chart(daterange,option):
 
     # Fill NaN values in LRC column with 0
     merged_df[option] = merged_df[option].fillna(0)
-    scatter_df = merged_df[["country", "cost", option, x]]
+    scatter_df = merged_df[[display_group, "cost", option, x]]
     scatter_df["cost"] = "$" + scatter_df["cost"].apply(lambda x: "{:,.2f}".format(x))
     scatter_df[option] = "$" + scatter_df[option].apply(lambda x: "{:,.2f}".format(x))
     scatter_df[x] = scatter_df[x].apply(lambda x: "{:,}".format(x))
@@ -314,7 +321,7 @@ def lrc_scatter_chart(daterange,option):
         scatter_df,
         x=x,
         y=option,
-        color="country",
+        color=display_group,
         title="Reach to Cost",
         hover_data={
             "cost": True,
