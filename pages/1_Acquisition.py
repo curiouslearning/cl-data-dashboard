@@ -58,7 +58,10 @@ if len(daterange) == 2:
 
     if (len(countries_list)) > 0 and (len(daterange) == 2):
         uic.LR_LA_line_chart_over_time(
-            daterange, countries_list, app=app, language=language, option=option,display_category=display_category
+            daterange, countries_list, app=app, language=language, option=option,display_category=display_category,aggregate=False
+        )
+        uic.LR_LA_line_chart_over_time(
+            daterange, countries_list, app=app, language=language, option=option,display_category=display_category,aggregate=True
         )
 
     st.divider()

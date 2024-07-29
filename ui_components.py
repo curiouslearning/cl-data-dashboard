@@ -240,7 +240,7 @@ def top_LR_LC_bar_chart(daterange, countries_list, option, app="Both", language=
 
 @st.cache_data(ttl="1d", show_spinner=False)
 def LR_LA_line_chart_over_time(
-    daterange, countries_list, option, app="Both", language="All",display_category="Country"
+    daterange, countries_list, option, app="Both", language="All", display_category="Country", aggregate=True
 ):
     df_user_list = metrics.filter_user_data(
         daterange, countries_list, option, app=app, language=language
@@ -259,22 +259,32 @@ def LR_LA_line_chart_over_time(
     if display_category == "Country":
         display_group = "country"
     elif display_category == "Language":
-        display_group = "app_language"      
+        display_group = "app_language"
         
-    grouped_df = (df_user_list.groupby([groupby, display_group]).size().reset_index(name=option))
-    grouped_df["7 Day Rolling Mean"] = grouped_df[option].rolling(14).mean()
+    color = display_group
+
+    if aggregate:
+        grouped_df = df_user_list.groupby(groupby).size().reset_index(name=option)
+        grouped_df[option] = grouped_df[option].cumsum()
+        grouped_df["7 Day Rolling Mean"] = grouped_df[option].rolling(14).mean()
+        color = None
+    else:
+        grouped_df = df_user_list.groupby([groupby, display_group]).size().reset_index(name=option)
+        grouped_df["7 Day Rolling Mean"] = grouped_df[option].rolling(14).mean()
 
     # Plotly line graph
     fig = px.line(
         grouped_df,
         x=groupby,
         y=option,
-        color=display_group,
+        height=300,
+        color=color,
         markers=False,
         title=title,
     )
 
     st.plotly_chart(fig, use_container_width=True)
+
 
 @st.cache_data(ttl="1d", show_spinner=False)
 def lrc_scatter_chart(daterange,option,display_category):
