@@ -344,7 +344,7 @@ def lrc_scatter_chart(daterange,option,display_category):
     st.plotly_chart(fig, use_container_width=True)
 
 
-@st.cache_data(ttl="1d", show_spinner=False)
+#@st.cache_data(ttl="1d", show_spinner=False)
 def spend_by_country_map(daterange):
 
     if "df_campaigns_all" not in st.session_state:
@@ -352,13 +352,16 @@ def spend_by_country_map(daterange):
     else:
         df_campaigns = st.session_state.df_campaigns_all
 
+    # Drop the campaigns that don't meet the naming convention
+    condition = (df_campaigns["app_language"].isna()) | (df_campaigns["country"].isna())
+    df_campaigns = df_campaigns[~condition]
+
     conditions = [
         f"@daterange[0] <= segment_date <= @daterange[1]",
     ]
 
     query = " and ".join(conditions)
     df_campaigns = df_campaigns.query(query)
-
     df_campaigns = df_campaigns.groupby("country")["cost"].sum().round(2).reset_index()
 
     country_fig = px.choropleth(
