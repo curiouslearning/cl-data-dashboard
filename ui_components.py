@@ -7,9 +7,9 @@ import plotly.graph_objects as go
 import metrics
 from millify import prettify
 import ui_widgets as ui
-import numpy as np
 import plost
 import users
+import campaigns
 
 default_daterange = [dt.datetime(2021, 1, 1).date(), dt.date.today()]
 
@@ -347,22 +347,21 @@ def lrc_scatter_chart(daterange,option,display_category):
 #@st.cache_data(ttl="1d", show_spinner=False)
 def spend_by_country_map(daterange):
 
-    if "df_campaigns_all" not in st.session_state:
-        return pd.DataFrame()
-    else:
-        df_campaigns = st.session_state.df_campaigns_all
+    df_campaigns = campaigns.get_campaigns_by_date(daterange)
 
     # Drop the campaigns that don't meet the naming convention
     condition = (df_campaigns["app_language"].isna()) | (df_campaigns["country"].isna())
     df_campaigns = df_campaigns[~condition]
 
-    conditions = [
-        f"@daterange[0] <= segment_date <= @daterange[1]",
-    ]
-
-    query = " and ".join(conditions)
-    df_campaigns = df_campaigns.query(query)
-    df_campaigns = df_campaigns.groupby("country")["cost"].sum().round(2).reset_index()
+    df_campaigns = (
+        df_campaigns.groupby(["country"], as_index=False)
+        .agg(
+            {
+                "cost": "sum",
+            }
+        )
+        .round(2)
+    )
 
     country_fig = px.choropleth(
         df_campaigns,
