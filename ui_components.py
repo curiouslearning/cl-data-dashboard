@@ -789,5 +789,59 @@ def bottom_languages_per_level(selection):
         st.metric(label=dfPCSL["language"].loc[4], value=f"{dfPCSL["PC over SL"].loc[4]:.2f}%")
         st.metric(label=dfLAPC["language"].loc[4], value=f"{dfLAPC["LA over PC"].loc[4]:.2f}%")
 
- 
- 
+def create_funnels(countries_list, languages,key_prefix,app_versions,displayLR=True):
+
+    language = ui.single_selector(
+        languages, placement="col", title="Select a language", key=f"{key_prefix}-2"
+    )
+
+    selected_country = ui.single_selector(
+        countries_list, placement="col", title="Select a country", key=f"{key_prefix}-3"
+    )
+
+    selected_date, option = ui.calendar_selector(placement="col", key=f"{key_prefix}-4")
+    daterange = ui.convert_date_to_range(selected_date, option)
+
+    if len(daterange) == 2:
+        start = daterange[0].strftime("%b %d, %Y")
+        end = daterange[1].strftime("%b %d, %Y")
+        st.caption(start + " to " + end)
+
+        metrics_data = {}
+        for stat in ["DC", "SL", "TS", "PC", "LA", "LR", "GC"]:
+            metrics_data[stat] = metrics.get_totals_by_metric(
+                daterange,
+                stat=stat,
+                cr_app_versions=app_versions,
+                language=language,
+                countries_list=selected_country,
+                app="CR",
+            )
+
+        funnel_titles_all = [
+            "Learner Reached", "Download Completed", "Tapped Start", 
+            "Selected Level", "Puzzle Completed", "Learners Acquired", "Game Completed"
+        ]
+        funnel_titles_not_all = [
+            "Download Completed", "Tapped Start", 
+            "Selected Level", "Puzzle Completed", "Learners Acquired", "Game Completed"
+        ]
+        
+        # If a specific app version is selected, we don't have LR data, so this is a way to not show it
+        # The reason we don't use app_version directly is because if we are comparing funnels, if one uses it
+        # we want the other to exclude that level as well.
+        if displayLR:
+            funnel_data = {
+                "Title": funnel_titles_all,
+                "Count": [metrics_data[stat] for stat in ["LR", "DC", "TS", "SL", "PC", "LA", "GC"]],
+            }
+        else:
+            funnel_data = {
+                "Title": funnel_titles_not_all,
+                "Count": [metrics_data[stat] for stat in ["DC", "TS", "SL", "PC", "LA", "GC"]],
+            }
+
+        fig = create_engagement_figure(funnel_data, key=f"{key_prefix}-5")
+        st.plotly_chart(fig, use_container_width=True)
+
+
