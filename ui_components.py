@@ -323,29 +323,32 @@ def lrc_scatter_chart(daterange,option,display_category):
     # Fill NaN values in LRC column with 0
     merged_df[option] = merged_df[option].fillna(0)
     scatter_df = merged_df[[display_group, "cost", option, x]]
-    scatter_df["cost"] = "$" + scatter_df["cost"].apply(lambda x: "{:,.2f}".format(x))
-    scatter_df[option] = "$" + scatter_df[option].apply(lambda x: "{:,.2f}".format(x))
-    scatter_df[x] = scatter_df[x].apply(lambda x: "{:,}".format(x))
+    if len(scatter_df) > 0:
+        scatter_df["cost"] = "$" + scatter_df["cost"].apply(lambda x: "{:,.2f}".format(x))
+        scatter_df[option] = "$" + scatter_df[option].apply(lambda x: "{:,.2f}".format(x))
+        scatter_df[x] = scatter_df[x].apply(lambda x: "{:,}".format(x))
 
-    fig = px.scatter(
-        scatter_df,
-        x=x,
-        y=option,
-        color=display_group,
-        title="Reach to Cost",
-        hover_data={
-            "cost": True,
-            option: ":$,.2f",
-            x: ":,",
-        },
-    )
+        fig = px.scatter(
+            scatter_df,
+            x=x,
+            y=option,
+            color=display_group,
+            title="Reach to Cost",
+            hover_data={
+                "cost": True,
+                option: ":$,.2f",
+                x: ":,",
+            },
+        )
 
-    # Plot the chart
-    st.plotly_chart(fig, use_container_width=True)
+        # Plot the chart
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.write("No data for selected period")
 
 
-#@st.cache_data(ttl="1d", show_spinner=False)
-def spend_by_country_map(daterange):
+@st.cache_data(ttl="1d", show_spinner=False)
+def spend_by_country_map(daterange,source):
 
     df_campaigns = campaigns.get_campaigns_by_date(daterange)
 
@@ -353,15 +356,15 @@ def spend_by_country_map(daterange):
     condition = (df_campaigns["app_language"].isna()) | (df_campaigns["country"].isna())
     df_campaigns = df_campaigns[~condition]
 
-    df_campaigns = (
-        df_campaigns.groupby(["country"], as_index=False)
-        .agg(
-            {
-                "cost": "sum",
-            }
-        )
-        .round(2)
-    )
+    if source == 'Both':
+        df_campaigns = df_campaigns.groupby("country", as_index=False)["cost"].sum().round(2)
+    else:
+        df_campaigns = df_campaigns[df_campaigns["source"] == source]
+        df_campaigns = df_campaigns.groupby("country", as_index=False)["cost"].sum().round(2)
+
+    total_cost = df_campaigns["cost"].sum().round(2)
+    value = "$" + prettify(total_cost)
+    st.metric(label="Total Spend", value=value)
 
     country_fig = px.choropleth(
         df_campaigns,
