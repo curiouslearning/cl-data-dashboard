@@ -17,6 +17,8 @@ ui.colorize_multiselect_options()
 
 
 selected_date, option = ui.calendar_selector()
+
+
 daterange = ui.convert_date_to_range(selected_date, option)
 if len(daterange) == 2:
 
@@ -66,7 +68,8 @@ if len(daterange) == 2:
 
     st.divider()
     st.subheader("Total Spend per Country")
-    uic.spend_by_country_map(daterange)
+    source = ui.ads_platform_selector(placement="middle")
+    uic.spend_by_country_map(daterange,source)
 
     st.divider()
     st.subheader("Campaign Timelines")

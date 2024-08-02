@@ -199,13 +199,27 @@ def year_selector(placement="side", key=""):
     return report_year
 
 
-def ads_platform_selector():
-    platform = st.sidebar.radio(
-        label="Ads Platform",
-        options=["Facebook", "Google", "Both"],
-        horizontal=True,
-        index=2,
+def ads_platform_selector(placement="side"):
+    label="Ads Platform"
+    options=["Facebook", "Google", "Both"]
+    horizontal=True
+    index=2
+    
+    if placement == 'side':
+        platform = st.sidebar.radio(
+            label=label,
+            options=options,
+            horizontal=horizontal,
+            index=index,
+        )
+    else:
+        platform = st.radio(
+            label=label,
+            options=options,
+            horizontal=horizontal,
+            index=index,
     )
+
     return platform
 
 
