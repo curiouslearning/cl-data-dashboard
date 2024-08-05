@@ -6,7 +6,7 @@ from pyinstrument import Profiler
 
 
 # How far back to obtain user data.  Currently the queries pull back to 01/01/2021
-start_date = "2021/01/01"
+start_date = "2024/05/01"
 
 
 # Firebase returns two different formats of user_pseudo_id between

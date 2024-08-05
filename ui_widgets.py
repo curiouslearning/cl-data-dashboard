@@ -397,13 +397,11 @@ def stats_radio_selector():
 def app_version_selector(placement="side", key=""):
     cr_versions = st.session_state.cr_app_versions_list
 
-    if placement == "side":
-        version = st.sidebar.selectbox(
-            label="App Version", options=cr_versions, key=key
-        )
-    else:
-        version = st.selectbox(label="App Version", options=cr_versions, key=key)
-    return version
+    selected_options = st.multiselect("Select versions:",cr_versions,key=key ,default='All')
+    if 'All' in selected_options:
+        selected_options = 'All'
+
+    return selected_options
 
 
 def calendar_selector(placement="side", key="", index=0):
