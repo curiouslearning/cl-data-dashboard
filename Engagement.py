@@ -47,15 +47,15 @@ if len(daterange) == 2 and len(countries_list) > 0:
     col1.metric(label="Learners Reached", value=prettify(int(total)))
 
     total = metrics.get_totals_by_metric(
-        daterange, countries_list, "PC", app=app, language=language
-    )
-
-    col2.metric(label="Puzzle Completed", value=prettify(int(total)))
-
-    total = metrics.get_totals_by_metric(
         daterange, countries_list, "LA", app=app, language=language
     )
-    col3.metric(label="Learners Acquired", value=prettify(int(total)))
+    col2.metric(label="Learners Acquired", value=prettify(int(total)))
+
+    total = metrics.get_totals_by_metric(
+        daterange, countries_list, "RA", app=app, language=language
+    )
+    col3.metric(label="Readers Acquired", value=prettify(int(total)))
+
 
     total = metrics.get_totals_by_metric(
         daterange, countries_list, "GC", app=app, language=language
@@ -84,7 +84,7 @@ if len(daterange) == 2 and len(countries_list) > 0:
 
     c1, c2, c3,c4 = st.columns(4)
     with c1:
-        option = st.radio("Select a statistic", ("LR", "LA"), index=0, horizontal=True,key="e-3")
+        option = st.radio("Select a statistic", ("LR", "LA", "RA"), index=0, horizontal=True,key="e-3")
     with c2:
         display_category = st.radio(
             "Display by", ("Country", "Language"), index=0, horizontal=True, key="e-4"

@@ -14,19 +14,20 @@ level_definitions = pd.DataFrame(
             "LR",
             "Learner Reached",
             "The number of users that downloaded and opened the app",
-            "COUNT(Learners Reached)",
-        ],
+       ],
         [
             "PC",
             "Puzzle Complete / Drgged a Stone",
             "The number of users that have completed at least one puzzle",
-            "",
         ],
         [
             "LA",
             "Learner Acquisition",
             "The number of users that have completed at least one FTM level.",
-            "COUNT(Learners Acquired)",
+        ],        [
+            "RA",
+            "Reader Acquired",
+            "The number of users that have completed at least 25 levels",
         ],
         [
             "GPP",
@@ -39,12 +40,6 @@ level_definitions = pd.DataFrame(
             "Game Completion Average",
             "The percentage of FTM learners acquired who have completed the game",
             "Learners wh completed 90% of the levels / Total learners",
-        ],
-        [
-            "GCC",
-            "Game Completion Cost",
-            "The cost (USD) associated with one learner completing over 90% of FTM levels.",
-            "Total Spend / EstRA * LA",
         ],
         [
             "LAC",
@@ -382,11 +377,11 @@ def paginated_dataframe(df, keys, sort_col="campaign_name"):
 
 def stats_radio_selector():
     radio_markdown = """
-    Learners Reached | Learners Acquired | Game Progress Percent | Game Completion Average 
+    Learners Reached | Learners Acquired | Readers Acquired | Game Progress Percent | Game Completion Average 
     """.strip()
     option = st.radio(
         "Select a statistic",
-        ("LR", "LA", "GPP", "GCA"),
+        ("LR", "LA", "RA", "GPP", "GCA"),
         index=0,
         horizontal=True,
         help=radio_markdown,
@@ -534,7 +529,7 @@ def compare_funnel_level_widget(placement="side", key=""):
 
 def level_comparison_selector(placement="side"):
     col1, col2 = st.columns(2)
-    levels = ["LR", "DC", "TS", "SL", "PC", "LA", "GC"]
+    levels = ["LR", "DC", "TS", "SL", "PC", "LA", "RA","GC"]
     upper_level = bottom_level = ""
     if placement == "side":
         bottom_level = st.sidebar.selectbox(

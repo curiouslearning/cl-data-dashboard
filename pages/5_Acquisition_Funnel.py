@@ -19,7 +19,7 @@ app = ui.app_selector()
 
 languages = users.get_language_list()
 language = ui.single_selector(
-    languages, placement="middle", title="Select a language", key="af-1"
+    languages, placement="side", title="Select a language", key="af-1"
 )
 
 countries_list = users.get_country_list()
@@ -63,6 +63,9 @@ if len(daterange) == 2:
     LA = metrics.get_totals_by_metric(
         daterange, countries_list, stat="LA", app=app, language=language
     )
+    RA = metrics.get_totals_by_metric(
+        daterange, countries_list, stat="RA", app=app, language=language
+    )
     GC = metrics.get_totals_by_metric(
         daterange, countries_list, "GC", app=app, language=language
     )
@@ -72,9 +75,10 @@ if len(daterange) == 2:
             "Learners Reached",
             "Puzzle Completed",
             "Learners Acquired",
+            "Readers Acquired",
             "Game Completed",
         ],
-        "Count": [LR, PC, LA, GC],
+        "Count": [LR, PC, LA, RA,GC],
     }
     fig = uic.create_engagement_figure(funnel_data)
     st.plotly_chart(fig, use_container_width=True)
