@@ -40,6 +40,7 @@ def stats_by_country_map(daterange, countries_list, app="Both", language="All", 
             "LR": ":,",
             "PC": ":,",
             "LA": ":,",
+            "RA": ":,",
             "GPP": ":,",
             "GCA": ":,",
         },
@@ -212,7 +213,7 @@ def top_LR_LC_bar_chart(daterange, countries_list, option, app="Both", language=
 
 
     df = (
-        df[[display_group, "LR", "LA"]]
+        df[[display_group, "LR", "LA", "RA"]]
         .sort_values(by=option, ascending=False)
         .head(10)
         .round(2)
@@ -232,6 +233,12 @@ def top_LR_LC_bar_chart(daterange, countries_list, option, app="Both", language=
                 x=df[display_group],
                 y=df["LA"],
                 hovertemplate=" %{x}<br>LA: %{y:,.0f}<extra></extra>",
+            ),
+            go.Bar(
+                name="RA",
+                x=df[display_group],
+                y=df["RA"],
+                hovertemplate=" %{x}<br>RA: %{y:,.0f}<extra></extra>",
             ),
         ],
     )
@@ -526,7 +533,8 @@ def funnel_change_line_chart(
                 "SL over TS",
                 "PC over SL",
                 "LA over PC",
-                "GC over LA",
+                "RA over LA",
+                "GC over RA",
             ]
         ]
     else:
@@ -538,6 +546,7 @@ def funnel_change_line_chart(
                 "SL over LR",
                 "PC over LR",
                 "LA over LR",
+                "RA over LR",
                 "GC over LR",
             ]
         ]
@@ -676,7 +685,7 @@ def top_tilted_funnel(languages, countries_list, daterange, option):
     fig = go.Figure()
 
     # Adding each metric as a bar
-    levels = ["LR", "DC", "TS", "PC", "LA", "GC"]
+    levels = ["LR", "DC", "TS", "PC", "LA", "RA","GC"]
     for level in levels:
         fig.add_trace(go.Bar(x=df["language"], y=df[level], name=level))
 
@@ -735,6 +744,11 @@ def bottom_languages_per_level(selection):
         .head(10)
         .loc[:, ["LA over PC", "language"]]
     ).reset_index(drop=True)
+    dfRALA = (
+        df.sort_values(by="RA over LA", ascending=ascending)
+        .head(10)
+        .loc[:, ["RA over LA", "language"]]
+    ).reset_index(drop=True)
 
     st.markdown(
         """
@@ -760,6 +774,8 @@ def bottom_languages_per_level(selection):
         st.caption("")
         st.caption("Learner Acquired")
         st.caption("")
+        st.caption("Reader Acquired")
+        st.caption("")
         st.caption("Game Completed")
     with col1:
         st.metric(label=dfDCLR["language"].loc[0], value=f"{dfDCLR["DC over LR"].loc[0]:.2f}%")
@@ -767,30 +783,35 @@ def bottom_languages_per_level(selection):
         st.metric(label=dfSLTS["language"].loc[0], value=f"{dfSLTS["SL over TS"].loc[0]:.2f}%")
         st.metric(label=dfPCSL["language"].loc[0], value=f"{dfPCSL["PC over SL"].loc[0]:.2f}%")
         st.metric(label=dfLAPC["language"].loc[0], value=f"{dfLAPC["LA over PC"].loc[0]:.2f}%")
+        st.metric(label=dfRALA["language"].loc[0], value=f"{dfRALA["RA over LA"].loc[0]:.2f}%")
     with col2:
         st.metric(label=dfDCLR["language"].loc[1], value=f"{dfDCLR["DC over LR"].loc[1]:.2f}%")
         st.metric(label=dfTSDC["language"].loc[1], value=f"{dfTSDC["TS over DC"].loc[1]:.2f}%")
         st.metric(label=dfSLTS["language"].loc[1], value=f"{dfSLTS["SL over TS"].loc[1]:.2f}%")
         st.metric(label=dfPCSL["language"].loc[1], value=f"{dfPCSL["PC over SL"].loc[1]:.2f}%")
         st.metric(label=dfLAPC["language"].loc[1], value=f"{dfLAPC["LA over PC"].loc[1]:.2f}%")
+        st.metric(label=dfRALA["language"].loc[1], value=f"{dfRALA["RA over LA"].loc[0]:.2f}%")
     with col3:
         st.metric(label=dfDCLR["language"].loc[2], value=f"{dfDCLR["DC over LR"].loc[2]:.2f}%")
         st.metric(label=dfTSDC["language"].loc[2], value=f"{dfTSDC["TS over DC"].loc[2]:.2f}%")
         st.metric(label=dfSLTS["language"].loc[2], value=f"{dfSLTS["SL over TS"].loc[2]:.2f}%")
         st.metric(label=dfPCSL["language"].loc[2], value=f"{dfPCSL["PC over SL"].loc[2]:.2f}%")
         st.metric(label=dfLAPC["language"].loc[2], value=f"{dfLAPC["LA over PC"].loc[2]:.2f}%")
+        st.metric(label=dfRALA["language"].loc[2], value=f"{dfRALA["RA over LA"].loc[0]:.2f}%")
     with col4:
         st.metric(label=dfDCLR["language"].loc[3], value=f"{dfDCLR["DC over LR"].loc[3]:.2f}%")
         st.metric(label=dfTSDC["language"].loc[3], value=f"{dfTSDC["TS over DC"].loc[3]:.2f}%")
         st.metric(label=dfSLTS["language"].loc[3], value=f"{dfSLTS["SL over TS"].loc[3]:.2f}%")
         st.metric(label=dfPCSL["language"].loc[3], value=f"{dfPCSL["PC over SL"].loc[3]:.2f}%")
         st.metric(label=dfLAPC["language"].loc[3], value=f"{dfLAPC["LA over PC"].loc[3]:.2f}%")
+        st.metric(label=dfRALA["language"].loc[3], value=f"{dfRALA["RA over LA"].loc[0]:.2f}%")
     with col5:
         st.metric(label=dfDCLR["language"].loc[4], value=f"{dfDCLR["DC over LR"].loc[4]:.2f}%")
         st.metric(label=dfTSDC["language"].loc[4], value=f"{dfTSDC["TS over DC"].loc[4]:.2f}%")
         st.metric(label=dfSLTS["language"].loc[4], value=f"{dfSLTS["SL over TS"].loc[4]:.2f}%")
         st.metric(label=dfPCSL["language"].loc[4], value=f"{dfPCSL["PC over SL"].loc[4]:.2f}%")
         st.metric(label=dfLAPC["language"].loc[4], value=f"{dfLAPC["LA over PC"].loc[4]:.2f}%")
+        st.metric(label=dfRALA["language"].loc[4], value=f"{dfRALA["RA over LA"].loc[0]:.2f}%")
 
 def create_funnels(countries_list, languages,key_prefix,app_versions,displayLR=True):
 
@@ -811,7 +832,7 @@ def create_funnels(countries_list, languages,key_prefix,app_versions,displayLR=T
         st.caption(start + " to " + end)
 
         metrics_data = {}
-        for stat in ["DC", "SL", "TS", "PC", "LA", "LR", "GC"]:
+        for stat in ["DC", "SL", "TS", "PC", "LA", "LR", "RA" ,"GC"]:
             metrics_data[stat] = metrics.get_totals_by_metric(
                 daterange,
                 stat=stat,
@@ -823,11 +844,11 @@ def create_funnels(countries_list, languages,key_prefix,app_versions,displayLR=T
 
         funnel_titles_all = [
             "Learner Reached", "Download Completed", "Tapped Start", 
-            "Selected Level", "Puzzle Completed", "Learners Acquired", "Game Completed"
+            "Selected Level", "Puzzle Completed", "Learners Acquired", "Readers Acquired", "Game Completed"
         ]
         funnel_titles_not_all = [
             "Download Completed", "Tapped Start", 
-            "Selected Level", "Puzzle Completed", "Learners Acquired", "Game Completed"
+            "Selected Level", "Puzzle Completed", "Learners Acquired", "Readers Acquired","Game Completed"
         ]
         
         # If a specific app version is selected, we don't have LR data, so this is a way to not show it
@@ -836,12 +857,12 @@ def create_funnels(countries_list, languages,key_prefix,app_versions,displayLR=T
         if displayLR:
             funnel_data = {
                 "Title": funnel_titles_all,
-                "Count": [metrics_data[stat] for stat in ["LR", "DC", "TS", "SL", "PC", "LA", "GC"]],
+                "Count": [metrics_data[stat] for stat in ["LR", "DC", "TS", "SL", "PC", "LA", "RA","GC"]],
             }
         else:
             funnel_data = {
                 "Title": funnel_titles_not_all,
-                "Count": [metrics_data[stat] for stat in ["DC", "TS", "SL", "PC", "LA", "GC"]],
+                "Count": [metrics_data[stat] for stat in ["DC", "TS", "SL", "PC", "LA", "RA", "GC"]],
             }
 
         fig = create_engagement_figure(funnel_data, key=f"{key_prefix}-5")
