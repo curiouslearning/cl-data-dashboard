@@ -27,7 +27,7 @@ def get_totals_by_metric(
     )
 
     if stat not in ["DC", "TS", "SL", "PC", "LA"]:
-        return len(df_user_list)
+        return len(df_user_list) #All LR or FO
     else:
         download_completed_count = len(
             df_user_list[df_user_list["furthest_event"] == "download_completed"]
@@ -83,56 +83,65 @@ def filter_user_data(
     app="Both",
     language=["All"],
 ):
-    if "df_user_list" and "df_first_open" not in st.session_state:
+    if "df_cr_users" and "df_unity_users" and "df_cr_first_open" and "df_cr_app_launch" not in st.session_state:
         print("PROBLEM!")
         return pd.DataFrame()
 
-    df_user_list = st.session_state.df_user_list
-    df_first_open = st.session_state.df_first_open
+    if app == "Unity":
+        df = st.session_state.df_unity_users #Unity users are in one table only
+    elif app == "Both":
+        df1 = st.session_state.df_unity_users
+        df2 = st.session_state.df_cr_users
+        df =  pd.concat([df1, df2], axis=0)
+    elif app == "CR" and stat == "LR":
+        df = st.session_state.df_cr_app_launch
+    elif app == "CR" and stat == "FO":
+        df = st.session_state.df_cr_first_open
+    else:
+        df = st.session_state.df_cr_users
 
     conditions = [
         f"@daterange[0] <= first_open <= @daterange[1]",
     ]
 
+    if countries_list[0] != "All":
+        conditions.append(
+            f"country.isin(@countries_list)",
+        )
+
+    if stat == "FO":
+        query = " and ".join(conditions)
+        df = df.query(query)
+        return df
+    
     if stat == "LA":
         conditions.append("max_user_level >= 1")
 
     if stat == "RA":
         conditions.append("max_user_level >= 25")
 
-    if countries_list[0] != "All":
-        conditions.append(
-            f"country.isin(@countries_list)",
-        )
-    if language[0] != "All":
+    if language[0] != "All" and stat != "FO":
         conditions.append(
             f"app_language.isin(@language)",
         )
 
-
-    if app == "CR":
-        conditions.append("app_id == 'org.curiouslearning.container'")
-        if cr_app_versions != "All":
-            conditions.append("app_version == @cr_app_versions")
-    elif app == "Unity":
-        conditions.append("app_id != 'org.curiouslearning.container'")
-
     if stat == "LR":
         query = " and ".join(conditions)
-        df = df_first_open.query(query)
+        df = df.query(query)
         return df
 
     if stat == "GC":  # game completed
         conditions.append("max_user_level >= 1")
         query = " and ".join(conditions)
-        df = df_user_list.query(query)
+        df = df.query(query)
         df = df[(df["gpc"] >= 90)]
         return df
 
     # All other stat options (LA)
     query = " and ".join(conditions)
 
-    df = df_user_list.query(query)
+    df = df.query(query)
+
     return df
 
 
@@ -196,16 +205,6 @@ def get_counts(
         .reset_index()
     )
     counts = dfLR.merge(dfLA, on=type, how="left").fillna(0)
-
-    dfRA = (
-        filter_user_data(daterange, countries_list, "RA", app=app, language=language)
-        .groupby(type)
-        .size()
-        .to_frame(name="RA")
-        .reset_index()
-        )   
-    counts = counts.merge(dfRA, on=type, how="left").fillna(0)
-
 
     #### GPP ###
     df = filter_user_data(
