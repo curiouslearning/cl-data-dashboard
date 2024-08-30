@@ -19,44 +19,77 @@ def get_users_list():
     #   with p:
 
     bq_client = st.session_state.bq_client
-    sql_query = f"""
-                SELECT *
-                    FROM `dataexploration-193817.user_data.all_users_progress`
-                WHERE
-                    first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE() 
-                """
-
-    df_user_list = bq_client.query(sql_query).to_dataframe()
-
-    df_unity_users = df_user_list[
-        df_user_list["app_id"].str.lower().str.contains("feedthemonster")
-    ]
 
     sql_query = f"""
             SELECT *
-                FROM `dataexploration-193817.user_data.user_first_open_list_cr`
+                FROM `dataexploration-193817.user_data.unity_user_progress`
             WHERE
                 first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE() 
             """
 
+    df_unity_users = bq_client.query(sql_query).to_dataframe()
+
+    sql_query = f"""
+            SELECT *
+                FROM `dataexploration-193817.user_data.cr_first_open`
+            WHERE
+                first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE() 
+            """
+
+    df_cr_first_open = bq_client.query(sql_query).to_dataframe()
+
+    sql_query = f"""
+                SELECT *
+                    FROM `dataexploration-193817.user_data.cr_user_progress`
+                WHERE
+                    first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE() 
+                """
+
     df_cr_users = bq_client.query(sql_query).to_dataframe()
 
-    df_first_open = pd.concat([df_cr_users, df_unity_users], ignore_index=True)
 
-    df_first_open["app_language"] = df_first_open["app_language"].replace(
+    sql_query = f"""
+            SELECT *
+                FROM `dataexploration-193817.user_data.cr_app_launch`
+            WHERE
+                first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE() 
+            """
+
+    df_cr_app_launch = bq_client.query(sql_query).to_dataframe()
+
+    # Eliminate duplicate cr users (multiple language combinations) - just keep the first one
+    df_cr_app_launch = df_cr_app_launch.drop_duplicates(subset='user_pseudo_id',keep="first")
+    
+    #fix data typos
+    df_cr_app_launch["app_language"] = df_cr_app_launch["app_language"].replace(
         "ukranian", "ukrainian"
     )
-    df_first_open["app_language"] = df_first_open["app_language"].replace(
+    df_cr_app_launch["app_language"] = df_cr_app_launch["app_language"].replace(
         "malgache", "malagasy"
     )
-    df_user_list["app_language"] = df_user_list["app_language"].replace(
+    df_cr_users["app_language"] = df_cr_users["app_language"].replace(
         "ukranian", "ukrainian"
     )
-    df_user_list["app_language"] = df_user_list["app_language"].replace(
+    df_cr_users["app_language"] = df_cr_users["app_language"].replace(
+        "malgache", "malagasy"
+    )
+    df_unity_users["app_language"] = df_unity_users["app_language"].replace(
+        "ukranian", "ukrainian"
+    )
+    df_unity_users["app_language"] = df_unity_users["app_language"].replace(
         "malgache", "malagasy"
     )
 
-    return df_user_list, df_first_open
+ #   df_unity_users = df_unity_users.sort_values('max_user_level', ascending=False)
+ #   df_unity_users = df_unity_users.drop_duplicates(subset=['user_pseudo_id'], keep='first').reset_index(drop=True)
+
+    max_level_indices = df_cr_users.groupby('user_pseudo_id')['max_user_level'].idxmax()
+    df_cr_users = df_cr_users.loc[max_level_indices].reset_index()
+
+    max_level_indices = df_unity_users.groupby('user_pseudo_id')['max_user_level'].idxmax()
+    df_unity_users = df_unity_users.loc[max_level_indices].reset_index()
+
+    return df_cr_users, df_unity_users, df_cr_first_open, df_cr_app_launch
 
 
 @st.cache_data(ttl="1d", show_spinner=False)
@@ -78,6 +111,7 @@ def get_language_list():
         df.drop_duplicates(inplace=True)
         lang_list = np.array(df.values).flatten().tolist()
         lang_list = [x.strip(" ") for x in lang_list]
+        lang_list = sorted(lang_list)
     return lang_list
 
 

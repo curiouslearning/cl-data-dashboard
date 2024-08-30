@@ -40,7 +40,6 @@ def stats_by_country_map(daterange, countries_list, app="Both", language="All", 
             "LR": ":,",
             "PC": ":,",
             "LA": ":,",
-            "RA": ":,",
             "GPP": ":,",
             "GCA": ":,",
         },
@@ -213,7 +212,7 @@ def top_LR_LC_bar_chart(daterange, countries_list, option, app="Both", language=
 
 
     df = (
-        df[[display_group, "LR", "LA", "RA"]]
+        df[[display_group, "LR", "LA"]]
         .sort_values(by=option, ascending=False)
         .head(10)
         .round(2)
@@ -233,12 +232,6 @@ def top_LR_LC_bar_chart(daterange, countries_list, option, app="Both", language=
                 x=df[display_group],
                 y=df["LA"],
                 hovertemplate=" %{x}<br>LA: %{y:,.0f}<extra></extra>",
-            ),
-            go.Bar(
-                name="RA",
-                x=df[display_group],
-                y=df["RA"],
-                hovertemplate=" %{x}<br>RA: %{y:,.0f}<extra></extra>",
             ),
         ],
     )
@@ -832,7 +825,7 @@ def create_funnels(countries_list, languages,key_prefix,app_versions,displayLR=T
         st.caption(start + " to " + end)
 
         metrics_data = {}
-        for stat in ["DC", "SL", "TS", "PC", "LA", "LR", "RA" ,"GC"]:
+        for stat in ["DC", "SL", "TS", "PC", "LA", "LR", "RA" ,"GC","FO"]:
             metrics_data[stat] = metrics.get_totals_by_metric(
                 daterange,
                 stat=stat,
@@ -842,8 +835,8 @@ def create_funnels(countries_list, languages,key_prefix,app_versions,displayLR=T
                 app="CR",
             )
 
-        funnel_titles_all = [
-            "Learner Reached", "Download Completed", "Tapped Start", 
+        funnel_titles_all = ["First Open",
+            "Learner Reached (app_launch)", "Download Completed", "Tapped Start", 
             "Selected Level", "Puzzle Completed", "Learners Acquired", "Readers Acquired", "Game Completed"
         ]
         funnel_titles_not_all = [
@@ -857,7 +850,7 @@ def create_funnels(countries_list, languages,key_prefix,app_versions,displayLR=T
         if displayLR:
             funnel_data = {
                 "Title": funnel_titles_all,
-                "Count": [metrics_data[stat] for stat in ["LR", "DC", "TS", "SL", "PC", "LA", "RA","GC"]],
+                "Count": [metrics_data[stat] for stat in ["FO","LR", "DC", "TS", "SL", "PC", "LA", "RA","GC"]],
             }
         else:
             funnel_data = {

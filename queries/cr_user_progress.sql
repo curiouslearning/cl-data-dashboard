@@ -97,6 +97,7 @@ WITH
     first_open,
     country,
     app_language,
+    traffic_source,
     b.max_level )
 SELECT
   user_pseudo_id,

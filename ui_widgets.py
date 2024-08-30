@@ -377,11 +377,11 @@ def paginated_dataframe(df, keys, sort_col="campaign_name"):
 
 def stats_radio_selector():
     radio_markdown = """
-    Learners Reached | Learners Acquired | Readers Acquired | Game Progress Percent | Game Completion Average 
+    Learners Reached | Learners Acquired | Game Progress Percent | Game Completion Average 
     """.strip()
     option = st.radio(
         "Select a statistic",
-        ("LR", "LA", "RA", "GPP", "GCA"),
+        ("LR", "LA", "GPP", "GCA"),
         index=0,
         horizontal=True,
         help=radio_markdown,
@@ -512,15 +512,16 @@ def compare_funnel_level_widget(placement="side", key=""):
             horizontal=True,
             index=0,
             key=key,
+            
         )
     else:
         toggle = st.radio(
             options=[
-                "Compare to Initial",
+                "Compare to LR",
                 "Compare to Previous",
             ],
-            label="",
-            horizontal=True,
+            label="Compare",
+            horizontal=False,
             index=0,
             key=key,
         )
