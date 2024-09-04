@@ -3,6 +3,7 @@ import pandas as pd
 from rich import print as print
 import numpy as np
 from pyinstrument import Profiler
+import logging
 
 
 # How far back to obtain user data.  Currently the queries pull back to 01/01/2021
@@ -15,80 +16,78 @@ start_date = "2021/01/01"
 # This would all be unncessery if dev had included the app user id per the spec.
 @st.cache_data(ttl="1d", show_spinner="Gathering User List")
 def get_users_list():
-    #   p = Profiler(async_mode="disabled")
-    #   with p:
+    p = Profiler(async_mode="disabled")
+    with p:
 
-    bq_client = st.session_state.bq_client
+        bq_client = st.session_state.bq_client
 
-    sql_query = f"""
-            SELECT *
-                FROM `dataexploration-193817.user_data.unity_user_progress`
-            WHERE
-                first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE() 
-            """
-
-    df_unity_users = bq_client.query(sql_query).to_dataframe()
-
-    sql_query = f"""
-            SELECT *
-                FROM `dataexploration-193817.user_data.cr_first_open`
-            WHERE
-                first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE() 
-            """
-
-    df_cr_first_open = bq_client.query(sql_query).to_dataframe()
-
-    sql_query = f"""
+        sql_query = f"""
                 SELECT *
-                    FROM `dataexploration-193817.user_data.cr_user_progress`
+                    FROM `dataexploration-193817.user_data.unity_user_progress`
                 WHERE
                     first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE() 
                 """
 
-    df_cr_users = bq_client.query(sql_query).to_dataframe()
+        df_unity_users = bq_client.query(sql_query).to_dataframe()
+
+        sql_query = f"""
+                SELECT *
+                    FROM `dataexploration-193817.user_data.cr_first_open`
+                WHERE
+                    first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE() 
+                """
+
+        df_cr_first_open = bq_client.query(sql_query).to_dataframe()
+
+        sql_query = f"""
+                    SELECT *
+                        FROM `dataexploration-193817.user_data.cr_user_progress`
+                    WHERE
+                        first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE() 
+                    """
+
+        df_cr_users = bq_client.query(sql_query).to_dataframe()
 
 
-    sql_query = f"""
-            SELECT *
-                FROM `dataexploration-193817.user_data.cr_app_launch`
-            WHERE
-                first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE() 
-            """
+        sql_query = f"""
+                SELECT *
+                    FROM `dataexploration-193817.user_data.cr_app_launch`
+                WHERE
+                    first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE() 
+                """
 
-    df_cr_app_launch = bq_client.query(sql_query).to_dataframe()
+        df_cr_app_launch = bq_client.query(sql_query).to_dataframe()
 
-    # Eliminate duplicate cr users (multiple language combinations) - just keep the first one
-    df_cr_app_launch = df_cr_app_launch.drop_duplicates(subset='user_pseudo_id',keep="first")
-    
-    #fix data typos
-    df_cr_app_launch["app_language"] = df_cr_app_launch["app_language"].replace(
-        "ukranian", "ukrainian"
-    )
-    df_cr_app_launch["app_language"] = df_cr_app_launch["app_language"].replace(
-        "malgache", "malagasy"
-    )
-    df_cr_users["app_language"] = df_cr_users["app_language"].replace(
-        "ukranian", "ukrainian"
-    )
-    df_cr_users["app_language"] = df_cr_users["app_language"].replace(
-        "malgache", "malagasy"
-    )
-    df_unity_users["app_language"] = df_unity_users["app_language"].replace(
-        "ukranian", "ukrainian"
-    )
-    df_unity_users["app_language"] = df_unity_users["app_language"].replace(
-        "malgache", "malagasy"
-    )
+        # Eliminate duplicate cr users (multiple language combinations) - just keep the first one
+        df_cr_app_launch = df_cr_app_launch.drop_duplicates(subset='user_pseudo_id',keep="first")
+        
+        #fix data typos
+        df_cr_app_launch["app_language"] = df_cr_app_launch["app_language"].replace(
+            "ukranian", "ukrainian"
+        )
+        df_cr_app_launch["app_language"] = df_cr_app_launch["app_language"].replace(
+            "malgache", "malagasy"
+        )
+        df_cr_users["app_language"] = df_cr_users["app_language"].replace(
+            "ukranian", "ukrainian"
+        )
+        df_cr_users["app_language"] = df_cr_users["app_language"].replace(
+            "malgache", "malagasy"
+        )
+        df_unity_users["app_language"] = df_unity_users["app_language"].replace(
+            "ukranian", "ukrainian"
+        )
+        df_unity_users["app_language"] = df_unity_users["app_language"].replace(
+            "malgache", "malagasy"
+        )
 
- #   df_unity_users = df_unity_users.sort_values('max_user_level', ascending=False)
- #   df_unity_users = df_unity_users.drop_duplicates(subset=['user_pseudo_id'], keep='first').reset_index(drop=True)
+        max_level_indices = df_cr_users.groupby('user_pseudo_id')['max_user_level'].idxmax()
+        df_cr_users = df_cr_users.loc[max_level_indices].reset_index()
 
-    max_level_indices = df_cr_users.groupby('user_pseudo_id')['max_user_level'].idxmax()
-    df_cr_users = df_cr_users.loc[max_level_indices].reset_index()
+        max_level_indices = df_unity_users.groupby('user_pseudo_id')['max_user_level'].idxmax()
+        df_unity_users = df_unity_users.loc[max_level_indices].reset_index()
 
-    max_level_indices = df_unity_users.groupby('user_pseudo_id')['max_user_level'].idxmax()
-    df_unity_users = df_unity_users.loc[max_level_indices].reset_index()
-
+    logging.debug(p.print())
     return df_cr_users, df_unity_users, df_cr_first_open, df_cr_app_launch
 
 
@@ -111,7 +110,6 @@ def get_language_list():
         df.drop_duplicates(inplace=True)
         lang_list = np.array(df.values).flatten().tolist()
         lang_list = [x.strip(" ") for x in lang_list]
-        lang_list = sorted(lang_list)
     return lang_list
 
 

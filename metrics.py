@@ -75,6 +75,7 @@ def get_totals_by_metric(
 
 # Takes the complete user lists and filters based on input data, and returns
 # a new filtered dataset
+
 def filter_user_data(
     daterange=default_daterange,
     countries_list=["All"],
@@ -83,12 +84,14 @@ def filter_user_data(
     app="Both",
     language=["All"],
 ):
-    if "df_cr_users" and "df_unity_users" and "df_cr_first_open" and "df_cr_app_launch" not in st.session_state:
+    # Check if necessary dataframes are available
+    if not all(key in st.session_state for key in ["df_cr_users", "df_unity_users", "df_cr_first_open", "df_cr_app_launch"]):
         print("PROBLEM!")
         return pd.DataFrame()
 
+    # Select the appropriate dataframe based on app and stat
     if app == "Unity":
-        df = st.session_state.df_unity_users #Unity users are in one table only
+        df = st.session_state.df_unity_users
     elif app == "Both":
         df1 = st.session_state.df_unity_users
         df2 = st.session_state.df_cr_users
@@ -100,47 +103,30 @@ def filter_user_data(
     else:
         df = st.session_state.df_cr_users
 
-    conditions = [
-        f"@daterange[0] <= first_open <= @daterange[1]",
-    ]
+    # Initialize a boolean mask
+    mask = (df['first_open'] >= daterange[0]) & (df['first_open'] <= daterange[1])
 
+    # Apply country filter if not "All"
     if countries_list[0] != "All":
-        conditions.append(
-            f"country.isin(@countries_list)",
-        )
+        mask &= df['country'].isin(set(countries_list))
 
-    if stat == "FO":
-        query = " and ".join(conditions)
-        df = df.query(query)
-        return df
-    
-    if stat == "LA":
-        conditions.append("max_user_level >= 1")
-
-    if stat == "RA":
-        conditions.append("max_user_level >= 25")
-
+    # Apply language filter if not "All" and stat is not "FO"
     if language[0] != "All" and stat != "FO":
-        conditions.append(
-            f"app_language.isin(@language)",
-        )
+        mask &= df['app_language'].isin(set(language))
 
-    if stat == "LR":
-        query = " and ".join(conditions)
-        df = df.query(query)
-        return df
-
-    if stat == "GC":  # game completed
-        conditions.append("max_user_level >= 1")
-        query = " and ".join(conditions)
-        df = df.query(query)
-        df = df[(df["gpc"] >= 90)]
-        return df
-
-    # All other stat options (LA)
-    query = " and ".join(conditions)
-
-    df = df.query(query)
+    # Apply stat-specific filters
+    if stat == "LA":
+        mask &= (df['max_user_level'] >= 1)
+    elif stat == "RA":
+        mask &= (df['max_user_level'] >= 25)
+    elif stat == "GC":  # Game completed
+        mask &= (df['max_user_level'] >= 1) & (df['gpc'] >= 90)
+    elif stat == "LR" or stat == "FO":
+        # No additional filters for these stats beyond daterange and optional countries/language
+        pass
+    
+    # Filter the dataframe with the combined mask
+    df = df.loc[mask]
 
     return df
 

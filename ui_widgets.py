@@ -171,7 +171,7 @@ def convert_date_to_range(selected_date, option):
         yearmonth = calendar.monthrange(year, month)
         last = dt.date(year, month, yearmonth[1])
         return [first, last]
-    else:
+    else: #already converted
         return selected_date
 
 
@@ -184,15 +184,15 @@ def year_selector(placement="side", key=""):
     this_year = dt.datetime.now().year
     if placement == "side":
         report_year = st.sidebar.radio(
-            "Year", range(this_year, this_year - 4, -1), horizontal=True
+            "Year", range(this_year, this_year - 4, -1), horizontal=True, index=0, key=key + "_year"
         )
     else:
         report_year = st.radio(
-            "Year", range(this_year, this_year - 4, -1), horizontal=True, key=key
+            "Year", range(this_year, this_year - 4, -1), horizontal=True, key=key + "_year", index=0
         )
 
-    return report_year
-
+    # Make sure to return None if report_year is not properly selected
+    return report_year if report_year is not None else None
 
 def ads_platform_selector(placement="side"):
     label="Ads Platform"
