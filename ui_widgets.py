@@ -11,6 +11,11 @@ from streamlit_option_menu import option_menu
 level_definitions = pd.DataFrame(
     [
         [
+            "FO",
+            "First Open",
+            "The first time Curious Reader is opened from the play store",
+       ],
+        [
             "LR",
             "Learner Reached",
             "The number of users that downloaded and opened the app",
@@ -80,9 +85,24 @@ level_percent_definitions = pd.DataFrame(
     columns=["Name", "Definition"],
 )
 
+data_notes = pd.DataFrame(
+    [
+        [
+            "Curious Reader LR",
+            "The first event where we have an associated language in Curious Reader is the app_launch event so this is the chosen event for LR in Curious Reader",
+        ],
+        [
+            "Curious Reader LR",
+            "Individual users may have multiple languages or countries so we select their entry with the furthest progress and eliminate their other entries",
+        ],
+    ],
+    columns=["Note", "Description"],
+)
 
-def display_definitions_table(def_df):
-    expander = st.expander("Definitions")
+
+
+def display_definitions_table(title,def_df):
+    expander = st.expander(title)
     # CSS to inject contained in a string
     hide_table_row_index = """
                 <style>

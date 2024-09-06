@@ -14,6 +14,8 @@ settings.initialize()
 settings.init_campaign_data()
 settings.init_user_list()
 
+ui.display_definitions_table("Definitions",ui.level_definitions)
+ui.display_definitions_table("Data Notes",ui.data_notes)
 ui.colorize_multiselect_options()
 app = ui.app_selector()
 

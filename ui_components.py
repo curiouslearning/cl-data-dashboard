@@ -698,7 +698,7 @@ def top_tilted_funnel(languages, countries_list, daterange, option):
     st.plotly_chart(fig, use_container_width=True)
 
 @st.cache_data(ttl="1d", show_spinner=False)
-def bottom_languages_per_level(selection):
+def top_and_bottom_languages_per_level(selection, min_LR):
     if selection == "Top performing":
         ascending = False
     else:
@@ -706,8 +706,9 @@ def bottom_languages_per_level(selection):
     
     languages = users.get_language_list()
     df = metrics.build_funnel_dataframe(index_col="language", languages=languages)
-    # Remove anything where Learners Reached = 0
-    df = df[df["LR"] != 0]
+    
+    # Remove anything where Learners Reached is less than 5000 (arbitrary to have a decent sample size)
+    df = df[df["LR"] > min_LR]
 
     df = metrics.add_level_percents(df)
 

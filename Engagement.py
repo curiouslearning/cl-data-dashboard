@@ -11,7 +11,8 @@ st.set_page_config(layout="wide")
 st.title("Curious Learning Dashboard")
 st.subheader("Page Purpose: Explore the user statistics")
 
-ui.display_definitions_table(ui.level_definitions)
+ui.display_definitions_table("Definitions",ui.level_definitions)
+ui.display_definitions_table("Data Notes",ui.data_notes)
 settings.initialize()
 settings.init_user_list()
 
