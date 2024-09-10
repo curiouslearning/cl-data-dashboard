@@ -500,75 +500,72 @@ def funnel_change_line_chart(
     daterange=default_daterange, languages=["All"], countries_list=["All"], toggle=""
 ):
     weeks = metrics.weeks_since(daterange)
-    weeks = 1 if weeks == 0 else weeks
+    end_date = dt.datetime.now().date()
 
+    # Collect data in a list instead of concatenating DataFrames
+    data = []
     for i in range(1, weeks + 1):
-        end_date = dt.datetime.now().date()
-        start_date = dt.datetime.now().date() - dt.timedelta(i * 7)
+        start_date = end_date - dt.timedelta(i * 7)
         daterange = [start_date, end_date]
 
-        df = metrics.build_funnel_dataframe(
-            index_col="start_date",
-            daterange=daterange,
-            languages=languages,
-            countries_list=countries_list,
-        )
+        # Use a loop to fetch all metrics
+        metrics_list = ["LR", "DC", "TS", "SL", "PC", "LA", "GC"]
+        metrics_data = {
+            stat: metrics.get_totals_by_metric(
+                daterange, stat=stat, language=languages, countries_list=countries_list, app="CR"
+            )
+            for stat in metrics_list
+        }
+        metrics_data["start_date"] = start_date
+        data.append(metrics_data)
+    print(list)
+    # Create DataFrame once after the loop
+    df = pd.DataFrame(data)
 
-    df = metrics.add_level_percents(df)
+    # Calculations for percentage columns
+    over_pairs = [
+        ("DC", "LR"), ("TS", "LR"), ("TS", "DC"),
+        ("SL", "LR"), ("SL", "TS"), ("PC", "LR"),
+        ("PC", "SL"), ("LA", "LR"), ("LA", "PC"),
+        ("GC", "LR"), ("GC", "LA")
+    ]
 
+    for num, denom in over_pairs:
+        col_name = f"{num} over {denom}"
+        df[col_name] = np.where(df[denom] == 0, 0, (df[num] / df[denom]) * 100).astype(int)
+
+    # Select columns based on toggle
     if toggle == "Compare to Previous":
-
-        df2 = df[
-            [
-                "start_date",
-                "DC over LR",
-                "TS over DC",
-                "SL over TS",
-                "PC over SL",
-                "LA over PC",
-                "RA over LA",
-                "GC over RA",
-            ]
-        ]
+        selected_columns = ["start_date"] + [f"{num} over {denom}" for num, denom in over_pairs[1::2]]
     else:
-        df2 = df[
-            [
-                "start_date",
-                "DC over LR",
-                "TS over LR",
-                "SL over LR",
-                "PC over LR",
-                "LA over LR",
-                "RA over LR",
-                "GC over LR",
-            ]
-        ]
+        selected_columns = ["start_date"] + [f"{num} over LR" for num in ["DC", "TS", "SL", "PC", "LA", "GC"]]
 
+    df2 = df[selected_columns]
     df2["start_date"] = pd.to_datetime(df2["start_date"])
 
     # Create traces for each column
-    traces = []
-    for column in df2.columns[1:]:
-        traces.append(
-            go.Scatter(
-                x=df2["start_date"],
-                y=df2[column],
-                mode="lines+markers",
-                name=column,
-                hovertemplate="%{y}%<br>",
-            )
+    traces = [
+        go.Scatter(
+            x=df2["start_date"],
+            y=df2[column],
+            mode="lines+markers",
+            name=column,
+            hovertemplate="%{y}%<br>",
         )
+        for column in df2.columns[1:]
+    ]
 
-    # Create layout
+    # Create layout and figure
     layout = go.Layout(
         title="Line Chart",
         xaxis=dict(title="Date"),
         yaxis=dict(title="Percent"),
     )
-
-    # Create figure
     fig = go.Figure(data=traces, layout=layout)
+    
+    # Plotly chart and data display
     st.plotly_chart(fig, use_container_width=True)
+    st.dataframe(df, hide_index=True)
 
 @st.cache_data(ttl="1d", show_spinner=False)
 def top_campaigns_by_downloads_barchart(n):

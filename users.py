@@ -20,7 +20,8 @@ def get_users_list():
     with p:
 
         bq_client = st.session_state.bq_client
-
+        
+        # All Unity users and their progress are stored in one table
         sql_query = f"""
                 SELECT *
                     FROM `dataexploration-193817.user_data.unity_user_progress`
@@ -30,6 +31,7 @@ def get_users_list():
 
         df_unity_users = bq_client.query(sql_query).to_dataframe()
 
+        # These are distinct first_open events for CR - will not contain app_language so can only be used for FO counts
         sql_query = f"""
                 SELECT *
                     FROM `dataexploration-193817.user_data.cr_first_open`
@@ -39,6 +41,7 @@ def get_users_list():
 
         df_cr_first_open = bq_client.query(sql_query).to_dataframe()
 
+        # All users in the funnel from DC down
         sql_query = f"""
                     SELECT *
                         FROM `dataexploration-193817.user_data.cr_user_progress`
@@ -48,7 +51,7 @@ def get_users_list():
 
         df_cr_users = bq_client.query(sql_query).to_dataframe()
 
-
+        # CR users with app_launch event and country and language data (LR stat)
         sql_query = f"""
                 SELECT *
                     FROM `dataexploration-193817.user_data.cr_app_launch`

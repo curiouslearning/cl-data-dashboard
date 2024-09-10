@@ -91,8 +91,12 @@ def filter_user_data(
 
     # Select the appropriate dataframe based on app and stat
     if app == "Unity":
-        df = st.session_state.df_unity_users
-    elif app == "Both":
+        df = st.session_state.df_unity_users #Unity users are in one table only
+    elif app == "Both" and stat == "LR":
+        df1 = st.session_state.df_unity_users
+        df2 = st.session_state.df_cr_app_launch
+        df =  pd.concat([df1, df2], axis=0)
+    elif app == "Both" and stat != "LR":
         df1 = st.session_state.df_unity_users
         df2 = st.session_state.df_cr_users
         df =  pd.concat([df1, df2], axis=0)
