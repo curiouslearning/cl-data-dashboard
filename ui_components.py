@@ -10,6 +10,7 @@ import ui_widgets as ui
 import plost
 import users
 import campaigns
+import numpy as np
 
 default_daterange = [dt.datetime(2021, 1, 1).date(), dt.date.today()]
 
@@ -57,16 +58,14 @@ def stats_by_country_map(daterange, countries_list, app="Both", language="All", 
 
 
 @st.cache_data(ttl="1d", show_spinner=False)
-def campaign_gantt_chart(daterange):
+def campaign_gantt_chart():
     
-    df1 = st.session_state.df_campaigns
+    df1 = campaigns.get_name_compliant_campaigns()
+
     df1["campaign_start_date"] = pd.to_datetime(df1["campaign_start_date"]).dt.date
 
-    # Define the chart start date
-    chart_start = daterange[0]
-
     # Query the DataFrame
-    df1 = df1.query("campaign_start_date > @chart_start")
+   # df1 = df1.query("campaign_start_date > @chart_start")
 
     # Converting columns to datetime format
     df1["start_date"] = pd.to_datetime(df1["campaign_start_date"])
@@ -77,9 +76,8 @@ def campaign_gantt_chart(daterange):
     one_year_from_today = today + dt.timedelta(days=365)
     df1 = df1[df1["end_date"] <= one_year_from_today]
 
-
     df1["campaign_name_short"] = df1["campaign_name"].str[
-        :20
+        :30
     ]  # cut the title to fit the chart
 
     df1 = df1[
@@ -116,7 +114,7 @@ def campaign_gantt_chart(daterange):
         ],
         color_discrete_sequence=px.colors.qualitative.Vivid,
         color="cost",
-        custom_data=[df1["campaign_name"], df1["cost"]],
+        custom_data=[df1["campaign_name"], df1["cost"], df1["start_date"], df1["end_date"]],
     )
     
     fig.update_yaxes(autorange="reversed")
@@ -142,7 +140,8 @@ def campaign_gantt_chart(daterange):
         ),
     )
 
-    hovertemp = "<b>Date: </b> %{x} <br>"
+    hovertemp = "<b>Start Date: </b> %{customdata[2]|%m-%d-%Y } <br>"
+    hovertemp += "<b>End Date: </b> %{customdata[3]|%m-%d-%Y} <br>"
     hovertemp += "<b>Campaign: </b> %{customdata[0]} <br>"
     hovertemp += "<b>Cost: </b> %{customdata[1]:$,.2f}<br>"
     fig.update_traces(hoverinfo="text", hovertemplate=hovertemp)
@@ -287,22 +286,22 @@ def LR_LA_line_chart_over_time(
 
 
 @st.cache_data(ttl="1d", show_spinner=False)
-def lrc_scatter_chart(daterange,option,display_category):
-    df_campaigns = st.session_state.df_campaigns
+def lrc_scatter_chart(option,display_category):
+    df_campaigns = campaigns.get_name_compliant_campaigns()
 
     if display_category == "Country":
         display_group = "country"
         countries_list = df_campaigns["country"].unique()
         countries_list = list(countries_list)
         df_counts = metrics.get_counts(
-            daterange=daterange,type=display_group,countries_list=countries_list
+            daterange=[dt.datetime(2021, 1, 1).date(), dt.date.today()],type=display_group,countries_list=countries_list
         )
     elif display_category == "Language":
         display_group = "app_language"   
         language =  df_campaigns["app_language"].unique()  
         language = list(language)
         df_counts = metrics.get_counts(
-            daterange=daterange,type=display_group,language=language
+            daterange=[dt.datetime(2021, 1, 1).date(), dt.date.today()],type=display_group,language=language
         )
 
     x = "LR" if option == "LRC" else "LA"
@@ -348,19 +347,15 @@ def lrc_scatter_chart(daterange,option,display_category):
 
 
 @st.cache_data(ttl="1d", show_spinner=False)
-def spend_by_country_map(daterange,source):
-
-    df_campaigns = campaigns.get_campaigns_by_date(daterange)
-
-    # Drop the campaigns that don't meet the naming convention
-    condition = (df_campaigns["app_language"].isna()) | (df_campaigns["country"].isna())
-    df_campaigns = df_campaigns[~condition]
-
+def spend_by_country_map(source):
+    df_campaigns = campaigns.get_name_compliant_campaigns()
+    
     if source == 'Both':
         df_campaigns = df_campaigns.groupby("country", as_index=False)["cost"].sum().round(2)
     else:
         df_campaigns = df_campaigns[df_campaigns["source"] == source]
         df_campaigns = df_campaigns.groupby("country", as_index=False)["cost"].sum().round(2)
+    
 
     total_cost = df_campaigns["cost"].sum().round(2)
     value = "$" + prettify(total_cost)
@@ -467,7 +462,7 @@ def levels_line_chart(daterange, countries_list, app="Both", language="All"):
         .reset_index(name="count")
     )
 
-    # Calculate percent drop for hover text
+    # Calculate Percent remaining for hover text
     df["percent_drop"] = df.groupby("app_language")["count"].pct_change() * 100
 
     # Create separate traces for each app_language
@@ -478,7 +473,7 @@ def levels_line_chart(daterange, countries_list, app="Both", language="All"):
             y=data["count"],
             mode="lines+markers",
             name=app_language,
-            hovertemplate="Max Level: %{x}<br>Count: %{y}<br>Percent Drop: %{customdata:.2f}%<br>App Language: %{text}",
+            hovertemplate="Max Level: %{x}<br>Count: %{y}<br>Percent remaining: %{customdata:.2f}%<br>App Language: %{text}",
             customdata=data["percent_drop"],
             text=data["app_language"],  # Include app_language in hover text
         )
@@ -496,76 +491,107 @@ def levels_line_chart(daterange, countries_list, app="Both", language="All"):
 
 
 @st.cache_data(ttl="1d", show_spinner=False)
-def funnel_change_line_chart(
-    daterange=default_daterange, languages=["All"], countries_list=["All"], toggle=""
-):
-    weeks = metrics.weeks_since(daterange)
-    end_date = dt.datetime.now().date()
+def funnel_change_line_chart(df, graph_type='sum'):
+    # Convert the column to date only (remove timestamp)
+    df['date'] = df['date'].dt.date
 
-    # Collect data in a list instead of concatenating DataFrames
-    data = []
-    for i in range(1, weeks + 1):
-        start_date = end_date - dt.timedelta(i * 7)
-        daterange = [start_date, end_date]
+    grouped = df.groupby('date').sum().reset_index()
 
-        # Use a loop to fetch all metrics
-        metrics_list = ["LR", "DC", "TS", "SL", "PC", "LA", "GC"]
-        metrics_data = {
-            stat: metrics.get_totals_by_metric(
-                daterange, stat=stat, language=languages, countries_list=countries_list, app="CR"
-            )
-            for stat in metrics_list
-        }
-        metrics_data["start_date"] = start_date
-        data.append(metrics_data)
-    print(list)
-    # Create DataFrame once after the loop
-    df = pd.DataFrame(data)
+    fig = go.Figure()
 
-    # Calculations for percentage columns
-    over_pairs = [
-        ("DC", "LR"), ("TS", "LR"), ("TS", "DC"),
-        ("SL", "LR"), ("SL", "TS"), ("PC", "LR"),
-        ("PC", "SL"), ("LA", "LR"), ("LA", "PC"),
-        ("GC", "LR"), ("GC", "LA")
-    ]
+    # Define the columns for sum and percent
+    sum_columns = ['LR', 'DC', 'TS', 'SL', 'PC', 'LA', 'RA', 'GC']
 
-    for num, denom in over_pairs:
-        col_name = f"{num} over {denom}"
-        df[col_name] = np.where(df[denom] == 0, 0, (df[num] / df[denom]) * 100).astype(int)
-
-    # Select columns based on toggle
-    if toggle == "Compare to Previous":
-        selected_columns = ["start_date"] + [f"{num} over {denom}" for num, denom in over_pairs[1::2]]
-    else:
-        selected_columns = ["start_date"] + [f"{num} over LR" for num in ["DC", "TS", "SL", "PC", "LA", "GC"]]
-
-    df2 = df[selected_columns]
-    df2["start_date"] = pd.to_datetime(df2["start_date"])
-
-    # Create traces for each column
-    traces = [
-        go.Scatter(
-            x=df2["start_date"],
-            y=df2[column],
-            mode="lines+markers",
-            name=column,
-            hovertemplate="%{y}%<br>",
-        )
-        for column in df2.columns[1:]
-    ]
-
-    # Create layout and figure
-    layout = go.Layout(
-        title="Line Chart",
-        xaxis=dict(title="Date"),
-        yaxis=dict(title="Percent"),
-    )
-    fig = go.Figure(data=traces, layout=layout)
+    # Calculate percent of previous level for the hover data
+    grouped['DC over LR'] = (grouped['DC'] / grouped['LR'] * 100).round(2)
+    grouped['TS over DC'] = (grouped['TS'] / grouped['DC'] * 100).round(2)
+    grouped['SL over TS'] = (grouped['SL'] / grouped['TS'] * 100).round(2)
+    grouped['PC over SL'] = (grouped['PC'] / grouped['SL'] * 100).round(2)
+    grouped['LA over PC'] = (grouped['LA'] / grouped['PC'] * 100).round(2)
+    grouped['RA over LA'] = (grouped['RA'] / grouped['LA'] * 100).round(2)
+    grouped['GC over RA'] = (grouped['GC'] / grouped['RA'] * 100).round(2)
     
+    # Adding nominator and denominator for hover display
+    grouped['DC_LR_nom_den'] = grouped[['DC', 'LR']].values.tolist()
+    grouped['TS_DC_nom_den'] = grouped[['TS', 'DC']].values.tolist()
+    grouped['SL_TS_nom_den'] = grouped[['SL', 'TS']].values.tolist()
+    grouped['PC_SL_nom_den'] = grouped[['PC', 'SL']].values.tolist()
+    grouped['LA_PC_nom_den'] = grouped[['LA', 'PC']].values.tolist()
+    grouped['RA_LA_nom_den'] = grouped[['RA', 'LA']].values.tolist()
+    grouped['GC_RA_nom_den'] = grouped[['GC', 'RA']].values.tolist()
+
+    percent_columns = ['DC over LR', 'TS over DC', 'SL over TS', 'PC over SL', 'LA over PC', 'RA over LA', 'GC over RA']
+    nom_den_columns = ['DC_LR_nom_den', 'TS_DC_nom_den', 'SL_TS_nom_den', 'PC_SL_nom_den', 'LA_PC_nom_den', 'RA_LA_nom_den', 'GC_RA_nom_den']
+    
+    # Column names for the hover labels (nominator/denominator)
+    hover_labels = [('DC', 'LR'), ('TS', 'DC'), ('SL', 'TS'), ('PC', 'SL'), ('LA', 'PC'), ('RA', 'LA'), ('GC', 'RA')]
+
+    # Select the columns to plot based on the graph_type parameter
+    if graph_type == 'Percent remaining':
+        columns_to_plot = percent_columns
+        y_axis_title = 'Percent remaining'
+    else:
+        columns_to_plot = sum_columns
+        y_axis_title = 'Totals'
+
+    for i, col in enumerate(columns_to_plot):
+        if graph_type == 'Percent remaining':
+            # Only assign percent_col and nom_den_col if graph_type is 'Percent remaining'
+            percent_col = percent_columns[i] if i > 0 else None
+            nom_den_col = nom_den_columns[i] if i > 0 else None
+            nom_label, den_label = hover_labels[i] if i > 0 else (None, None)
+        else:
+            # If graph_type is not 'Percent remaining', don't reference percent_columns and related lists
+            percent_col = None
+            nom_den_col = None
+            nom_label, den_label = None, None
+
+        # Select y values based on graph_type
+        y_values = grouped[columns_to_plot[i]]
+        
+        # Conditional hovertemplate based on graph_type
+        if graph_type == 'Percent remaining' and i > 0:  # Only apply customdata (nom/den) for traces after the first one
+            fig.add_trace(go.Scatter(
+                x=grouped['date'],
+                y=y_values,
+                mode='lines+markers',
+                name=col,
+                hovertemplate=(
+                    f'<b>Date:</b> %{{x}}<br><b>{col}:</b> %{{y:,}}%' +
+                    f'<br><b>{nom_label}:</b> %{{customdata[0]:,}}<br><b>{den_label}:</b> %{{customdata[1]:,}}<extra></extra>'
+                ),
+                customdata=grouped[nom_den_col]
+            ))
+        else:
+            # For sum or the first trace, use a simpler hovertemplate
+            fig.add_trace(go.Scatter(
+                x=grouped['date'],
+                y=y_values,
+                mode='lines+markers',
+                name=col,
+                hovertemplate=(
+                    f'<b>Date:</b> %{{x}}<br><b>{col}:</b> %{{y:,}}<extra></extra>'
+                )
+            ))
+
+    # Customize the layout to display only the date
+    fig.update_layout(
+        title=f'{y_axis_title} of Each Column for Each Date',
+        xaxis_title='Date',
+        yaxis_title=y_axis_title,
+        xaxis_tickangle=-45,
+        xaxis=dict(
+            type='category',  # Change the axis type to 'category' to remove intermediate time markers
+            tickformat='%m-%d-%Y'  # Specify the date format
+        ),
+        template='plotly',
+        legend_title_text='Columns'
+    )
+
     # Plotly chart and data display
     st.plotly_chart(fig, use_container_width=True)
-    st.dataframe(df, hide_index=True)
+
+
 
 @st.cache_data(ttl="1d", show_spinner=False)
 def top_campaigns_by_downloads_barchart(n):
@@ -599,11 +625,21 @@ def funnel_change_by_language_chart(
     weeks = metrics.weeks_since(daterange)
     end_date = dt.datetime.now().date()
 
-    # Precompute date ranges
-    date_ranges = [
-        (end_date - dt.timedelta(i * 7), end_date - dt.timedelta((i - 1) * 7))
-        for i in range(1, weeks + 1)
-    ]
+    if weeks <= 4:
+        # Use days if weeks are <= 4
+        days = weeks * 7
+        date_ranges = [
+            (end_date - dt.timedelta(i), end_date - dt.timedelta(i - 1))
+            for i in range(1, days + 1)
+        ]
+        x_axis_label = "Day"
+    else:
+        # Use weeks otherwise
+        date_ranges = [
+            (end_date - dt.timedelta(i * 7), end_date - dt.timedelta((i - 1) * 7))
+            for i in range(1, weeks + 1)
+        ]
+        x_axis_label = "Week"
 
     df = pd.DataFrame(columns=["start_date"] + languages)
 
@@ -648,7 +684,7 @@ def funnel_change_by_language_chart(
     # Create layout
     layout = go.Layout(
         title="",
-        xaxis=dict(title="Date"),
+        xaxis=dict(title=x_axis_label),
         yaxis=dict(title="Percent of upper level"),
         legend={"traceorder": "normal"},
     )
@@ -703,7 +739,7 @@ def top_and_bottom_languages_per_level(selection, min_LR):
     
     languages = users.get_language_list()
     df = metrics.build_funnel_dataframe(index_col="language", languages=languages)
-    
+
     # Remove anything where Learners Reached is less than 5000 (arbitrary to have a decent sample size)
     df = df[df["LR"] > min_LR]
 
