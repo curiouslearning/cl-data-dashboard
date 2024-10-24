@@ -168,12 +168,12 @@ def custom_date_selection(placement="side", key=""):
 
     if placement == "side":
         date_range = st.sidebar.date_input(
-            "Pick a date", (min_date, dt.date.today()), key=key
+            "Pick a date", [min_date, dt.date.today()], key=key
         )
     else:
-        date_range = st.date_input("Pick a date", (min_date, dt.date.today()), key=key)
+        date_range = st.date_input("Pick a date", [min_date, dt.date.today()], key=key)
 
-    return date_range
+    return list(date_range)
 
 
 def convert_date_to_range(selected_date, option):

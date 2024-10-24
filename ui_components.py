@@ -65,7 +65,7 @@ def campaign_gantt_chart():
     df1["campaign_start_date"] = pd.to_datetime(df1["campaign_start_date"]).dt.date
 
     # Query the DataFrame
-   # df1 = df1.query("campaign_start_date > @chart_start")
+    df1 = df1.query("campaign_start_date > @chart_start")
 
     # Converting columns to datetime format
     df1["start_date"] = pd.to_datetime(df1["campaign_start_date"])
@@ -276,7 +276,7 @@ def LR_LA_line_chart_over_time(
         grouped_df,
         x=groupby,
         y=option,
-        height=300,
+#        height=300,
         color=color,
         markers=False,
         title=title,
@@ -286,22 +286,21 @@ def LR_LA_line_chart_over_time(
 
 
 @st.cache_data(ttl="1d", show_spinner=False)
-def lrc_scatter_chart(option,display_category):
-    df_campaigns = campaigns.get_name_compliant_campaigns()
+def lrc_scatter_chart(option,display_category,df_campaigns,daterange):
 
     if display_category == "Country":
         display_group = "country"
         countries_list = df_campaigns["country"].unique()
         countries_list = list(countries_list)
         df_counts = metrics.get_counts(
-            daterange=[dt.datetime(2021, 1, 1).date(), dt.date.today()],type=display_group,countries_list=countries_list
+            daterange=daterange,type=display_group,countries_list=countries_list
         )
     elif display_category == "Language":
         display_group = "app_language"   
         language =  df_campaigns["app_language"].unique()  
         language = list(language)
         df_counts = metrics.get_counts(
-            daterange=[dt.datetime(2021, 1, 1).date(), dt.date.today()],type=display_group,language=language
+            daterange=daterange,type=display_group,language=language
         )
 
     x = "LR" if option == "LRC" else "LA"
@@ -347,8 +346,7 @@ def lrc_scatter_chart(option,display_category):
 
 
 @st.cache_data(ttl="1d", show_spinner=False)
-def spend_by_country_map(source):
-    df_campaigns = campaigns.get_name_compliant_campaigns()
+def spend_by_country_map(df_campaigns,source):
     
     if source == 'Both':
         df_campaigns = df_campaigns.groupby("country", as_index=False)["cost"].sum().round(2)
@@ -896,3 +894,60 @@ def create_funnels(countries_list, languages,key_prefix,app_versions,displayLR=T
         st.plotly_chart(fig, use_container_width=True)
 
 
+def lr_lrc_bar_chart(df_totals_per_month):
+
+    # Create bar chart for Total Learners Reached
+    bar_chart = go.Bar(
+        x=df_totals_per_month["month"],
+        y=df_totals_per_month["total"],
+        name='Total Learners Reached',
+        marker_color='indianred',
+        text=df_totals_per_month["total"],  # Show learners reached value on hover
+        textposition='auto',
+        hovertemplate='%{x}:<br>%{y:,}<br>Learners Reached<extra></extra>',  # Hover template formatting
+
+)
+
+    # Create line chart for Average LRC
+    line_chart = go.Scatter(
+        x=df_totals_per_month["month"],
+        y=df_totals_per_month["LRC"],
+        name='Average LRC',
+        mode='lines+markers+text',
+        yaxis='y2',  # Assign to second y-axis
+        text=[f'${val:.2f}' for val in df_totals_per_month["LRC"]],  # Show cost on hover
+        textposition='top center',
+        textfont=dict(
+        color='black'  # Change text color to blue
+                     ),
+        hovertemplate='<span style="color:green;">%{x}%{x}:<br>$%{y:,}<br>Avg Learners Reached Cost<extra></extra></span>',  # Hover template formatting
+
+        line=dict(color='green', width=2)
+    )
+
+    # Combine the two charts into a figure
+    fig = go.Figure()
+
+    # Add bar chart and line chart
+    fig.add_trace(bar_chart)
+    fig.add_trace(line_chart)
+
+# Set up layout
+    fig.update_layout(
+        title='Total LRs and Average LRC',
+        xaxis=dict(title='Month'),
+        yaxis=dict(title='Total Learners Reached', showgrid=False),
+        yaxis2=dict(
+            title='Average LRC',
+            overlaying='y',
+            side='right',
+            showgrid=False,
+            tickprefix='$',  # Add dollar sign for LRC axis
+            range=[0, 1]  # Adjust as needed based on LRC values
+        ),
+        legend=dict(x=0.1, y=1.1, orientation='h'),
+        barmode='group'
+    )
+
+    # Show the figure
+    st.plotly_chart(fig, use_container_width=True)

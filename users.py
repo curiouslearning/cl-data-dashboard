@@ -4,67 +4,64 @@ from rich import print as print
 import numpy as np
 from pyinstrument import Profiler
 import logging
-
+import asyncio
 
 # How far back to obtain user data.  Currently the queries pull back to 01/01/2021
 start_date = "2021/01/01"
-
 
 # Firebase returns two different formats of user_pseudo_id between
 # web app events and android events, so we have to run multiple queries
 # instead of a join because we don't have a unique key for both
 # This would all be unncessery if dev had included the app user id per the spec.
-@st.cache_data(ttl="1d", show_spinner="Gathering User List")
-def get_users_list():
+
+
+import logging
+import streamlit as st
+
+async def get_users_list():
     p = Profiler(async_mode="disabled")
     with p:
 
         bq_client = st.session_state.bq_client
-        
-        # All Unity users and their progress are stored in one table
-        sql_query = f"""
-                SELECT *
-                    FROM `dataexploration-193817.user_data.unity_user_progress`
-                WHERE
-                    first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE() 
-                """
 
-        df_unity_users = bq_client.query(sql_query).to_dataframe()
+        # Helper function to run BigQuery in a thread
+        async def run_query(query):
+            return await asyncio.to_thread(bq_client.query(query).to_dataframe)
 
-        # These are distinct first_open events for CR - will not contain app_language so can only be used for FO counts
-        sql_query = f"""
-                SELECT *
-                    FROM `dataexploration-193817.user_data.cr_first_open`
-                WHERE
-                    first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE() 
-                """
+        # Define the queries
+        sql_unity_users = f"""
+            SELECT *
+            FROM `dataexploration-193817.user_data.unity_user_progress`
+            WHERE first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE()
+        """
+        sql_cr_first_open = f"""
+            SELECT *
+            FROM `dataexploration-193817.user_data.cr_first_open`
+            WHERE first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE()
+        """
+        sql_cr_users = f"""
+            SELECT *
+            FROM `dataexploration-193817.user_data.cr_user_progress`
+            WHERE first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE()
+        """
+        sql_cr_app_launch = f"""
+            SELECT *
+            FROM `dataexploration-193817.user_data.cr_app_launch`
+            WHERE first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE()
+        """
 
-        df_cr_first_open = bq_client.query(sql_query).to_dataframe()
-
-        # All users in the funnel from DC down
-        sql_query = f"""
-                    SELECT *
-                        FROM `dataexploration-193817.user_data.cr_user_progress`
-                    WHERE
-                        first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE() 
-                    """
-
-        df_cr_users = bq_client.query(sql_query).to_dataframe()
-
-        # CR users with app_launch event and country and language data (LR stat)
-        sql_query = f"""
-                SELECT *
-                    FROM `dataexploration-193817.user_data.cr_app_launch`
-                WHERE
-                    first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE() 
-                """
-
-        df_cr_app_launch = bq_client.query(sql_query).to_dataframe()
+        # Run all the queries asynchronously
+        df_unity_users, df_cr_first_open, df_cr_users, df_cr_app_launch = await asyncio.gather(
+            run_query(sql_unity_users),
+            run_query(sql_cr_first_open),
+            run_query(sql_cr_users),
+            run_query(sql_cr_app_launch),
+        )
 
         # Eliminate duplicate cr users (multiple language combinations) - just keep the first one
-        df_cr_app_launch = df_cr_app_launch.drop_duplicates(subset='user_pseudo_id',keep="first")
-        
-        #fix data typos
+        df_cr_app_launch = df_cr_app_launch.drop_duplicates(subset='user_pseudo_id', keep="first")
+
+        # Fix data typos
         df_cr_app_launch["app_language"] = df_cr_app_launch["app_language"].replace(
             "ukranian", "ukrainian"
         )
@@ -84,14 +81,17 @@ def get_users_list():
             "malgache", "malagasy"
         )
 
-        max_level_indices = df_cr_users.groupby('user_pseudo_id')['max_user_level'].idxmax()
-        df_cr_users = df_cr_users.loc[max_level_indices].reset_index()
+        # Process max levels for cr_users and unity_users
+        max_level_indices_cr = df_cr_users.groupby('user_pseudo_id')['max_user_level'].idxmax()
+        df_cr_users = df_cr_users.loc[max_level_indices_cr].reset_index()
 
-        max_level_indices = df_unity_users.groupby('user_pseudo_id')['max_user_level'].idxmax()
-        df_unity_users = df_unity_users.loc[max_level_indices].reset_index()
+        max_level_indices_unity = df_unity_users.groupby('user_pseudo_id')['max_user_level'].idxmax()
+        df_unity_users = df_unity_users.loc[max_level_indices_unity].reset_index()
 
-    logging.debug(p.print())
+    p.print(color="red")
     return df_cr_users, df_unity_users, df_cr_first_open, df_cr_app_launch
+
+
 
 
 @st.cache_data(ttl="1d", show_spinner=False)
@@ -162,3 +162,29 @@ def get_app_version_list():
         app_versions.insert(0, "All")
 
     return app_versions
+
+
+@st.cache_data(ttl="1d", show_spinner=False)
+def get_funnel_snapshots(daterange,languages):
+
+    if "bq_client" in st.session_state:
+        bq_client = st.session_state.bq_client
+    else:
+        st.write ("No database connection")
+        return
+
+    languages_str = ', '.join([f"'{lang}'" for lang in languages])
+
+    sql_query = f"""
+            SELECT *
+            FROM `dataexploration-193817.user_data.funnel_snapshots`
+            WHERE language IN ({languages_str})
+            AND
+            DATE(date) BETWEEN '{daterange[0].strftime("%Y-%m-%d")}' AND '{daterange[1].strftime("%Y-%m-%d")}' ;
+
+            """
+
+    df = bq_client.query(sql_query).to_dataframe() 
+    df['date'] = pd.to_datetime(df['date'], errors='coerce')
+
+    return df

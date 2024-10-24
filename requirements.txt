@@ -13,3 +13,4 @@ plotly
 streamlit_option_menu
 pyinstrument
 db-dtypes
+st-pages

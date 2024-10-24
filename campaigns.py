@@ -3,90 +3,70 @@ import pandas as pd
 from rich import print as print
 import campaigns
 import metrics
+import asyncio
+from pyinstrument import Profiler
 
 
-@st.cache_data(show_spinner="Fetching Google Campaign Data", ttl="1d")
-def get_google_campaign_data():
-    bq_client = st.session_state.bq_client
-    sql_query = f"""
-        SELECT
-        metrics.campaign_id,
-        metrics.segments_date as segment_date,
-        campaigns.campaign_name,
-        0 as mobile_app_install,
-        metrics_clicks as clicks,
-        metrics_impressions as impressions,
-        metrics_cost_micros as cost,
-        metrics_average_cpc as cpc,
-        campaigns.campaign_start_date,
-        campaigns.campaign_end_date, 
-        0 as reach,
-        "Google" as source
-        FROM dataexploration-193817.marketing_data.p_ads_CampaignStats_6687569935 as metrics
-        inner join dataexploration-193817.marketing_data.ads_Campaign_6687569935 as campaigns
-        on metrics.campaign_id = campaigns.campaign_id
-        and campaigns.campaign_start_date >= '2021-01-01'
-        group by 1,2,3,4,5,6,7,8,9,10   
-    """
+# Starting 05/01/2024, campaign names were changed to support an indication of 
+# both language and country through a naming convention.  So we are only collecting
+# and reporting on daily campaign segment data from that day forward.
 
-    df = bq_client.query(sql_query).to_dataframe()
+# Combined function to fetch Google and Facebook campaign data concurrently
 
-    df["campaign_id"] = df["campaign_id"].astype(str).str.replace(",", "")
-    df["cost"] = df["cost"].divide(1000000).round(2)
-    df["cpc"] = df["cpc"].divide(1000000)
-    df["segment_date"] = pd.to_datetime(df["segment_date"])
-    df["segment_date"] = df["segment_date"].values.astype("datetime64[D]")
+async def get_campaign_data():
+    p = Profiler(async_mode="disabled")
+    with p:
+        bq_client = st.session_state.bq_client
 
-    df = df.convert_dtypes()
+        # Helper function to run BigQuery queries asynchronously
+        async def run_query(query):
+            return await asyncio.to_thread(bq_client.query(query).to_dataframe)
 
-    return df
-
-
-@st.cache_data(show_spinner="Fetching Facebook Campaign Data", ttl="1d")
-def get_fb_campaign_data():
-    bq_client = st.session_state.bq_client
-    sql_query = f"""
-        SELECT 
-            d.campaign_id,
-            d.data_date_start as segment_date,
-            d.campaign_name,
-            COALESCE(
-                (SELECT PARSE_NUMERIC(a.value)
-                 FROM UNNEST(d.actions) as a
-                 WHERE a.action_type = 'mobile_app_install'
-                 LIMIT 1), 0) as mobile_app_install,
-            d.clicks,
-            d.impressions,
-            d.spend as cost,
-            d.cpc,
-            d.start_time as campaign_start_date, 
-            d.end_time as campaign_end_date,
-            d.reach,
-            "Facebook" as source
-        FROM dataexploration-193817.marketing_data.facebook_ads_data as d
-        WHERE d.start_time >= '2021-01-01'
-        #        and d.campaign_id in ('120206573803000195')
-        ORDER BY d.data_date_start DESC;
+        # Google Ads Query
+        google_ads_query = """
+            SELECT
+                metrics.campaign_id,
+                metrics.segments_date as segment_date,
+                campaigns.campaign_name,
+                metrics_cost_micros as cost,
+                campaigns.campaign_start_date,
+                campaigns.campaign_end_date, 
+                "Google" as source
+            FROM dataexploration-193817.marketing_data.p_ads_CampaignStats_6687569935 as metrics
+            INNER JOIN dataexploration-193817.marketing_data.ads_Campaign_6687569935 as campaigns
+            ON metrics.campaign_id = campaigns.campaign_id
+            AND metrics.segments_date >= '2024-05-01'
+            GROUP BY 1,2,3,4,5,6
         """
-    df = bq_client.query(sql_query).to_dataframe()
 
-    # in case the importer runs more than once on the same day, delete any duplicates
-    df = df.drop_duplicates(subset=["campaign_id", "segment_date"], keep="first")
+        # Facebook Ads Query
+        facebook_ads_query = """
+            SELECT 
+                d.campaign_id,
+                d.data_date_start as segment_date,
+                d.campaign_name,
+                d.spend as cost,
+                d.start_time as campaign_start_date, 
+                d.end_time as campaign_end_date,
+                "Facebook" as source
+            FROM dataexploration-193817.marketing_data.facebook_ads_data as d
+            WHERE d.data_date_start >= '2024-05-01'
+            ORDER BY d.data_date_start DESC;
+        """
 
-    df["campaign_start_date"] = pd.to_datetime(
-        df.campaign_start_date, utc=True
-    ).dt.strftime("%Y/%m/%d")
-    df["campaign_end_date"] = pd.to_datetime(
-        df.campaign_end_date, utc=True
-    ).dt.strftime("%Y/%m/%d")
+        # Run both queries concurrently using asyncio.gather
+        google_ads_data, facebook_ads_data = await asyncio.gather(
+            run_query(google_ads_query),
+            run_query(facebook_ads_query)
+        )
 
-    df["segment_date"] = pd.to_datetime(df["segment_date"])
-    df["segment_date"] = df["segment_date"].values.astype("datetime64[D]")
-
-    df["mobile_app_install"] = pd.to_numeric(df["mobile_app_install"])
-
-    return df
-
+        # Process Google Ads Data
+        google_ads_data["campaign_id"] = google_ads_data["campaign_id"].astype(str).str.replace(",", "")
+        google_ads_data["cost"] = google_ads_data["cost"].divide(1000000).round(2)
+  #      google_ads_data["segment_date"] = pd.to_datetime
+        google_ads_data["segment_date"] = pd.to_datetime(google_ads_data["segment_date"])
+    p.print(color="red")
+    return google_ads_data, facebook_ads_data
 
 @st.cache_data(ttl="1d", show_spinner=False)
 # Looks for the string following the dash and makes that the associated country.
@@ -127,25 +107,7 @@ def add_country_and_language(df):
             language_contains_pattern, regex=True, na=False
         ),
         None,
-    )
-    return df
-
-
-@st.cache_data(ttl="1d", show_spinner=False)
-def get_google_campaign_conversions(daterange):
-    bq_client = st.session_state.bq_client
-    sql_query = f"""
-                SELECT campaign_id,
-                metrics_conversions as button_clicks,
-                FROM `dataexploration-193817.marketing_data.ads_CampaignConversionStats_6687569935`
-                where segments_conversion_action_name like '%CTA_Gplay%'
-               AND DATE(segments_date) BETWEEN '{daterange[0].strftime("%Y-%m-%d")}' AND '{daterange[1].strftime("%Y-%m-%d")}' ;
-                
-                """
-
-    df = bq_client.query(sql_query).to_dataframe()
-
-    df["campaign_id"] = df["campaign_id"].astype(str).str.replace(",", "")
+    ).str.lower()
 
     return df
 
@@ -157,13 +119,8 @@ def rollup_campaign_data(df):
         "segment_date": "last",
         "campaign_start_date": "first",
         "campaign_end_date": "first",
-        "mobile_app_install": "sum",
         "source": "first",
-        "clicks": "sum",
-        "reach": "sum",
         "cost": "sum",
-        "cpc": "sum",
-        "impressions": "sum",
     }
     optional_columns = ["country", "app_language"]
     for col in optional_columns:
@@ -192,40 +149,6 @@ def rollup_campaign_data(df):
 
     return df
 
-
-# Get the button clicks from BigQuery, add them to the dataframe
-# and rollup the sum per campaign_id
-def add_google_button_clicks(df, daterange):
-
-    df_goog_conversions = campaigns.get_google_campaign_conversions(daterange)
-
-    df_goog = pd.merge(
-        df,
-        df_goog_conversions,
-        on="campaign_id",
-        how="left",
-        suffixes=("", ""),
-    )
-
-    df_goog = df_goog.groupby("campaign_id", as_index=False).agg(
-        {
-            "campaign_name": "last",
-            "app_language": "first",
-            "country": "first",
-            "campaign_start_date": "first",
-            "campaign_end_date": "first",
-            "mobile_app_install": "first",
-            "source": "first",
-            "button_clicks": "sum",
-            "clicks": "first",
-            "reach": "first",
-            "cost": "first",
-            "cpc": "first",
-            "impressions": "first",
-        }
-    )
-
-    return df_goog
 
 
 @st.cache_data(ttl="1d", show_spinner=False)

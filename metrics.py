@@ -4,7 +4,8 @@ import pandas as pd
 import numpy as np
 import datetime as dt
 import users
-import metrics
+
+
 
 default_daterange = [dt.datetime(2021, 1, 1).date(), dt.date.today()]
 
@@ -251,7 +252,7 @@ def build_funnel_dataframe(
 ):
     df = pd.DataFrame(columns=[index_col, "LR", "DC", "TS", "SL", "PC", "RA", "LA"])
     if index_col == "start_date":
-        weeks = metrics.weeks_since(daterange)
+        weeks = weeks_since(daterange)
         iteration = range(1, weeks + 1)
     elif index_col == "language":
         iteration = languages
@@ -267,21 +268,21 @@ def build_funnel_dataframe(
             start_date = dt.datetime.now().date() - dt.timedelta(i * 7)
             daterange = [start_date, end_date]
 
-        DC = metrics.get_totals_by_metric(
+        DC = get_totals_by_metric(
             daterange,
             stat="DC",
             language=language,
             countries_list=countries_list,
             app="CR",
         )
-        SL = metrics.get_totals_by_metric(
+        SL = get_totals_by_metric(
             daterange,
             stat="SL",
             language=language,
             countries_list=countries_list,
             app="CR",
         )
-        TS = metrics.get_totals_by_metric(
+        TS = get_totals_by_metric(
             daterange,
             stat="TS",
             language=language,
@@ -289,35 +290,35 @@ def build_funnel_dataframe(
             app="CR",
         )
 
-        PC = metrics.get_totals_by_metric(
+        PC = get_totals_by_metric(
             daterange,
             stat="PC",
             language=language,
             countries_list=countries_list,
             app="CR",
         )
-        LA = metrics.get_totals_by_metric(
+        LA = get_totals_by_metric(
             daterange,
             stat="LA",
             language=language,
             countries_list=countries_list,
             app="CR",
         )
-        LR = metrics.get_totals_by_metric(
+        LR = get_totals_by_metric(
             daterange,
             stat="LR",
             language=language,
             countries_list=countries_list,
             app="CR",
         )        
-        RA = metrics.get_totals_by_metric(
+        RA = get_totals_by_metric(
             daterange,
             stat="RA",
             language=language,
             countries_list=countries_list,
             app="CR",
         )
-        GC = metrics.get_totals_by_metric(
+        GC = get_totals_by_metric(
             daterange,
             stat="GC",
             language=language,
@@ -427,3 +428,90 @@ def add_level_percents(df):
         df["GC over RA"] = 0
         
     return df
+
+
+# Get the campaign data and filter by date, language, and country selections
+def filter_campaigns(df_campaigns_all,daterange,selected_languages,countries_list):
+
+    # Drop the campaigns that don't meet the naming convention
+    condition = (df_campaigns_all["app_language"].isna()) | (df_campaigns_all["country"].isna())
+    df_campaigns = df_campaigns_all[~condition]
+
+    mask = (df_campaigns['segment_date'].dt.date >= daterange[0]) & (df_campaigns['segment_date'].dt.date <= daterange[1])
+    df_campaigns = df_campaigns.loc[mask]
+    # Apply country filter if not "All"
+
+    if countries_list[0] != "All":
+      mask &= df_campaigns['country'].isin(set(countries_list))
+
+    # Apply language filter if not "All" and stat is not "FO"
+    if selected_languages[0] != "All" :
+        mask &= df_campaigns['app_language'].isin(set(selected_languages))
+
+    df_campaigns = df_campaigns.loc[mask]
+
+    col = df_campaigns.pop("country")
+    df_campaigns.insert(2, col.name, col)
+    df_campaigns.reset_index(drop=True, inplace=True)
+
+    col = df_campaigns.pop("app_language")
+    df_campaigns.insert(3, col.name, col)
+    df_campaigns.reset_index(drop=True, inplace=True)
+
+    return df_campaigns
+
+
+def get_month_ranges(start_date, end_date):
+    # This function returns a list of start and end dates for each month in the range
+    month_ranges = []
+    current_date = start_date.replace(day=1)
+    
+    while current_date <= end_date:
+        next_month = current_date.replace(day=28) + dt.timedelta(days=4)  # This will get you to the next month
+        month_end = min(end_date, next_month.replace(day=1) - dt.timedelta(days=1))  # End of the current month
+        month_ranges.append((current_date, month_end))
+        current_date = next_month.replace(day=1)  # Move to the first day of the next month
+    
+    return month_ranges
+
+#Returns a dataframe of the totals of a stat for each month
+def get_totals_per_month(daterange,stat,countries_list,language):
+
+    #First get all campaign data
+    df_campaigns_all = st.session_state["df_campaigns_all"]
+
+    # Get the list of (start_date, end_date) tuples for each month
+    month_ranges = get_month_ranges(daterange[0], daterange[1])
+
+    # Initialize an empty list to store the results
+    totals_by_month = []
+
+    # Loop over each month and call the function
+    for start_date, end_date in month_ranges:
+        df_campaigns = df_campaigns_all
+        daterange=[start_date, end_date]
+        total = get_totals_by_metric(
+            daterange=daterange, countries_list=countries_list,stat=stat, language=language
+        )
+
+        df_campaigns = filter_campaigns(df_campaigns,daterange,language,countries_list)
+
+        cost = df_campaigns["cost"].sum()
+
+        lrc = (cost / total).round(2) if total != 0 else 0
+
+        # Store the total along with the month start
+        totals_by_month.append({
+            "month": start_date.strftime("%B-%Y"),  # Format the date as 'YYYY-MM' for the month
+            "total": total,
+            "cost": cost,
+            "LRC": lrc
+        })
+
+    # Convert the results to a DataFrame
+    df_totals = pd.DataFrame(totals_by_month)
+
+    # Display the DataFrame
+    return df_totals
+
+

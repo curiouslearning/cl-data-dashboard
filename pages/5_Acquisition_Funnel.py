@@ -11,7 +11,6 @@ import users
 st.title("Curious Learning Dashboard")
 
 settings.initialize()
-settings.init_campaign_data()
 settings.init_user_list()
 
 ui.display_definitions_table("Definitions",ui.level_definitions)
@@ -32,25 +31,7 @@ countries_list = ui.multi_select_all(
 selected_date, option = ui.calendar_selector()
 daterange = ui.convert_date_to_range(selected_date, option)
 if len(daterange) == 2:
-    st.subheader("Campaign Funnel")
 
-    df_campaigns = st.session_state.df_campaigns
-    impressions = df_campaigns["impressions"].sum()
-    clicks = df_campaigns["clicks"].sum()
-
-    funnel_data = {
-        "Title": [
-            "Impressions",
-            "Clicks",
-        ],
-        "Count": [impressions, clicks],
-    }
-
-    fig = uic.create_engagement_figure(funnel_data)
-    fig.update_layout(
-        height=200,
-    )
-    st.plotly_chart(fig, use_container_width=True)
 
     start = daterange[0].strftime("%m-%d-%Y")
     end = daterange[1].strftime("%m-%d-%Y")
