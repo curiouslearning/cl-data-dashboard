@@ -85,6 +85,8 @@ def filter_user_data(
     app="Both",
     language=["All"],
 ):
+    
+
     # Check if necessary dataframes are available
     if not all(key in st.session_state for key in ["df_cr_users", "df_unity_users", "df_cr_first_open", "df_cr_app_launch"]):
         print("PROBLEM!")
@@ -118,6 +120,9 @@ def filter_user_data(
     # Apply language filter if not "All" and stat is not "FO"
     if language[0] != "All" and stat != "FO":
         mask &= df['app_language'].isin(set(language))
+
+  #  if cr_app_versions != "All":
+     #       mask &= df["app_version == @cr_app_versions"]
 
     # Apply stat-specific filters
     if stat == "LA":
