@@ -199,8 +199,21 @@ def get_counts(
         .size()
         .to_frame(name="LA")
         .reset_index()
+    )    
+    dfRA = (
+        filter_user_data(daterange, countries_list, "RA", app=app, language=language)
+        .groupby(type)
+        .size()
+        .to_frame(name="RA")
+        .reset_index()
     )
-    counts = dfLR.merge(dfLA, on=type, how="left").fillna(0)
+    
+    counts = (
+        dfLR
+        .merge(dfLA, on=type, how="left")
+        .merge(dfRA, on=type, how="left")
+        .fillna(0)
+    )
 
     #### GPP ###
     df = filter_user_data(
