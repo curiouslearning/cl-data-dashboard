@@ -30,27 +30,31 @@ countries_list = ui.multi_select_all(
 
 selected_date, option = ui.calendar_selector()
 daterange = ui.convert_date_to_range(selected_date, option)
-if len(daterange) == 2:
 
 
+if len(daterange) == 2 and len(language) > 0:
+    user_cohort_list = []
+    if (app == 'CR'):
+        user_cohort_list = metrics.get_user_cohort_list(daterange=daterange,languages=language,countries_list=countries_list,app="CR")
+ 
     start = daterange[0].strftime("%m-%d-%Y")
     end = daterange[1].strftime("%m-%d-%Y")
     st.subheader("Acquisition Funnel: " + start + " - " + end)
 
     LR = metrics.get_totals_by_metric(
-        daterange, countries_list, stat="LR", app=app, language=language
+        daterange, countries_list, stat="LR", app=app, language=language,user_list=user_cohort_list
     )
     PC = metrics.get_totals_by_metric(
-        daterange, countries_list, "PC", app=app, language=language
+        daterange, countries_list, "PC", app=app, language=language,user_list=user_cohort_list
     )
     LA = metrics.get_totals_by_metric(
-        daterange, countries_list, stat="LA", app=app, language=language
+        daterange, countries_list, stat="LA", app=app, language=language,user_list=user_cohort_list
     )
     RA = metrics.get_totals_by_metric(
-        daterange, countries_list, stat="RA", app=app, language=language
+        daterange, countries_list, stat="RA", app=app, language=language,user_list=user_cohort_list
     )
     GC = metrics.get_totals_by_metric(
-        daterange, countries_list, "GC", app=app, language=language
+        daterange, countries_list, "GC", app=app, language=language,user_list=user_cohort_list
     )
 
     funnel_data = {

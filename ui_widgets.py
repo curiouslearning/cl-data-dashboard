@@ -2,19 +2,13 @@ import streamlit as st
 import pandas as pd
 import datetime as dt
 from rich import print
-from dateutil.relativedelta import relativedelta
-import users
 import calendar
 import re
 from streamlit_option_menu import option_menu
 
 level_definitions = pd.DataFrame(
     [
-        [
-            "FO",
-            "First Open",
-            "The first time Curious Reader is opened from the play store",
-       ],
+
         [
             "LR",
             "Learner Reached",
@@ -99,8 +93,6 @@ data_notes = pd.DataFrame(
     columns=["Note", "Description"],
 )
 
-
-
 def display_definitions_table(title,def_df):
     expander = st.expander(title)
     # CSS to inject contained in a string
@@ -150,18 +142,48 @@ def month_selector(placement="side", key=""):
     return report_month, report_year
 
 
-def custom_date_selection_slider():
+def slider_callback():
+    # Ensure the session state reflects the slider value
+    left_value, right_value = st.session_state.slider_value
 
-    today = dt.datetime.now().date()
-    last_year = dt.date(today.year, 1, 1) - relativedelta(years=1)
+    # Validate and correct if the right value exceeds max_date
+    if right_value > st.session_state.max_date:
+        st.session_state.slider_date = (left_value, st.session_state.max_date)
+        st.session_state.slider_value = st.session_state.slider_date  # Update slider_value to reflect change
+        st.info ("You can't select a date inside the buffer zone. Resetting to end of buffer zone.", icon="⚠️")
+    else:
+        st.session_state.slider_date = (left_value, right_value)
 
-    date_range = st.sidebar.slider(
-        label="Select Range:",
-        min_value=dt.date(2021, 1, 1),
-        value=(last_year, today),
-        max_value=today,
-    )
+def custom_date_selection_slider(min_date, max_date, placement="side"):
+    today = dt.date.today()
 
+    # Initialize session state for slider and max_date
+    if "slider_date" not in st.session_state:
+        st.session_state.slider_date = (min_date, max_date)
+    if "max_date" not in st.session_state:
+        st.session_state.max_date = max_date
+
+    # Render the slider widget
+    if placement == "side":
+        st.sidebar.slider(
+            label="Select Range:",
+            min_value=dt.date(2023, 10, 1),
+            max_value=today,
+            value=st.session_state.slider_date,  # Use session state for initialization
+            key="slider_value",  # Separate key for the slider widget
+            on_change=slider_callback,  # Callback to sync state
+        )
+    else:
+        st.slider(
+            label="Select Range:",
+            min_value=dt.date(2023, 10, 1),
+            max_value=today,
+            value=st.session_state.slider_date,  # Use session state for initialization
+            key="slider_value",  # Separate key for the slider widget
+            on_change=slider_callback,  # Callback to sync state
+        )
+
+    return list(st.session_state.slider_date)
 
 def custom_date_selection(placement="side", key=""):
     min_date = dt.datetime.now().date() - dt.timedelta(30)
@@ -176,23 +198,27 @@ def custom_date_selection(placement="side", key=""):
     return list(date_range)
 
 
-def convert_date_to_range(selected_date, option):
-
+def convert_date_to_range(selected_date, option, end_date=None):
+    today = dt.datetime.today().date()
+    
     if option == "Select year":
         first = dt.date(selected_date, 1, 1)
         last = dt.date(selected_date, 12, 31)
-        return [first, last]
     elif option == "All time":
-        return [dt.datetime(2021, 1, 1).date(), dt.date.today()]
+        first = dt.date(2021, 1, 1)
+        last = today
     elif option == "Select month":
-        month = selected_date[0]
-        year = selected_date[1]
+        month, year = selected_date
         first = dt.date(year, month, 1)
-        yearmonth = calendar.monthrange(year, month)
-        last = dt.date(year, month, yearmonth[1])
-        return [first, last]
-    else: #already converted
+        last = dt.date(year, month, calendar.monthrange(year, month)[1])
+    else:  # already converted
         return selected_date
+
+    # Ensure last date does not exceed today
+    last = min(last, today if end_date is None else min(end_date, today))
+
+    return [first, last]
+
 
 
 def quarter_start(month):
@@ -300,37 +326,33 @@ def single_selector(selections, placement="side", title="", key="key"):
     return selection_list
 
 
-# Pass a unique key into the function in order to use this on multiple pages safely
+# Pass a unique key into the function in order to use this on multiple pages safel
+
 def multi_select_all(available_options, placement="side", title="", key="key"):
     available_options.insert(0, "All")
 
-    # If a user switches to another page and comes back, selected options is dropped from session state
-    # but max_selections still exists.  This has to do with how streamlit handles the key option in widgets
-    # This will ensure All is selected when coming back to the page
+    # Ensure each instance has its own session state keys
     if key not in st.session_state:
         st.session_state[key] = ["All"]
-    if "max_selections" not in st.session_state:
-        st.session_state["max_selections"] = 1  # Enforce single selection
+    if f"{key}_max_selections" not in st.session_state:
+        st.session_state[f"{key}_max_selections"] = 1  # Unique max selection per widget
         st.session_state[key] = ["All"]  # Set default to "All"
 
     def options_select():  # Define options_select inside multi_select_all
-
         if key in st.session_state:
             if "All" in st.session_state[key]:
                 st.session_state[key] = ["All"]  # Reset to "All" if deselected
-                st.session_state["max_selections"] = 1  # Enforce single selection again
+                st.session_state[f"{key}_max_selections"] = 1  # Unique max selection
             else:
-                st.session_state["max_selections"] = len(
-                    available_options
-                )  # Allow multiple selections
+                st.session_state[f"{key}_max_selections"] = len(available_options)  # Allow multiple selections
 
     if placement == "side":
         st.sidebar.multiselect(
             label=title,
             options=available_options,
             key=key,
-            max_selections=st.session_state["max_selections"],
-            on_change=options_select,  # Pass the function without calling it
+            max_selections=st.session_state[f"{key}_max_selections"],  # Unique max selection key
+            on_change=options_select,  
             format_func=lambda x: "All" if x == "All" else f"{x}",
         )
 
@@ -339,8 +361,8 @@ def multi_select_all(available_options, placement="side", title="", key="key"):
             label=title,
             options=available_options,
             key=key,
-            max_selections=st.session_state["max_selections"],
-            on_change=options_select,  # Pass the function without calling it
+            max_selections=st.session_state[f"{key}_max_selections"],  # Unique max selection key
+            on_change=options_select,  
             format_func=lambda x: "All" if x == "All" else f"{x}",
         )
 
@@ -419,7 +441,7 @@ def app_version_selector(placement="side", key=""):
     return selected_options
 
 
-def calendar_selector(placement="side", key="", index=0):
+def calendar_selector(placement="side", key="", index=0, title="Date"):
     options = (
         "All time",
         "Select year",
@@ -428,7 +450,7 @@ def calendar_selector(placement="side", key="", index=0):
         "Presets",
     )
 
-    with st.expander("Date"):
+    with st.expander(title):
 
         if placement == "side":
             option = st.sidebar.radio(

@@ -5,8 +5,6 @@ import numpy as np
 import datetime as dt
 import users
 
-
-
 default_daterange = [dt.datetime(2021, 1, 1).date(), dt.date.today()]
 
 
@@ -17,6 +15,7 @@ def get_totals_by_metric(
     cr_app_versions="All",
     app="Both",
     language="All",
+    user_list=[] #New parameter allowing a filter of results by cr_user_id list
 ):
 
     # if no list passed in then get the full list
@@ -24,11 +23,11 @@ def get_totals_by_metric(
         countries_list = users.get_country_list()
 
     df_user_list = filter_user_data(
-        daterange, countries_list, stat, cr_app_versions, app=app, language=language
+        daterange, countries_list, stat, cr_app_versions, app=app, language=language,user_list=user_list
     )
 
     if stat not in ["DC", "TS", "SL", "PC", "LA"]:
-        return len(df_user_list) #All LR or FO
+        return len(df_user_list) #All LR 
     else:
         download_completed_count = len(
             df_user_list[df_user_list["furthest_event"] == "download_completed"]
@@ -74,9 +73,8 @@ def get_totals_by_metric(
             return level_completed_count
 
 
-# Takes the complete user lists and filters based on input data, and returns
+# Takes the complete user lists (cr_user_id) and filters based on input data, and returns
 # a new filtered dataset
-
 def filter_user_data(
     daterange=default_daterange,
     countries_list=["All"],
@@ -84,31 +82,34 @@ def filter_user_data(
     cr_app_versions="All",
     app="Both",
     language=["All"],
+    user_list=[]
 ):
-    
-
+    #default column to filter user cohort list
+    user_list_key = "cr_user_id"
     # Check if necessary dataframes are available
-    if not all(key in st.session_state for key in ["df_cr_users", "df_unity_users", "df_cr_first_open", "df_cr_app_launch"]):
+    if not all(key in st.session_state for key in ["df_cr_users", "df_unity_users",  "df_cr_app_launch"]):
         print("PROBLEM!")
         return pd.DataFrame()
 
     # Select the appropriate dataframe based on app and stat
     if app == "Unity":
         df = st.session_state.df_unity_users #Unity users are in one table only
+        user_list_key = "user_pseudo_id"
     elif app == "Both" and stat == "LR":
         df1 = st.session_state.df_unity_users
         df2 = st.session_state.df_cr_app_launch
         df =  pd.concat([df1, df2], axis=0)
+        user_list_key = "user_pseudo_id"
+       
     elif app == "Both" and stat != "LR":
         df1 = st.session_state.df_unity_users
         df2 = st.session_state.df_cr_users
         df =  pd.concat([df1, df2], axis=0)
     elif app == "CR" and stat == "LR":
         df = st.session_state.df_cr_app_launch
-    elif app == "CR" and stat == "FO":
-        df = st.session_state.df_cr_first_open
     else:
         df = st.session_state.df_cr_users
+
 
     # Initialize a boolean mask
     mask = (df['first_open'] >= daterange[0]) & (df['first_open'] <= daterange[1])
@@ -117,12 +118,12 @@ def filter_user_data(
     if countries_list[0] != "All":
         mask &= df['country'].isin(set(countries_list))
 
-    # Apply language filter if not "All" and stat is not "FO"
-    if language[0] != "All" and stat != "FO":
+    # Apply language filter if not "All" 
+    if language[0] != "All":
         mask &= df['app_language'].isin(set(language))
 
-  #  if cr_app_versions != "All":
-     #       mask &= df["app_version == @cr_app_versions"]
+    if cr_app_versions != "All" and  app == "CR" and stat != "LR":
+        mask &= df["app_version"].isin(cr_app_versions)
 
     # Apply stat-specific filters
     if stat == "LA":
@@ -131,12 +132,18 @@ def filter_user_data(
         mask &= (df['max_user_level'] >= 25)
     elif stat == "GC":  # Game completed
         mask &= (df['max_user_level'] >= 1) & (df['gpc'] >= 90)
-    elif stat == "LR" or stat == "FO":
+    elif stat == "LR":
         # No additional filters for these stats beyond daterange and optional countries/language
         pass
     
     # Filter the dataframe with the combined mask
     df = df.loc[mask]
+
+    #If user list subset was passed in, filter on that as well
+    if (len (user_list) > 0):
+
+        df = df[df[user_list_key].isin(user_list)]
+
 
     return df
 
@@ -260,14 +267,16 @@ def get_counts(
     counts = counts.merge(gca, on=type, how="left").round(2).fillna(0)
     return counts
 
+#Added new parameter user_list.  If passed, only return the funnel based on that set of users
 
-@st.cache_data(ttl="1d", show_spinner=False)
 def build_funnel_dataframe(
     index_col="language",
     daterange=default_daterange,
     languages=["All"],
     countries_list=["All"],
+    user_list=[]
 ):
+
     df = pd.DataFrame(columns=[index_col, "LR", "DC", "TS", "SL", "PC", "RA", "LA"])
     if index_col == "start_date":
         weeks = weeks_since(daterange)
@@ -292,6 +301,7 @@ def build_funnel_dataframe(
             language=language,
             countries_list=countries_list,
             app="CR",
+            user_list=user_list
         )
         SL = get_totals_by_metric(
             daterange,
@@ -299,14 +309,16 @@ def build_funnel_dataframe(
             language=language,
             countries_list=countries_list,
             app="CR",
-        )
+            user_list=user_list
+         )
         TS = get_totals_by_metric(
             daterange,
             stat="TS",
             language=language,
             countries_list=countries_list,
             app="CR",
-        )
+            user_list=user_list
+         )
 
         PC = get_totals_by_metric(
             daterange,
@@ -314,6 +326,7 @@ def build_funnel_dataframe(
             language=language,
             countries_list=countries_list,
             app="CR",
+            user_list=user_list
         )
         LA = get_totals_by_metric(
             daterange,
@@ -321,13 +334,15 @@ def build_funnel_dataframe(
             language=language,
             countries_list=countries_list,
             app="CR",
-        )
+            user_list=user_list
+         )
         LR = get_totals_by_metric(
             daterange,
             stat="LR",
             language=language,
             countries_list=countries_list,
             app="CR",
+            user_list=user_list
         )        
         RA = get_totals_by_metric(
             daterange,
@@ -335,14 +350,16 @@ def build_funnel_dataframe(
             language=language,
             countries_list=countries_list,
             app="CR",
-        )
+            user_list=user_list
+         )
         GC = get_totals_by_metric(
             daterange,
             stat="GC",
             language=language,
             countries_list=countries_list,
             app="CR",
-        )
+            user_list=user_list
+         )
 
         entry = {
             "LR": LR,
@@ -362,7 +379,6 @@ def build_funnel_dataframe(
 
         results.append(entry)
 
-    df = pd.DataFrame(results)
 
     return df
 
@@ -462,7 +478,7 @@ def filter_campaigns(df_campaigns_all,daterange,selected_languages,countries_lis
     if countries_list[0] != "All":
       mask &= df_campaigns['country'].isin(set(countries_list))
 
-    # Apply language filter if not "All" and stat is not "FO"
+    # Apply language filter if not "All" 
     if selected_languages[0] != "All" :
         mask &= df_campaigns['app_language'].isin(set(selected_languages))
 
@@ -493,9 +509,8 @@ def get_month_ranges(start_date, end_date):
     return month_ranges
 
 #Returns a dataframe of the totals of a stat for each month
-def get_totals_per_month(daterange,stat,countries_list,language):
-
-    #First get all campaign data
+def get_totals_per_month(daterange, stat, countries_list, language):
+    # First, get all campaign data
     df_campaigns_all = st.session_state["df_campaigns_all"]
 
     # Get the list of (start_date, end_date) tuples for each month
@@ -506,21 +521,28 @@ def get_totals_per_month(daterange,stat,countries_list,language):
 
     # Loop over each month and call the function
     for start_date, end_date in month_ranges:
-        df_campaigns = df_campaigns_all
-        daterange=[start_date, end_date]
+        # Create a clipped date range for the current month
+        clipped_start_date = max(start_date, daterange[0])
+        clipped_end_date = min(end_date, daterange[1])
+
+        # Define a new range variable for the clipped range
+        clipped_range = [clipped_start_date, clipped_end_date]
+
+        # Get totals within the clipped date range
         total = get_totals_by_metric(
-            daterange=daterange, countries_list=countries_list,stat=stat, language=language
+            daterange=clipped_range, countries_list=countries_list, stat=stat, language=language
         )
+        
+        # Filter campaigns based on the clipped date range
+        df_campaigns = filter_campaigns(df_campaigns_all, clipped_range, language, countries_list)
 
-        df_campaigns = filter_campaigns(df_campaigns,daterange,language,countries_list)
-
+        # Calculate cost and LRC for the clipped range
         cost = df_campaigns["cost"].sum()
-
         lrc = (cost / total).round(2) if total != 0 else 0
 
         # Store the total along with the month start
         totals_by_month.append({
-            "month": start_date.strftime("%B-%Y"),  # Format the date as 'YYYY-MM' for the month
+            "month": clipped_start_date.strftime("%B-%Y"),  # Format as 'Month-Year' for clarity
             "total": total,
             "cost": cost,
             "LRC": lrc
@@ -532,4 +554,39 @@ def get_totals_per_month(daterange,stat,countries_list,language):
     # Display the DataFrame
     return df_totals
 
+def get_date_cohort_dataframe(
+    daterange=default_daterange,
+    languages=["All"],
+    countries_list=["All"],
+    app="CR"):
+        
+    # Get all of the users in the user selected window - this is the cohort
+    df_user_cohort = filter_user_data(daterange=daterange,countries_list=countries_list,app="CR",language=languages)
+
+    # All we need is their cr_user_id
+    user_cohort_list = df_user_cohort["cr_user_id"]
+
+    # Get superset of  the users up through today
+    daterange = [daterange[0],dt.date.today()]
+    df = filter_user_data(daterange=daterange,countries_list=countries_list,app=app,language=languages,user_list=user_cohort_list)
+    
+    return df
+
+def get_user_cohort_list(
+    daterange=default_daterange,
+    languages=["All"],
+    countries_list=["All"],
+    app="CR"):
+        
+    # Get all of the users in the user selected window - this is the cohort
+    df_user_cohort = filter_user_data(daterange=daterange,countries_list=countries_list,app=app,language=languages)
+
+    # Unity doesn't have a cr_user_id.  But CR has different user_psuedo_id for CR events vs 
+    # FTM events, so we have to play this little game.
+    if app == "CR":
+        user_cohort_list = df_user_cohort["cr_user_id"]
+    else:
+        user_cohort_list = df_user_cohort["user_pseudo_id"]
+   
+    return user_cohort_list
 

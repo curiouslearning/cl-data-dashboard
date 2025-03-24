@@ -51,14 +51,12 @@ def initialize():
 
 def init_user_list():
    
-    df_cr_users, df_unity_users, df_cr_first_open, df_cr_app_launch = cache_users_list()
+    df_cr_users, df_unity_users, df_cr_app_launch = cache_users_list()
 
     if "df_cr_users" not in st.session_state:
         st.session_state["df_cr_users"] = df_cr_users
     if "df_unity_users" not in st.session_state:
         st.session_state["df_unity_users"] = df_unity_users
-    if "df_cr_first_open" not in st.session_state:
-        st.session_state["df_cr_first_open"] = df_cr_first_open
     if "df_cr_app_launch" not in st.session_state:
         st.session_state["df_cr_app_launch"] = df_cr_app_launch
 

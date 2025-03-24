@@ -34,16 +34,13 @@ async def get_users_list():
             FROM `dataexploration-193817.user_data.unity_user_progress`
             WHERE first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE()
         """
-        sql_cr_first_open = f"""
-            SELECT *
-            FROM `dataexploration-193817.user_data.cr_first_open`
-            WHERE first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE()
-        """
+        
         sql_cr_users = f"""
             SELECT *
             FROM `dataexploration-193817.user_data.cr_user_progress`
             WHERE first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE()
         """
+
         sql_cr_app_launch = f"""
             SELECT *
             FROM `dataexploration-193817.user_data.cr_app_launch`
@@ -51,15 +48,11 @@ async def get_users_list():
         """
 
         # Run all the queries asynchronously
-        df_unity_users, df_cr_first_open, df_cr_users, df_cr_app_launch = await asyncio.gather(
+        df_unity_users, df_cr_users, df_cr_app_launch = await asyncio.gather(
             run_query(sql_unity_users),
-            run_query(sql_cr_first_open),
             run_query(sql_cr_users),
             run_query(sql_cr_app_launch),
         )
-
-        # Eliminate duplicate cr users (multiple language combinations) - just keep the first one
-        df_cr_app_launch = df_cr_app_launch.drop_duplicates(subset='user_pseudo_id', keep="first")
 
         # Fix data typos
         df_cr_app_launch["app_language"] = df_cr_app_launch["app_language"].replace(
@@ -89,15 +82,17 @@ async def get_users_list():
         # will still be in df_cr_app_launch 
         df_cr_users = df_cr_users[~df_cr_users["cr_user_id"].isin(missing_users["cr_user_id"])]
 
-        df_cr_app_launch,df_cr_users = clean_users_to_single_language(df_cr_app_launch,df_cr_users)
+        df_cr_app_launch,df_cr_users = clean_cr_users_to_single_language(df_cr_app_launch,df_cr_users)
 
+        #clean unity users to the one with the furthest progress
         max_level_indices_unity = df_unity_users.groupby('user_pseudo_id')['max_user_level'].idxmax()
         df_unity_users = df_unity_users.loc[max_level_indices_unity].reset_index()
 
     p.print(color="red")
-    return df_cr_users, df_unity_users, df_cr_first_open, df_cr_app_launch
+    
 
 
+    return df_cr_users, df_unity_users,  df_cr_app_launch
 
 
 @st.cache_data(ttl="1d", show_spinner=False)
@@ -201,10 +196,10 @@ def get_funnel_snapshots(daterange,languages):
 # with multiple entries because of variations in these combinations
 
 @st.cache_data(ttl="1d", show_spinner=False)
-def clean_users_to_single_language(df_app_launch, df_cr_users):
+def clean_cr_users_to_single_language(df_app_launch, df_cr_users):
 
     # ✅  Identify and remove all duplicates from df_app_launch, but SAVE them for later
-    duplicate_user_ids = df_app_launch[df_app_launch.duplicated(subset='cr_user_id', keep=False)]
+    duplicate_user_ids = df_app_launch[df_app_launch.duplicated(subset='user_pseudo_id', keep=False)]
     df_app_launch = df_app_launch[~df_app_launch["cr_user_id"].isin(duplicate_user_ids["cr_user_id"])]
 
     # ✅  Get list of users that had duplicates
