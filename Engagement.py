@@ -81,9 +81,13 @@ if len(daterange) == 2 and len(countries_list) > 0:
     st.subheader("Engagement across the world")
 
     option = ui.stats_radio_selector()
-    uic.stats_by_country_map(
+    df_download = uic.stats_by_country_map(
         daterange, countries_list, app=app, language=language, option=option
     )
+    
+    csv = ui.convert_for_download(df_download)
+    st.download_button(label="Download CSV",data=csv,file_name="stats_per_country.csv",key="e-11",icon=":material/download:",mime="text/csv")
+
     st.divider()
     st.subheader("Top 10's")
 

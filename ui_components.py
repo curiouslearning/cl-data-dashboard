@@ -54,6 +54,8 @@ def stats_by_country_map(daterange, countries_list, app="Both", language="All", 
 
     country_fig.update_geos(fitbounds="locations")
     st.plotly_chart(country_fig)
+    
+    return df
 
 
 @st.cache_data(ttl="1d", show_spinner=False)
