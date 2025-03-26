@@ -99,11 +99,18 @@ if len(daterange) == 2 and len(countries_list) > 0:
             "Display by", ("Country", "Language"), index=0, horizontal=True, key="e-4"
         )
     
-    uic.top_LR_LC_bar_chart(
-        daterange, countries_list, option, app=app, language=language,display_category=display_category
-    )
+    df_download = uic.top_LR_LC_bar_chart(
+        daterange, countries_list, option, app=app, language=language,display_category=display_category)
+    csv = ui.convert_for_download(df_download)
+    st.download_button(label="Download CSV",data=csv,file_name="top_LR_LC_bar_chart.csv",key="e-12",icon=":material/download:",mime="text/csv")
+
     c1, c2 = st.columns(2)
     with c1:
-        uic.top_gpp_bar_chart(daterange, countries_list, app=app, language=language,display_category=display_category)
+        df_download = uic.top_gpp_bar_chart(daterange, countries_list, app=app, language=language,display_category=display_category)
+        csv = ui.convert_for_download(df_download)
+        st.download_button(label="Download CSV",data=csv,file_name="top_gpp_bar_chart.csv",key="e-13",icon=":material/download:",mime="text/csv")
+
     with c2:
-        uic.top_gca_bar_chart(daterange, countries_list, app=app, language=language,display_category=display_category)
+        df_download =  uic.top_gca_bar_chart(daterange, countries_list, app=app, language=language,display_category=display_category)
+        csv = ui.convert_for_download(df_download)
+        st.download_button(label="Download CSV",data=csv,file_name="top_gca_bar_chart.csv",key="e-14",icon=":material/download:",mime="text/csv")

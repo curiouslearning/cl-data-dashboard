@@ -172,6 +172,7 @@ def top_gpp_bar_chart(daterange, countries_list, app="Both", language="All",disp
         df, x=display_group, y="GPP", color=display_group, title="Top 10 Countries by GPP %"
     )
     st.plotly_chart(fig, use_container_width=True)
+    return df
 
 @st.cache_data(ttl="1d", show_spinner=False)
 def top_gca_bar_chart(daterange, countries_list, app="Both", language="All",display_category="Country"):
@@ -196,6 +197,7 @@ def top_gca_bar_chart(daterange, countries_list, app="Both", language="All",disp
         title="Top 10  by GCA %",
     )
     st.plotly_chart(fig, use_container_width=True)
+    return df
 
 @st.cache_data(ttl="1d", show_spinner=False)
 def top_LR_LC_bar_chart(daterange, countries_list, option, app="Both", language="All",display_category="Country"):
@@ -236,6 +238,7 @@ def top_LR_LC_bar_chart(daterange, countries_list, option, app="Both", language=
     )
     fig.update_layout(title_text=title)
     st.plotly_chart(fig, use_container_width=True)
+    return df
 
 @st.cache_data(ttl="1d", show_spinner=False)
 def LR_LA_line_chart_over_time(
