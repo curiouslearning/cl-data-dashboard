@@ -593,3 +593,7 @@ def level_comparison_selector(placement="side"):
             label="Upper level", options=upper_levels, key="lcs-4"
         )
     return upper_level, bottom_level
+
+@st.cache_data
+def convert_for_download(df):
+    return df.to_csv().encode("utf-8")

@@ -446,7 +446,7 @@ def create_engagement_figure(funnel_data=[], key=""):
 
 # Show the count of users max level for each level in the game
 @st.cache_data(ttl="1d", show_spinner=False)
-def levels_line_chart(daterange, countries_list, app="Both", language="All"):
+def levels_line_chart(daterange, countries_list, app="Both", language="All",key="abc"):
     df_user_list = metrics.filter_user_data(
         daterange, countries_list, stat="LA", app=app, language=language
     )
@@ -460,7 +460,7 @@ def levels_line_chart(daterange, countries_list, app="Both", language="All"):
 
     # Calculate Percent remaining for hover text
     df["percent_drop"] = df.groupby("app_language")["count"].pct_change() * 100
-
+    
     # Create separate traces for each app_language
     traces = []
     for app_language, data in df.groupby("app_language"):
@@ -484,6 +484,7 @@ def levels_line_chart(daterange, countries_list, app="Both", language="All"):
     # Create a Plotly figure with all traces
     fig = go.Figure(data=traces, layout=layout)
     st.plotly_chart(fig, use_container_width=True)
+    return df
 
 
 @st.cache_data(ttl="1d", show_spinner=False)

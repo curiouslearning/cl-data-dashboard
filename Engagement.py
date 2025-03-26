@@ -71,7 +71,11 @@ if len(daterange) == 2 and len(countries_list) > 0:
 
     st.divider()
     st.subheader("Levels reached per language")
-    uic.levels_line_chart(daterange, countries_list, app=app, language=language)
+    
+    df_download = uic.levels_line_chart(daterange, countries_list, app=app, language=language)
+    csv = ui.convert_for_download(df_download)
+    st.download_button(label="Download CSV",data=csv,file_name="levels.csv",key="e-10",icon=":material/download:",mime="text/csv")
+
 
     st.divider()
     st.subheader("Engagement across the world")
