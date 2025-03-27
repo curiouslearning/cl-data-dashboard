@@ -2,11 +2,11 @@ WITH
   all_events AS (
   SELECT
     user_pseudo_id,
+    cr_user_id_params.value.string_value as cr_user_id,
     "org.curiouslearning.container" AS app_id,
     CAST(DATE(TIMESTAMP_MICROS(user_first_touch_timestamp)) AS DATE) AS first_open,
     geo.country AS country,
     LOWER(REGEXP_EXTRACT(app_params.value.string_value, '[?&]cr_lang=([^&]+)')) AS app_language,
-    MIN(version_params.value.string_value )AS app_version,
     b.max_level AS max_game_level,
     MIN(
       CASE
@@ -53,7 +53,7 @@ WITH
     END
       ) AS selected_level_count,
     SUM(CASE
-        WHEN event_name = 'tapped_start' THEN 1
+        WHEN event_name = 'tapped_start'  THEN 1
       ELSE
       0
     END
@@ -69,7 +69,7 @@ WITH
     UNNEST(event_params) AS app_params,
     UNNEST (event_params) AS success_params,
     UNNEST(event_params) AS level_params,
-    UNNEST(event_params) AS version_params
+    UNNEST(event_params) AS cr_user_id_params
   LEFT JOIN (
     SELECT
       app_language,
@@ -90,9 +90,13 @@ WITH
     AND app_params.key = 'page_location'
     AND app_params.value.string_value LIKE '%https://feedthemonster.curiouscontent.org%'
     AND device.web_info.hostname LIKE 'feedthemonster.curiouscontent.org%'
-    AND version_params.key = 'version_number'
+    AND cr_user_id_params.key = 'cr_user_id'
+    AND CAST(DATE(TIMESTAMP_MICROS(user_first_touch_timestamp)) AS DATE) BETWEEN '2021-01-01'
+  AND CURRENT_DATE()
+
   GROUP BY
     user_pseudo_id,
+    cr_user_id,
     app_id,
     first_open,
     country,
@@ -101,13 +105,13 @@ WITH
     b.max_level )
 SELECT
   user_pseudo_id,
+  cr_user_id,
   app_id,
   first_open,
   country,
   app_language,
   max_user_level,
   max_game_level,
-  app_version,
   la_date,
   CASE
     WHEN level_completed_count > 0 THEN 'level_completed'
