@@ -31,19 +31,19 @@ async def get_users_list():
         # Define the queries
         sql_unity_users = f"""
             SELECT *
-            FROM `dataexploration-193817.user_data.unity_user_progress`
+            FROM `dataexploration-193817.user_data.unity_user_progress_inc`
             WHERE first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE()
         """
         
         sql_cr_users = f"""
             SELECT *
-            FROM `dataexploration-193817.user_data.cr_user_progress`
+            FROM `dataexploration-193817.user_data.cr_user_progress_inc`
             WHERE first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE()
         """
 
         sql_cr_app_launch = f"""
             SELECT *
-            FROM `dataexploration-193817.user_data.cr_app_launch`
+            FROM `dataexploration-193817.user_data.cr_app_launch_inc`
             WHERE first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE()
         """
 
