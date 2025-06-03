@@ -61,6 +61,14 @@ async def get_users_list():
         df_cr_app_launch["app_language"] = df_cr_app_launch["app_language"].replace(
             "malgache", "malagasy"
         )
+        
+        df_cr_app_launch["app_language"] = df_cr_app_launch["app_language"].replace(
+            "arabictest", "arabic"
+        )
+        df_cr_app_launch["app_language"] = df_cr_app_launch["app_language"].replace(
+            "farsitest", "farsi"
+        )   
+        
         df_cr_users["app_language"] = df_cr_users["app_language"].replace(
             "ukranian", "ukrainian"
         )
@@ -71,7 +79,9 @@ async def get_users_list():
         df_cr_users["app_language"] = df_cr_users["app_language"].replace(
             "arabictest", "arabic"
         )
-            
+        df_cr_users["app_language"] = df_cr_users["app_language"].replace(
+            "farsitest", "farsi"
+        )           
         df_unity_users["app_language"] = df_unity_users["app_language"].replace(
             "ukranian", "ukrainian"
         )
