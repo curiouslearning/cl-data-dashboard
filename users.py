@@ -138,7 +138,7 @@ def get_country_list():
     if "bq_client" in st.session_state:
         bq_client = st.session_state.bq_client
         sql_query = f"""
-                    SELECT *
+                    SELECT country
                     FROM `dataexploration-193817.user_data.active_countries`
                     order by country asc
                     ;
