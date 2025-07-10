@@ -1,154 +1,184 @@
--- Step 1: Filter & Extract Raw Events
-WITH all_events AS (
+-- Step 1: Base User Metadata
+WITH base_data AS (
   SELECT
-    user_pseudo_id,
-    "org.curiouslearning.container" AS app_id,
-    CAST(DATE(TIMESTAMP_MICROS(user_first_touch_timestamp)) AS DATE) AS first_open,
-    geo.country AS country,
-
-    -- Extract cr_user_id
     (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'cr_user_id') AS cr_user_id,
-
-    -- App language
-    LOWER(REGEXP_EXTRACT((SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'page_location'), r'[?&]cr_lang=([^&]+)')) AS app_language,
-
-    -- Extract app version
-    (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'version_number') AS app_version,
-  
-    -- Level data (only used when event_name = 'level_completed')
-    SAFE_CAST((SELECT value.int_value FROM UNNEST(event_params) WHERE key = 'level_number') AS INT64) AS level_number,
-    (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'success_or_failure') AS success_or_failure,
-
-    event_name,
-    event_date
+    user_pseudo_id,
+    geo.country AS country,
+    device.category AS device_category,
+    device.operating_system AS device_operating_system,
+    device.mobile_brand_name AS device_mobile_brand_name,
+    device.mobile_model_name AS device_mobile_model_name,
+    device.mobile_marketing_name AS device_mobile_marketing_name,
+    traffic_source.medium AS traffic_source_medium,
+    traffic_source.source AS traffic_source,
+    LOWER(REGEXP_EXTRACT(
+      (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'web_app_url'),
+      '[?&]cr_lang=([^&]+)'
+    )) AS app_language,
+    CAST(DATE(TIMESTAMP_MICROS(user_first_touch_timestamp)) AS DATE) AS first_open
   FROM
     `ftm-b9d99.analytics_159643920.events_20*`
   WHERE
-    event_name IN (
-      'download_completed', 'tapped_start', 'selected_level',
-      'puzzle_completed', 'level_completed'
-    )
-    AND (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'page_location')
-        LIKE '%https://feedthemonster.curiouscontent.org%'
-    AND device.web_info.hostname LIKE 'feedthemonster.curiouscontent.org%'
+    app_info.id = 'org.curiouslearning.container'
+    AND event_name = 'app_launch'
+    AND (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'web_app_url') LIKE 'https://feedthemonster.curiouscontent.org%'
+    AND (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'cr_user_id') IS NOT NULL
     AND CAST(DATE(TIMESTAMP_MICROS(user_first_touch_timestamp)) AS DATE) BETWEEN '2021-01-01' AND CURRENT_DATE()
-),
-
--- Step 2: Join Max Level per Language
-joined_events AS (
-  SELECT
-    a.*,
-    b.max_level AS max_game_level
-  FROM all_events a
-  LEFT JOIN (
-    SELECT app_language, max_level
-    FROM `dataexploration-193817.user_data.language_max_level`
-    GROUP BY app_language, max_level
-  ) b
-  ON a.app_language = b.app_language
-),
-
--- Step 3: Aggregate Per User
-aggregated AS (
-  SELECT
-    user_pseudo_id,
-    cr_user_id,
-    app_version,
-    first_open,
-    country,
-    app_language,
-    max_game_level,
-
-    -- Dates and levels only for successful completions
-    MIN(CASE
-      WHEN event_name = 'level_completed'
-        AND success_or_failure = 'success'
-        AND level_number IS NOT NULL
-      THEN PARSE_DATE('%Y%m%d', event_date)
-    END) AS la_date,
-
-    MAX(CASE
-      WHEN event_name = 'level_completed'
-        AND success_or_failure = 'success'
-        AND level_number IS NOT NULL
-      THEN level_number + 1
-      ELSE 0
-    END) AS max_user_level,
-
-    -- Event counts
-    COUNTIF(event_name = 'level_completed' AND success_or_failure = 'success' AND level_number IS NOT NULL) AS level_completed_count,
-    COUNTIF(event_name = 'puzzle_completed') AS puzzle_completed_count,
-    COUNTIF(event_name = 'selected_level') AS selected_level_count,
-    COUNTIF(event_name = 'tapped_start') AS tapped_start_count,
-    COUNTIF(event_name = 'download_completed') AS download_completed_count
-  FROM joined_events
   GROUP BY
-    user_pseudo_id,
-    cr_user_id,
-    app_version,
-    first_open,
-    country,
-    app_language,
-    max_game_level
+    cr_user_id, user_pseudo_id, country, device_category, device_operating_system,
+    device_mobile_brand_name, device_mobile_model_name, device_mobile_marketing_name,
+    traffic_source_medium, traffic_source, app_language, first_open
 ),
 
--- Step 4: Add Furthest Event Label
-labeled AS (
-  SELECT *,
+-- Step 1b: Last event date per user
+last_events AS (
+  SELECT
+    (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'cr_user_id') AS cr_user_id,
+    MAX(PARSE_DATE('%Y%m%d', event_date)) AS last_event_date
+  FROM
+    `ftm-b9d99.analytics_159643920.events_*`
+  WHERE
+    _TABLE_SUFFIX BETWEEN '20210101' AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())
+    AND (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'cr_user_id') IS NOT NULL
+  GROUP BY cr_user_id
+),
+
+
+-- Step 2: Ordered Events with Extracted cr_user_id
+ordered_events AS (
+  SELECT
+    TIMESTAMP_MICROS(event_timestamp) AS event_ts,
+    event_timestamp,
+    (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'cr_user_id') AS cr_user_id
+  FROM
+    `ftm-b9d99.analytics_159643920.events_*`
+  WHERE
+    _TABLE_SUFFIX BETWEEN '20210101' AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())
+    AND (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'cr_user_id') IS NOT NULL
+),
+
+-- Step 3: Add Row Number per cr_user_id for Ordered Deltas
+numbered_events AS (
+  SELECT
+    *,
+    ROW_NUMBER() OVER (PARTITION BY cr_user_id ORDER BY event_timestamp) AS rn
+  FROM
+    ordered_events
+),
+
+-- Step 4: Calculate Time Differences Between Events
+with_deltas AS (
+  SELECT
+    *,
+    LAG(event_ts) OVER (PARTITION BY cr_user_id ORDER BY rn) AS prev_event_ts,
+    TIMESTAMP_DIFF(event_ts, LAG(event_ts) OVER (PARTITION BY cr_user_id ORDER BY rn), SECOND) AS seconds_since_last
+  FROM
+    numbered_events
+),
+
+-- Step 5: Mark New Sessions Based on 2-Minute Gap
+marked_sessions AS (
+  SELECT
+    *,
     CASE
-      WHEN level_completed_count > 0 THEN 'level_completed'
-      WHEN puzzle_completed_count > 0 THEN 'puzzle_completed'
-      WHEN selected_level_count > 0 THEN 'selected_level'
-      WHEN tapped_start_count > 0 THEN 'tapped_start'
-      WHEN download_completed_count > 0 THEN 'download_completed'
-      ELSE NULL
-    END AS furthest_event
-  FROM aggregated
+      WHEN seconds_since_last IS NULL OR seconds_since_last > 120 THEN 1
+      ELSE 0
+    END AS is_new_session
+  FROM
+    with_deltas
 ),
 
--- Step 5: Apply Ranking Logic
-final_ranked AS (
-  SELECT *,
-    SAFE_DIVIDE(max_user_level, max_game_level) * 100 AS gpc,
-    CASE furthest_event
-      WHEN 'download_completed' THEN 1
-      WHEN 'tapped_start' THEN 2
-      WHEN 'selected_level' THEN 3
-      WHEN 'puzzle_completed' THEN 4
-      WHEN 'level_completed' THEN 5
-      ELSE 0
-    END AS event_rank,
-    IF(furthest_event = 'level_completed', 1, 0) AS is_level_completed,
+-- Step 6: Create Session IDs via Running Total of New Sessions
+sessionized AS (
+  SELECT
+    *,
+    SUM(is_new_session) OVER (PARTITION BY cr_user_id ORDER BY rn) AS session_id
+  FROM
+    marked_sessions
+),
 
-    ROW_NUMBER() OVER (
-      PARTITION BY cr_user_id
-      ORDER BY
-        IF(furthest_event = 'level_completed', 1, 0) DESC,
-        max_user_level DESC,
-        CASE furthest_event
-          WHEN 'download_completed' THEN 1
-          WHEN 'tapped_start' THEN 2
-          WHEN 'selected_level' THEN 3
-          WHEN 'puzzle_completed' THEN 4
-          WHEN 'level_completed' THEN 5
-          ELSE 0
-        END DESC
-    ) AS rn
-  FROM labeled
+-- Step 7: Calculate Session Durations per cr_user_id
+session_durations AS (
+  SELECT
+    cr_user_id,
+    session_id,
+    TIMESTAMP_DIFF(MAX(event_ts), MIN(event_ts), SECOND) AS session_duration_sec
+  FROM
+    sessionized
+  GROUP BY
+    cr_user_id, session_id
+),
+
+-- Step 8: Aggregate Manual Session Stats per User
+session_stats AS (
+  SELECT
+    cr_user_id,
+    COUNT(*) AS engagement_event_count,
+    ROUND(SUM(session_duration_sec) / 60.0, 1) AS total_time_minutes,
+    ROUND(AVG(session_duration_sec) / 60.0, 1) AS avg_session_length_minutes
+  FROM
+    session_durations
+  GROUP BY
+    cr_user_id
+),
+
+-- Step 8b: Firebase-native session and engagement metrics
+firebase_sessions AS (
+  SELECT
+    (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'cr_user_id') AS cr_user_id,
+    COUNTIF(event_name = 'session_start') AS firebase_session_count,
+    ROUND(SUM(
+      (SELECT value.int_value
+       FROM UNNEST(event_params) 
+       WHERE key = 'engagement_time_msec') 
+    ) / 60000.0, 1) AS firebase_total_time_minutes,
+    ROUND(SAFE_DIVIDE(
+      SUM(
+        (SELECT value.int_value
+         FROM UNNEST(event_params) 
+         WHERE key = 'engagement_time_msec') 
+      ), 
+      NULLIF(COUNTIF(event_name = 'session_start'), 0)
+    ) / 60000.0, 1) AS firebase_avg_session_length_minutes
+  FROM
+    `ftm-b9d99.analytics_159643920.events_*`
+  WHERE
+    _TABLE_SUFFIX BETWEEN '20210101' AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())
+    AND (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'cr_user_id') IS NOT NULL
+  GROUP BY cr_user_id
 )
 
--- Step 6: Final Deduplicated Output
+-- Step 9: Final Join
+
 SELECT
-  user_pseudo_id,
-  cr_user_id,
-  first_open,
-  country,
-  app_language,
-  app_version,
-  max_user_level,
-  max_game_level,
-  la_date,
-  furthest_event,
-  gpc
-FROM final_ranked
-WHERE rn = 1
+  b.*,
+  l.last_event_date,
+  DATE_DIFF(l.last_event_date, b.first_open, DAY) AS active_span,
+  s.engagement_event_count,
+  s.total_time_minutes,
+  s.avg_session_length_minutes,
+  f.firebase_session_count,
+  f.firebase_total_time_minutes,
+  f.firebase_avg_session_length_minutes,
+  COALESCE(p.app_version, 'unknown') AS app_version
+FROM
+  base_data b
+LEFT JOIN
+  last_events l
+ON
+  b.cr_user_id = l.cr_user_id
+LEFT JOIN
+  session_stats s
+ON
+  b.cr_user_id = s.cr_user_id
+LEFT JOIN
+  firebase_sessions f
+ON
+  b.cr_user_id = f.cr_user_id
+LEFT JOIN
+  `dataexploration-193817.user_data.cr_user_progress` p
+ON
+  b.cr_user_id = p.cr_user_id
+ORDER BY
+  total_time_minutes DESC;
+
