@@ -1,6 +1,7 @@
 WITH all_events AS (
   SELECT
     user_pseudo_id,
+    event_name,
     app_info.id AS app_id,
     CAST(DATE(TIMESTAMP_MICROS(user_first_touch_timestamp)) AS DATE) AS first_open,
     geo.country AS country,
@@ -94,55 +95,6 @@ numbered_events AS (
     all_events
 ),
 
-played_levels AS (
-  SELECT
-    user_pseudo_id,
-    user_level
-  FROM
-    numbered_events
-  WHERE
-    user_level IS NOT NULL
-),
-
-max_level AS (
-  SELECT
-    user_pseudo_id,
-    MAX(user_level) AS max_played_level
-  FROM
-    played_levels
-  GROUP BY
-    user_pseudo_id
-),
-
-level_check AS (
-  SELECT
-    m.user_pseudo_id,
-    GENERATE_ARRAY(1, m.max_played_level) AS expected_levels,
-    ARRAY_AGG(DISTINCT p.user_level) AS played_levels
-  FROM
-    max_level m
-  LEFT JOIN
-    played_levels p
-  ON
-    m.user_pseudo_id = p.user_pseudo_id
-  GROUP BY
-    m.user_pseudo_id, m.max_played_level
-),
-
-level_skips AS (
-  SELECT
-    user_pseudo_id,
-    -- TRUE if any expected level is missing from played levels
-    ARRAY_LENGTH(
-      ARRAY(
-        SELECT level FROM UNNEST(expected_levels) AS level
-        WHERE level NOT IN UNNEST(played_levels)
-      )
-    ) > 0 AS skipped_level
-  FROM
-    level_check
-),
-
 with_deltas AS (
   SELECT
     *,
@@ -171,13 +123,16 @@ sessionized AS (
     marked_sessions
 ),
 
+-- ✅ Deduplicated before session durations
 session_durations AS (
   SELECT
     user_pseudo_id,
     session_id,
     TIMESTAMP_DIFF(MAX(event_ts), MIN(event_ts), SECOND) AS session_duration_sec
-  FROM
-    sessionized
+  FROM (
+    SELECT DISTINCT user_pseudo_id, session_id, event_ts
+    FROM sessionized
+  )
   GROUP BY
     user_pseudo_id, session_id
 ),
@@ -193,6 +148,10 @@ session_stats AS (
   GROUP BY
     user_pseudo_id
 )
+
+-- 🎯 You can now LEFT JOIN session_stats into your main aggregation query
+-- to get accurate session counts and durations.
+
 
 SELECT
   a.user_pseudo_id,

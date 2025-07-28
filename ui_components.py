@@ -200,25 +200,31 @@ def top_gca_bar_chart(daterange, countries_list, app="Both", language="All",disp
     return df
 
 @st.cache_data(ttl="1d", show_spinner=False)
-def top_LR_LC_bar_chart(daterange, countries_list, option, app="Both", language="All",display_category="Country"):
-    # Group by date and display_type, then count the users
+def top_LR_LC_bar_chart(daterange, countries_list, option, app="Both", language="All", display_category="Country"):
+    # Determine grouping
     if display_category == "Country":
         display_group = "country"
     elif display_category == "Language":
         display_group = "app_language"      
 
-    df = metrics.get_counts(type=display_group,
-        daterange=daterange, countries_list=countries_list, app=app, language=language
+    # Get data
+    df = metrics.get_counts(
+        type=display_group,
+        daterange=daterange,
+        countries_list=countries_list,
+        app=app,
+        language=language
     )
 
-
+    # Keep relevant columns
     df = (
-        df[[display_group, "LR", "LA"]]
+        df[[display_group, "LR", "LA", "RA"]]
         .sort_values(by=option, ascending=False)
         .head(10)
         .round(2)
     )
 
+    # Build chart
     title = "Top 10 by " + str(option)
     fig = go.Figure(
         data=[
@@ -234,11 +240,22 @@ def top_LR_LC_bar_chart(daterange, countries_list, option, app="Both", language=
                 y=df["LA"],
                 hovertemplate=" %{x}<br>LA: %{y:,.0f}<extra></extra>",
             ),
-        ],
+            go.Bar(
+                name="RA",
+                x=df[display_group],
+                y=df["RA"],
+                hovertemplate=" %{x}<br>RA: %{y:,.0f}<extra></extra>",
+            ),
+        ]
     )
-    fig.update_layout(title_text=title)
+    
+    fig.update_layout(
+        title_text=title,
+        barmode="group"  # Show bars side-by-side
+    )
     st.plotly_chart(fig, use_container_width=True)
     return df
+
 
 @st.cache_data(ttl="1d", show_spinner=False)
 def LR_LA_line_chart_over_time(
