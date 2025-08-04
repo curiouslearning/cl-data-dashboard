@@ -1,8 +1,6 @@
 WITH all_events AS (
   SELECT
     user_pseudo_id,
-    event_name,
-    app_info.id AS app_id,
     CAST(DATE(TIMESTAMP_MICROS(user_first_touch_timestamp)) AS DATE) AS first_open,
     geo.country AS country,
     LOWER(REGEXP_EXTRACT(app_info.id, r'(?i)feedthemonster(.*)')) AS app_language,
@@ -45,12 +43,7 @@ WITH all_events AS (
       ELSE 0
     END AS session_start_flag,
 
-    -- Firebase engagement time in minutes
-    CASE
-      WHEN event_name = 'user_engagement'
-      THEN SAFE_CAST((SELECT value.int_value FROM UNNEST(event_params) WHERE key = 'engagement_time_msec') AS INT64) / 1000 / 60
-      ELSE NULL
-    END AS firebase_engagement_time_minutes
+
 
   FROM (
     SELECT * FROM `ftm-b9d99.analytics_159643920.events_20*`
@@ -95,6 +88,55 @@ numbered_events AS (
     all_events
 ),
 
+played_levels AS (
+  SELECT
+    user_pseudo_id,
+    user_level
+  FROM
+    numbered_events
+  WHERE
+    user_level IS NOT NULL
+),
+
+max_level AS (
+  SELECT
+    user_pseudo_id,
+    MAX(user_level) AS max_played_level
+  FROM
+    played_levels
+  GROUP BY
+    user_pseudo_id
+),
+
+level_check AS (
+  SELECT
+    m.user_pseudo_id,
+    GENERATE_ARRAY(1, m.max_played_level) AS expected_levels,
+    ARRAY_AGG(DISTINCT p.user_level) AS played_levels
+  FROM
+    max_level m
+  LEFT JOIN
+    played_levels p
+  ON
+    m.user_pseudo_id = p.user_pseudo_id
+  GROUP BY
+    m.user_pseudo_id, m.max_played_level
+),
+
+level_skips AS (
+  SELECT
+    user_pseudo_id,
+    -- TRUE if any expected level is missing from played levels
+    ARRAY_LENGTH(
+      ARRAY(
+        SELECT level FROM UNNEST(expected_levels) AS level
+        WHERE level NOT IN UNNEST(played_levels)
+      )
+    ) > 0 AS skipped_level
+  FROM
+    level_check
+),
+
 with_deltas AS (
   SELECT
     *,
@@ -123,16 +165,13 @@ sessionized AS (
     marked_sessions
 ),
 
--- ✅ Deduplicated before session durations
 session_durations AS (
   SELECT
     user_pseudo_id,
     session_id,
     TIMESTAMP_DIFF(MAX(event_ts), MIN(event_ts), SECOND) AS session_duration_sec
-  FROM (
-    SELECT DISTINCT user_pseudo_id, session_id, event_ts
-    FROM sessionized
-  )
+  FROM
+    sessionized
   GROUP BY
     user_pseudo_id, session_id
 ),
@@ -149,13 +188,8 @@ session_stats AS (
     user_pseudo_id
 )
 
--- 🎯 You can now LEFT JOIN session_stats into your main aggregation query
--- to get accurate session counts and durations.
-
-
 SELECT
   a.user_pseudo_id,
-  MAX(a.app_id) AS app_id,
   MIN(a.first_open) AS first_open,
   MAX(a.country) AS country,
   MAX(a.app_language) AS app_language,
@@ -176,14 +210,6 @@ SELECT
   s.total_time_minutes,
   s.avg_session_length_minutes,
 
-  -- Firebase-based total time in minutes
-  SUM(a.firebase_engagement_time_minutes) AS firebase_total_time_minutes,
-
-  -- Firebase-based average session length
-  SAFE_DIVIDE(
-    SUM(a.firebase_engagement_time_minutes),
-    NULLIF(SUM(a.session_start_flag),0)
-  ) AS firebase_avg_session_length_minutes,
 
   -- Event counts
   SUM(a.level_completed_flag) AS level_completed_count,

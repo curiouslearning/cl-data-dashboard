@@ -1,7 +1,4 @@
-
-
-
- WITH all_events AS (
+WITH all_events AS (
   SELECT
     user_pseudo_id,
     (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'cr_user_id') AS cr_user_id,
@@ -26,21 +23,6 @@
     AND CAST(DATE(TIMESTAMP_MICROS(user_first_touch_timestamp)) AS DATE) BETWEEN '2021-01-01' AND CURRENT_DATE()
     AND (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'cr_user_id') IS NOT NULL
     AND (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'cr_user_id') != ''
-),
-
-cr_app_launch_deduped AS (
-  SELECT
-    cr_user_id,
-    MAX(active_span) AS active_span,
-    MAX(total_time_minutes) AS total_time_minutes,
-    AVG(avg_session_length_minutes) AS avg_session_length_minutes,
-    MAX(engagement_event_count) AS total_sessions
-  FROM
-    `dataexploration-193817.user_data.cr_app_launch`
-  WHERE
-    cr_user_id IS NOT NULL
-    AND cr_user_id != ''
-  GROUP BY cr_user_id
 ),
 
 joined_events AS (
@@ -94,7 +76,6 @@ aggregated AS (
     max_game_level
 ),
 
--- New CTE to get global min_la_date and max app_version per user
 user_level_aggregates AS (
   SELECT
     cr_user_id,
@@ -110,21 +91,10 @@ SELECT
   a.first_open,
   a.country,
   a.app_language,
-
-  -- Use global max app_version per user
   u.max_app_version AS app_version,
-
   a.max_user_level,
   a.max_game_level,
-
-  -- Use global min la_date per user
   u.min_la_date AS la_date,
-
-  c.active_span,
-  c.total_time_minutes,
-  c.avg_session_length_minutes,
-  c.total_sessions,
-
   CASE
     WHEN a.level_completed_count > 0 THEN 'level_completed'
     WHEN a.puzzle_completed_count > 0 THEN 'puzzle_completed'
@@ -133,19 +103,12 @@ SELECT
     WHEN a.download_completed_count > 0 THEN 'download_completed'
     ELSE NULL
   END AS furthest_event,
-
   SAFE_DIVIDE(a.max_user_level, a.max_game_level) * 100 AS gpc
-
 FROM
   aggregated a
 JOIN
   user_level_aggregates u
 ON
   a.cr_user_id = u.cr_user_id
-INNER JOIN
-  cr_app_launch_deduped c
-ON
-  a.cr_user_id = c.cr_user_id
 ORDER BY
-  c.total_time_minutes;
- 
+  gpc DESC;
