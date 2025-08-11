@@ -8,7 +8,6 @@ from streamlit_option_menu import option_menu
 
 level_definitions = pd.DataFrame(
     [
-
         [
             "LR",
             "Learner Reached",
