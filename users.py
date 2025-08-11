@@ -2,208 +2,143 @@ import streamlit as st
 import pandas as pd
 from rich import print as print
 import numpy as np
-from pyinstrument import Profiler
-import logging
-import asyncio
+import gcsfs
+import settings
 
 # How far back to obtain user data.  Currently the queries pull back to 01/01/2021
 start_date = "2021/01/01"
 
-# Firebase returns two different formats of user_pseudo_id between
-# web app events and android events, so we have to run multiple queries
-# instead of a join because we don't have a unique key for both
-# This would all be unncessery if dev had included the app user id per the spec.
+@st.cache_data(ttl="1d", show_spinner=False)
+def load_parquet_from_gcs(file_pattern: str) -> pd.DataFrame:
+    credentials, _ = settings.get_gcp_credentials()
+    fs = gcsfs.GCSFileSystem(project="dataexploration-193817", token=credentials)
+    files = fs.glob(file_pattern)
+    if not files:
+        raise FileNotFoundError(f"No files matching pattern: {file_pattern}")
+    df = pd.read_parquet(files, filesystem=fs).copy()
+
+    return df
 
 
-import logging
-import streamlit as st
+def load_unity_user_progress_from_gcs():
+    return load_parquet_from_gcs("user_data_parquet_cache/unity_user_progress_*.parquet")
 
-async def get_users_list():
-    p = Profiler(async_mode="disabled")
-    with p:
+def load_cr_user_progress_from_gcs():
+    return load_parquet_from_gcs("user_data_parquet_cache/cr_user_progress_*.parquet")
 
-        bq_client = st.session_state.bq_client
+def load_cr_app_launch_from_gcs():
+    return load_parquet_from_gcs("user_data_parquet_cache/cr_app_launch_*.parquet")
 
-        # Helper function to run BigQuery in a thread
-        async def run_query(query):
-            return await asyncio.to_thread(bq_client.query(query).to_dataframe)
 
-        # Define the queries
-        sql_unity_users = f"""
-            SELECT *
-            FROM `dataexploration-193817.user_data.unity_user_progress`
-            WHERE first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE()
-        """
-        
-        sql_cr_users = f"""
-            SELECT *
-            FROM `dataexploration-193817.user_data.cr_user_progress`
-            WHERE first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE()
-        """
+def ensure_user_data_initialized():
+    import traceback
+    """Run init_user_data once per session, with error handling."""
+    if "user_data_initialized" not in st.session_state:
+        try:
+            init_user_data()
+            st.session_state["user_data_initialized"] = True
+        except Exception as e:
+            st.error(f"❌ Failed to initialize user data: {e}")
+            st.text(traceback.format_exc())
+            st.stop()
 
-        sql_cr_app_launch = f"""
-            SELECT *
-            FROM `dataexploration-193817.user_data.cr_app_launch`
-            WHERE first_open BETWEEN PARSE_DATE('%Y/%m/%d','{start_date}') AND CURRENT_DATE()
-        """
+def init_user_data():
+    if st.session_state.get("user_data_initialized"):
+        return  # already initialized this session
+    with st.spinner("Loading User Data", show_time=True):
+        from pyinstrument import Profiler
+        from pyinstrument.renderers.console import ConsoleRenderer
+        import settings
 
-        # Run all the queries asynchronously
-        df_unity_users, df_cr_users, df_cr_app_launch = await asyncio.gather(
-            run_query(sql_unity_users),
-            run_query(sql_cr_users),
-            run_query(sql_cr_app_launch),
+        profiler = Profiler(async_mode="disabled")
+        with profiler:
+            # Cached fast parquet loads
+            df_cr_users = load_cr_user_progress_from_gcs()
+            df_unity_users = load_unity_user_progress_from_gcs()
+            df_cr_app_launch = load_cr_app_launch_from_gcs()
+
+            # Validation
+            if df_cr_users.empty or df_unity_users.empty or df_cr_app_launch.empty:
+                raise ValueError("❌ One or more dataframes were empty after loading.")
+
+            # Fix dates and clean
+            df_cr_users = fix_date_columns(df_cr_users, ["first_open", "last_event_date"])
+            df_unity_users = fix_date_columns(df_unity_users, ["first_open", "la_date", "last_event_date"])
+            df_cr_app_launch = fix_date_columns(df_cr_app_launch, ["first_open"])
+
+            max_level_indices = df_unity_users.groupby("user_pseudo_id")["max_user_level"].idxmax()
+            df_unity_users = df_unity_users.loc[max_level_indices].reset_index(drop=True)
+
+            df_cr_app_launch["app_language"] = clean_language_column(df_cr_app_launch)
+            df_cr_users["app_language"] = clean_language_column(df_cr_users)
+
+            missing_users = df_cr_users[~df_cr_users["cr_user_id"].isin(df_cr_app_launch["cr_user_id"])]
+            df_cr_users = df_cr_users[~df_cr_users["cr_user_id"].isin(missing_users["cr_user_id"])]
+
+            df_cr_app_launch, df_cr_users = clean_cr_users_to_single_language(df_cr_app_launch, df_cr_users)
+
+            # Assign to session state
+            st.session_state["df_cr_users"] = df_cr_users
+            st.session_state["df_unity_users"] = df_unity_users
+            st.session_state["df_cr_app_launch"] = df_cr_app_launch
+            st.session_state["user_data_initialized"] = True
+
+        # Log the profile only once
+        settings.get_logger().debug(
+            profiler.output(ConsoleRenderer(show_all=False, timeline=True, color=True, unicode=True, short_mode=False))
         )
 
-        # Fix data typos
-        df_cr_app_launch["app_language"] = df_cr_app_launch["app_language"].replace(
-            "ukranian", "ukrainian"
-        )
-        df_cr_app_launch["app_language"] = df_cr_app_launch["app_language"].replace(
-            "malgache", "malagasy"
-        )
-        
-        df_cr_app_launch["app_language"] = df_cr_app_launch["app_language"].replace(
-            "arabictest", "arabic"
-        )
-        df_cr_app_launch["app_language"] = df_cr_app_launch["app_language"].replace(
-            "farsitest", "farsi"
-        )   
-        
-        df_cr_users["app_language"] = df_cr_users["app_language"].replace(
-            "ukranian", "ukrainian"
-        )
-        df_cr_users["app_language"] = df_cr_users["app_language"].replace(
-            "malgache", "malagasy"
-        )
-        
-        df_cr_users["app_language"] = df_cr_users["app_language"].replace(
-            "arabictest", "arabic"
-        )
-        df_cr_users["app_language"] = df_cr_users["app_language"].replace(
-            "farsitest", "farsi"
-        )           
-        df_unity_users["app_language"] = df_unity_users["app_language"].replace(
-            "ukranian", "ukrainian"
-        )
-        df_unity_users["app_language"] = df_unity_users["app_language"].replace(
-            "malgache", "malagasy"
-        )
-
-        # We have an unknown anomalie where users from FTM do not show up in the CR events.  We 
-        # need to remove them so we have a true funnel.
-        missing_users = df_cr_users[~df_cr_users["cr_user_id"].isin(df_cr_app_launch["cr_user_id"])]
-
-        # Remove missing users from df_cr_users - NOTE: Same users with multiple country combinations
-        # will still be in df_cr_app_launch 
-        df_cr_users = df_cr_users[~df_cr_users["cr_user_id"].isin(missing_users["cr_user_id"])]
-
-        df_cr_app_launch,df_cr_users = clean_cr_users_to_single_language(df_cr_app_launch,df_cr_users)
-
-        #clean unity users to the one with the furthest progress
-        max_level_indices_unity = df_unity_users.groupby('user_pseudo_id')['max_user_level'].idxmax()
-        df_unity_users = df_unity_users.loc[max_level_indices_unity].reset_index()
-
-    p.print(color="red")
-    
-
-
-    return df_cr_users, df_unity_users,  df_cr_app_launch
-
+# Language cleanup
+def clean_language_column(df):
+    return df["app_language"].replace({
+        "ukranian": "ukrainian",
+        "malgache": "malagasy",
+        "arabictest": "arabic",
+        "farsitest": "farsi"
+    })
 
 @st.cache_data(ttl="1d", show_spinner=False)
 def get_language_list():
     lang_list = ["All"]
-    if "bq_client" in st.session_state:
-        bq_client = st.session_state.bq_client
-        sql_query = f"""
-                    SELECT display_language
-                    FROM `dataexploration-193817.user_data.language_max_level`
-                    ;
-                    """
-        rows_raw = bq_client.query(sql_query)
-        rows = [dict(row) for row in rows_raw]
-        if len(rows) == 0:
-            return pd.DataFrame()
+    _, bq_client = settings.get_gcp_credentials()
 
-        df = pd.DataFrame(rows)
-        df.drop_duplicates(inplace=True)
-        lang_list = np.array(df.values).flatten().tolist()
-        lang_list = [x.strip(" ") for x in lang_list]
+    sql_query = f"""
+                SELECT display_language
+                FROM `dataexploration-193817.user_data.language_max_level`
+                ;
+                """
+    rows_raw = bq_client.query(sql_query)
+    rows = [dict(row) for row in rows_raw]
+    if len(rows) == 0:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(rows)
+    df.drop_duplicates(inplace=True)
+    lang_list = np.array(df.values).flatten().tolist()
+    lang_list = [x.strip(" ") for x in lang_list]
     return lang_list
 
 
 @st.cache_data(ttl="1d", show_spinner=False)
 def get_country_list():
     countries_list = []
-    if "bq_client" in st.session_state:
-        bq_client = st.session_state.bq_client
-        sql_query = f"""
-                    SELECT country
-                    FROM `dataexploration-193817.user_data.active_countries`
-                    order by country asc
-                    ;
-                    """
-        rows_raw = bq_client.query(sql_query)
-        rows = [dict(row) for row in rows_raw]
-        if len(rows) == 0:
-            return pd.DataFrame()
-
-        df = pd.DataFrame(rows)
-        countries_list = np.array(df.values).flatten().tolist()
-    return countries_list
-
-
-@st.cache_data(ttl="1d", show_spinner=False)
-def get_app_version_list():
-    app_versions = []
-    if "bq_client" in st.session_state:
-        bq_client = st.session_state.bq_client
-        sql_query = f"""
-                    SELECT *
-                    FROM `dataexploration-193817.user_data.cr_app_versions`
-                    """
-        rows_raw = bq_client.query(sql_query)
-        rows = [dict(row) for row in rows_raw]
-        if len(rows) == 0:
-            return pd.DataFrame()
-
-        df = pd.DataFrame(rows)
-        conditions = [
-            f"app_version >=  'v1.0.25'",
-        ]
-        query = " and ".join(conditions)
-        df = df.query(query)
-
-        app_versions = np.array(df.values).flatten().tolist()
-        app_versions.insert(0, "All")
-
-    return app_versions
-
-
-@st.cache_data(ttl="1d", show_spinner=False)
-def get_funnel_snapshots(daterange,languages):
-
-    if "bq_client" in st.session_state:
-        bq_client = st.session_state.bq_client
-    else:
-        st.write ("No database connection")
-        return
-
-    languages_str = ', '.join([f"'{lang}'" for lang in languages])
+    _, bq_client = settings.get_gcp_credentials()
 
     sql_query = f"""
-            SELECT *
-            FROM `dataexploration-193817.user_data.funnel_snapshots`
-            WHERE language IN ({languages_str})
-            AND
-            DATE(date) BETWEEN '{daterange[0].strftime("%Y-%m-%d")}' AND '{daterange[1].strftime("%Y-%m-%d")}' ;
+                SELECT country
+                FROM `dataexploration-193817.user_data.active_countries`
+                order by country asc
+                ;
+                """
+    rows_raw = bq_client.query(sql_query)
+    rows = [dict(row) for row in rows_raw]
+    if len(rows) == 0:
+        return pd.DataFrame()
 
-            """
+    df = pd.DataFrame(rows)
+    countries_list = np.array(df.values).flatten().tolist()
+    return countries_list
 
-    df = bq_client.query(sql_query).to_dataframe() 
-    df['date'] = pd.to_datetime(df['date'], errors='coerce')
-
-    return df
 
 # Users who play multiple languages or have multiple countries are consolidated
 # to a single entry based on which combination took them the furthest in the game.
@@ -285,6 +220,40 @@ def clean_cr_users_to_single_language(df_app_launch, df_cr_users):
     # ✅ Ensure df_app_launch has only unique cr_user_id
 
     df_app_launch = df_app_launch.drop_duplicates(subset="cr_user_id", keep="first")
-
+    
+    # This is a fix for a nasty bug where a user can have a different first_open in one dataframe vs the other.
+    # Its because cr_app_launch is Curious Reader first open but cr_user_progress is FTM first_open
+    df_cr_users["first_open"] = df_cr_users["cr_user_id"].map(df_app_launch.set_index("cr_user_id")["first_open"])
     return df_app_launch, df_cr_users
 
+@st.cache_data(ttl="1d", show_spinner=False)
+def get_app_version_list():
+    app_versions = []
+    _, bq_client = settings.get_gcp_credentials()
+
+    sql_query = f"""
+                SELECT *
+                FROM `dataexploration-193817.user_data.cr_app_versions`
+                """
+    rows_raw = bq_client.query(sql_query)
+    rows = [dict(row) for row in rows_raw]
+    if len(rows) == 0:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(rows)
+    conditions = [
+        f"app_version >=  'v1.0.25'",
+    ]
+    query = " and ".join(conditions)
+    df = df.query(query)
+
+    app_versions = np.array(df.values).flatten().tolist()
+    app_versions.insert(0, "All")
+
+    return app_versions
+
+def fix_date_columns(df, columns):
+    for col in columns:
+        if col in df.columns:
+            df[col] = pd.to_datetime(df[col], errors="coerce")
+    return df

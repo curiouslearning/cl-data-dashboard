@@ -11,12 +11,13 @@ import users
 st.title("Curious Learning Dashboard")
 
 settings.initialize()
-settings.init_user_list()
+from users import ensure_user_data_initialized
+ensure_user_data_initialized()
 
 ui.display_definitions_table("Definitions",ui.level_definitions)
 ui.display_definitions_table("Data Notes",ui.data_notes)
 ui.colorize_multiselect_options()
-app = ui.app_selector()
+
 
 languages = users.get_language_list()
 language = ui.single_selector(
@@ -31,11 +32,11 @@ countries_list = ui.multi_select_all(
 selected_date, option = ui.calendar_selector()
 daterange = ui.convert_date_to_range(selected_date, option)
 
+app = ui.app_selector()
 
 if len(daterange) == 2 and len(language) > 0:
     user_cohort_list = []
-    if (app == 'CR'):
-        user_cohort_list = metrics.get_user_cohort_list(daterange=daterange,languages=language,countries_list=countries_list,app="CR")
+    user_cohort_list = metrics.get_user_cohort_list(daterange=daterange,languages=language,countries_list=countries_list,app=app)
  
     start = daterange[0].strftime("%m-%d-%Y")
     end = daterange[1].strftime("%m-%d-%Y")

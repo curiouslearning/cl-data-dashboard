@@ -7,7 +7,6 @@ import users
 
 default_daterange = [dt.datetime(2021, 1, 1).date(), dt.date.today()]
 
-
 def get_totals_by_metric(
     daterange=default_daterange,
     countries_list=[],
@@ -15,7 +14,7 @@ def get_totals_by_metric(
     cr_app_versions="All",
     app="Both",
     language="All",
-    user_list=[] #New parameter allowing a filter of results by cr_user_id list
+    user_list=None 
 ):
 
     # if no list passed in then get the full list
@@ -23,66 +22,69 @@ def get_totals_by_metric(
         countries_list = users.get_country_list()
 
     df_user_list = filter_user_data(
-        daterange, countries_list, stat, cr_app_versions, app=app, language=language,user_list=user_list
+        daterange=daterange, countries_list=countries_list, stat=stat, app=app, cr_app_versions=cr_app_versions, language=language,user_list=user_list
     )
+    
+    if (len(df_user_list) > 0):
 
-    if stat not in ["DC", "TS", "SL", "PC", "LA"]:
-        return len(df_user_list) #All LR 
+        if stat not in ["DC", "TS", "SL", "PC", "LA"]:
+            return len(df_user_list) #All LR 
+        else:
+            download_completed_count = len(
+                df_user_list[df_user_list["furthest_event"] == "download_completed"]
+            )
+
+            tapped_start_count = len(
+                df_user_list[df_user_list["furthest_event"] == "tapped_start"]
+            )
+            selected_level_count = len(
+                df_user_list[df_user_list["furthest_event"] == "selected_level"]
+            )
+            puzzle_completed_count = len(
+                df_user_list[df_user_list["furthest_event"] == "puzzle_completed"]
+            )
+            level_completed_count = len(
+                df_user_list[df_user_list["furthest_event"] == "level_completed"]
+            )
+
+            if stat == "DC":
+                return (
+                    download_completed_count
+                    + tapped_start_count
+                    + selected_level_count
+                    + puzzle_completed_count
+                    + level_completed_count
+                )
+
+            if stat == "TS":
+                return (
+                    tapped_start_count
+                    + selected_level_count
+                    + puzzle_completed_count
+                    + level_completed_count
+                )
+
+            if stat == "SL":  # all PC and SL users implicitly imply those events
+                return selected_level_count + puzzle_completed_count + level_completed_count
+
+            if stat == "PC":
+                return puzzle_completed_count + level_completed_count
+
+            if stat == "LA":
+                return level_completed_count
     else:
-        download_completed_count = len(
-            df_user_list[df_user_list["furthest_event"] == "download_completed"]
-        )
-
-        tapped_start_count = len(
-            df_user_list[df_user_list["furthest_event"] == "tapped_start"]
-        )
-        selected_level_count = len(
-            df_user_list[df_user_list["furthest_event"] == "selected_level"]
-        )
-        puzzle_completed_count = len(
-            df_user_list[df_user_list["furthest_event"] == "puzzle_completed"]
-        )
-        level_completed_count = len(
-            df_user_list[df_user_list["furthest_event"] == "level_completed"]
-        )
-
-        if stat == "DC":
-            return (
-                download_completed_count
-                + tapped_start_count
-                + selected_level_count
-                + puzzle_completed_count
-                + level_completed_count
-            )
-
-        if stat == "TS":
-            return (
-                tapped_start_count
-                + selected_level_count
-                + puzzle_completed_count
-                + level_completed_count
-            )
-
-        if stat == "SL":  # all PC and SL users implicitly imply those events
-            return selected_level_count + puzzle_completed_count + level_completed_count
-
-        if stat == "PC":
-            return puzzle_completed_count + level_completed_count
-
-        if stat == "LA":
-            return level_completed_count
-
+        return 0
 
 # Takes the complete user lists (cr_user_id) and filters based on input data, and returns
 # a new filtered dataset
 def filter_user_data(
     daterange=default_daterange,
     countries_list=["All"],
+    cr_app_versions=["All"],
     stat="LR",
-    cr_app_versions="All",
     app="Both",
     language=["All"],
-    user_list=[]
+    user_list=None
 ):
     #default column to filter user cohort list
     user_list_key = "cr_user_id"
@@ -94,6 +96,7 @@ def filter_user_data(
     # Select the appropriate dataframe based on app and stat
     if app == "Unity":
         df = st.session_state.df_unity_users #Unity users are in one table only
+
         user_list_key = "user_pseudo_id"
     elif app == "Both" and stat == "LR":
         df1 = st.session_state.df_unity_users
@@ -105,7 +108,6 @@ def filter_user_data(
         df1 = st.session_state.df_unity_users
         df2 = st.session_state.df_cr_users
         df =  pd.concat([df1, df2], axis=0)
-
     elif app == "CR" and stat == "LR":
         df = st.session_state.df_cr_app_launch
     else:
@@ -113,8 +115,15 @@ def filter_user_data(
 
 
     # Initialize a boolean mask
-    mask = (df['first_open'] >= daterange[0]) & (df['first_open'] <= daterange[1])
+    mask = (
+        df["first_open"] >= pd.to_datetime(daterange[0])
+    ) & (
+        df["first_open"] <= pd.to_datetime(daterange[1])
+    )
 
+
+    if "All" not in cr_app_versions and app == "CR":
+        mask &= df["app_version"].isin(cr_app_versions)
     # Apply country filter if not "All"
     if countries_list[0] != "All":
         mask &= df['country'].isin(set(countries_list))
@@ -122,9 +131,6 @@ def filter_user_data(
     # Apply language filter if not "All" 
     if language[0] != "All":
         mask &= df['app_language'].isin(set(language))
-
-    if cr_app_versions != "All" and  app == "CR" and stat != "LR":
-        mask &= df["app_version"].isin(cr_app_versions)
 
     # Apply stat-specific filters
     if stat == "LA":
@@ -141,34 +147,34 @@ def filter_user_data(
     df = df.loc[mask]
 
     #If user list subset was passed in, filter on that as well
-    if (len (user_list) > 0):
-
+    if user_list is not None:
+        if len(user_list) == 0:
+            return pd.DataFrame()  # No matches — return empty
         df = df[df[user_list_key].isin(user_list)]
-
 
     return df
 
 
 # Average Game Progress Percent
-def get_GPP_avg(daterange, countries_list, app="Both", language="All"):
+def get_GPP_avg(daterange, countries_list, app="Both", language="All", user_list=[]):
     # Use LA as the baseline
     df_user_list = filter_user_data(
-        daterange, countries_list, stat="LA", app=app, language=language
+        daterange, countries_list, stat="LA", app=app, language=language,user_list=user_list
     )
 
     df_user_list["gpc"] = df_user_list["gpc"].fillna(0)
-
+    
     return 0 if len(df_user_list) == 0 else np.average(df_user_list.gpc)
 
 
 # Average Game Complete
-def get_GC_avg(daterange, countries_list, app="Both", language="All"):
+def get_GC_avg(daterange, countries_list, app="Both", language="All", user_list=[]):
     # Use LA as the baseline
     df_user_list = filter_user_data(
-        daterange, countries_list, stat="LA", app=app, language=language
+        daterange, countries_list, stat="LA", app=app, language=language,user_list=user_list
     )
     df_user_list["gpc"] = df_user_list["gpc"].fillna(0)
-
+    
     cohort_count = len(df_user_list)
     gc_count = df_user_list[(df_user_list["gpc"] >= 90)].shape[0]
 
@@ -192,10 +198,11 @@ def get_counts(
     countries_list=["All"],
     app="Both",
     language=["All"],
+    user_list=None
 ):
     dfLR = (
         filter_user_data(
-            daterange, countries_list, stat="LR", app=app, language=language
+            daterange=daterange, countries_list=countries_list, stat="LR", app=app, language=language,user_list=user_list
         )
         .groupby(type)
         .size()
@@ -203,14 +210,14 @@ def get_counts(
         .reset_index()
     )
     dfLA = (
-        filter_user_data(daterange, countries_list, "LA", app=app, language=language)
+        filter_user_data(daterange=daterange, countries_list=countries_list, stat="LA", app=app, language=language,user_list=user_list)
         .groupby(type)
         .size()
         .to_frame(name="LA")
         .reset_index()
     )    
     dfRA = (
-        filter_user_data(daterange, countries_list, "RA", app=app, language=language)
+        filter_user_data(daterange=daterange, countries_list=countries_list,  stat="RA", app=app, language=language,user_list=user_list)
         .groupby(type)
         .size()
         .to_frame(name="RA")
@@ -226,7 +233,7 @@ def get_counts(
 
     #### GPP ###
     df = filter_user_data(
-       daterange, countries_list, stat="LA", app=app, language=language
+       daterange=daterange, countries_list=countries_list, stat="LA", app=app, language=language,user_list=user_list
        )
     avg_gpc_per_type = df.groupby(type)["gpc"].mean().round(2)
     dfGPP = pd.DataFrame(
@@ -239,7 +246,7 @@ def get_counts(
     counts = counts.merge(dfGPP, on=type, how="left").fillna(0)
 
     dfPC = (
-        filter_user_data(daterange, countries_list, "PC", app=app, language=language)
+        filter_user_data(daterange=daterange, countries_list=countries_list, stat="PC", app=app, language=language,user_list=user_list)
         .groupby(type)
         .size()
         .to_frame(name="PC")
@@ -248,7 +255,7 @@ def get_counts(
 
     counts = counts.merge(dfPC, on=type, how="left").fillna(0)
     df = filter_user_data(
-        daterange, countries_list, stat="LA", app=app, language=language
+        daterange=daterange, countries_list=countries_list, stat="LA", app=app, language=language,user_list=user_list
     )
     gpc_gt_90_counts = df[df["gpc"] >= 90].groupby(type)["user_pseudo_id"].count()
     total_user_counts = df.groupby(type)["user_pseudo_id"].count()
@@ -271,15 +278,21 @@ def get_counts(
 
 #Added new parameter user_list.  If passed, only return the funnel based on that set of users
 
+@st.cache_data(ttl="1d", show_spinner=False)
 def build_funnel_dataframe(
     index_col="language",
     daterange=default_daterange,
     languages=["All"],
+    app="Both",
     countries_list=["All"],
-    user_list=[]
+    user_list=None
 ):
+    if app == "CR":
+        levels = ["LR", "DC", "TS", "SL", "PC", "LA", "RA", "GC"]
+    else:
+        levels = ["LR", "PC", "LA", "RA", "GC"]
 
-    df = pd.DataFrame(columns=[index_col, "LR", "DC", "TS", "SL", "PC", "RA", "LA"])
+    df = pd.DataFrame(columns=[index_col] + levels)
     if index_col == "start_date":
         weeks = weeks_since(daterange)
         iteration = range(1, weeks + 1)
@@ -298,68 +311,68 @@ def build_funnel_dataframe(
             daterange = [start_date, end_date]
 
         DC = get_totals_by_metric(
-            daterange,
+            daterange=daterange,
             stat="DC",
             language=language,
             countries_list=countries_list,
-            app="CR",
+            app=app,
             user_list=user_list
         )
         SL = get_totals_by_metric(
-            daterange,
+            daterange=daterange,
             stat="SL",
             language=language,
             countries_list=countries_list,
-            app="CR",
+            app=app,
             user_list=user_list
          )
         TS = get_totals_by_metric(
-            daterange,
+            daterange=daterange,
             stat="TS",
             language=language,
             countries_list=countries_list,
-            app="CR",
+            app=app,
             user_list=user_list
          )
 
         PC = get_totals_by_metric(
-            daterange,
+            daterange=daterange,
             stat="PC",
             language=language,
             countries_list=countries_list,
-            app="CR",
+            app=app,
             user_list=user_list
         )
         LA = get_totals_by_metric(
-            daterange,
+            daterange=daterange,
             stat="LA",
             language=language,
             countries_list=countries_list,
-            app="CR",
+            app=app,
             user_list=user_list
          )
         LR = get_totals_by_metric(
-            daterange,
+            daterange=daterange,
             stat="LR",
             language=language,
             countries_list=countries_list,
-            app="CR",
+            app=app,
             user_list=user_list
         )        
         RA = get_totals_by_metric(
-            daterange,
+            daterange=daterange,
             stat="RA",
             language=language,
             countries_list=countries_list,
-            app="CR",
+            app=app,
             user_list=user_list
          )
         GC = get_totals_by_metric(
-            daterange,
+            daterange=daterange,
             stat="GC",
             language=language,
             countries_list=countries_list,
-            app="CR",
+            app=app,
             user_list=user_list
          )
 
@@ -381,6 +394,7 @@ def build_funnel_dataframe(
 
         results.append(entry)
 
+    df = pd.DataFrame(results)
 
     return df
 
@@ -467,6 +481,7 @@ def add_level_percents(df):
 
 
 # Get the campaign data and filter by date, language, and country selections
+@st.cache_data(ttl="1d", show_spinner=False)
 def filter_campaigns(df_campaigns_all,daterange,selected_languages,countries_list):
 
     # Drop the campaigns that don't meet the naming convention
@@ -532,7 +547,7 @@ def get_totals_per_month(daterange, stat, countries_list, language):
 
         # Get totals within the clipped date range
         total = get_totals_by_metric(
-            daterange=clipped_range, countries_list=countries_list, stat=stat, language=language
+            daterange=clipped_range, countries_list=countries_list, stat=stat, language=language,app="CR"
         )
         
         # Filter campaigns based on the clipped date range
@@ -556,12 +571,18 @@ def get_totals_per_month(daterange, stat, countries_list, language):
     # Display the DataFrame
     return df_totals
 
+@st.cache_data(ttl="1d", show_spinner=False)
 def get_date_cohort_dataframe(
     daterange=default_daterange,
     languages=["All"],
     countries_list=["All"],
     app="CR"):
-        
+    
+    """
+    Returns a DataFrame of activity for all users who first opened the app in the selected cohort.
+    Useful for tracking how cohorts evolve over time.
+    """
+
     # Get all of the users in the user selected window - this is the cohort
     df_user_cohort = filter_user_data(daterange=daterange,countries_list=countries_list,app="CR",language=languages)
 
@@ -574,21 +595,60 @@ def get_date_cohort_dataframe(
     
     return df
 
+#@st.cache_data(ttl="1d", show_spinner=False)
 def get_user_cohort_list(
     daterange=default_daterange,
     languages=["All"],
+    cr_app_versions="All",
     countries_list=["All"],
-    app="CR"):
-        
-    # Get all of the users in the user selected window - this is the cohort
-    df_user_cohort = filter_user_data(daterange=daterange,countries_list=countries_list,app=app,language=languages)
+    app="CR",
+    as_list=True  # <-- NEW PARAM
+):
+    """
+    Returns a list of user identifiers (default) or a DataFrame of cohort info based on first_open date,
+    country, language, and app type. Use as_list=False to return full DataFrame.
+    """
+    df_user_cohort = filter_user_data(
+        daterange=daterange,
+        countries_list=countries_list,
+        app=app,
+        language=languages,
+        cr_app_versions=cr_app_versions,
+    )
 
-    # Unity doesn't have a cr_user_id.  But CR has different user_psuedo_id for CR events vs 
-    # FTM events, so we have to play this little game.
     if app == "CR":
-        user_cohort_list = df_user_cohort["cr_user_id"]
+        user_cohort_df = df_user_cohort[["cr_user_id", "first_open","country", "app_language", "app_version"]]
+        user_id_col = "cr_user_id"
     else:
-        user_cohort_list = df_user_cohort["user_pseudo_id"]
-   
-    return user_cohort_list
+        user_cohort_df = df_user_cohort[["user_pseudo_id"]]
+        user_id_col = "user_pseudo_id"
+
+    if as_list:
+        return user_cohort_df[user_id_col].dropna().tolist()
+    else:
+        return user_cohort_df
+
+
+def calculate_average_metric_per_user(user_cohort_list, app, column_name):
+    df_cr_app_launch = st.session_state["df_cr_app_launch"]
+    df_unity_users = st.session_state["df_unity_users"]
+
+    if len(user_cohort_list) == 0:
+        return 0
+
+    # Filter rows where cr_user_id is in the cohort list
+    if app == "CR":
+        df_filtered = df_cr_app_launch[df_cr_app_launch["cr_user_id"].isin(user_cohort_list)]
+    elif  app == "Unity":  
+        df_filtered = df_unity_users[df_unity_users["user_pseudo_id"].isin(user_cohort_list)]
+
+    # Sum the selected column and calculate the average
+    import numpy as np
+
+    total = np.sum(df_filtered[column_name].values)
+
+    average = total / len(user_cohort_list)
+
+    return average
+
 

@@ -9,56 +9,66 @@ import datetime as dt
 from google.cloud import secretmanager
 import json
 import asyncio
+from pyinstrument import Profiler
+from pyinstrument.renderers.console import ConsoleRenderer
+import logging
 
 default_daterange = [dt.datetime(2021, 1, 1).date(), dt.date.today()]
 
 
-def get_gcp_credentials():
-    # first get credentials to secret manager
-    client = secretmanager.SecretManagerServiceClient()
+@st.cache_resource(ttl="1d")
+def get_logger(name="dashboard_logger"):
+    logger = logging.getLogger(name)
+    if not logger.handlers:
+        logger.setLevel(logging.DEBUG)
+        
+        # Console handler or file handler
+        handler = logging.StreamHandler()  # or logging.FileHandler("logs/app.log")
+        
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        handler.setFormatter(formatter)
+        
+        logger.addHandler(handler)
+        logger.propagate = False  # Prevent double logging
+    return logger
 
-    # get the secret that holds the service account key
+@st.cache_resource(ttl="1d")
+def get_gcp_credentials():
+    client = secretmanager.SecretManagerServiceClient()
     name = "projects/405806232197/secrets/service_account_json/versions/latest"
     response = client.access_secret_version(name=name)
     key = response.payload.data.decode("UTF-8")
 
-    # use the key to get service account credentials
     service_account_info = json.loads(key)
-    # Create BigQuery API client.
     gcp_credentials = service_account.Credentials.from_service_account_info(
         service_account_info,
         scopes=[
             "https://www.googleapis.com/auth/cloud-platform",
-            "https://www.googleapis.com/auth/drive",
+            "https://www.googleapis.com/auth/devstorage.read_only",
             "https://www.googleapis.com/auth/bigquery",
+            "https://www.googleapis.com/auth/drive",
         ],
     )
 
     bq_client = bigquery.Client(
         credentials=gcp_credentials, project="dataexploration-193817"
     )
-    return bq_client
+
+    return gcp_credentials, bq_client
 
 
-def initialize():
+
+def initialize():  
     pd.options.mode.copy_on_write = True
-    pd.set_option("display.max_columns", 20)
+    pd.set_option("display.max_columns", 20)            
 
-    bq_client = get_gcp_credentials()
+        
+ 
+def init_cr_app_version_list():
+    cr_app_versions_list = users.get_app_version_list()
+    if "cr_app_versions_list" not in st.session_state:
+        st.session_state.cr_app_versions_list = cr_app_versions_list
 
-    if "bq_client" not in st.session_state:
-        st.session_state["bq_client"] = bq_client
-
-def init_user_list():
-   
-    df_cr_users, df_unity_users, df_cr_app_launch = cache_users_list()
-
-    if "df_cr_users" not in st.session_state:
-        st.session_state["df_cr_users"] = df_cr_users
-    if "df_unity_users" not in st.session_state:
-        st.session_state["df_unity_users"] = df_unity_users
-    if "df_cr_app_launch" not in st.session_state:
-        st.session_state["df_cr_app_launch"] = df_cr_app_launch
 
 # Get the campaign data from BigQuery, roll it up per campaign
 def init_campaign_data():
@@ -78,14 +88,5 @@ def cache_marketing_data():
     # Execute the async function and return its result synchronously
     return asyncio.run(campaigns.get_campaign_data())
 
-def init_cr_app_version_list():
-    cr_app_versions_list = users.get_app_version_list()
-    if "cr_app_versions_list" not in st.session_state:
-        st.session_state.cr_app_versions_list = cr_app_versions_list
-
-@st.cache_data(ttl="1d", show_spinner="Gathering User List")
-def cache_users_list():
-    # Execute the async function and return its result synchronously
-    return asyncio.run(users.get_users_list())
 
 
