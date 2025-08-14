@@ -1,3 +1,4 @@
+-- Main event set (NO started_in_offline_mode here)
 WITH all_events AS (
   SELECT
     user_pseudo_id,
@@ -10,17 +11,17 @@ WITH all_events AS (
     (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'success_or_failure') AS success_or_failure,
     event_name,
     event_date
-  FROM
-    `ftm-b9d99.analytics_159643920.events_20*`
+  FROM `ftm-b9d99.analytics_159643920.events_20*`
   WHERE
     event_name IN (
-      'download_completed', 'tapped_start', 'selected_level',
-      'puzzle_completed', 'level_completed'
+      'download_completed','tapped_start','selected_level',
+      'puzzle_completed','level_completed'
     )
     AND (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'page_location')
         LIKE '%https://feedthemonster.curiouscontent.org%'
     AND device.web_info.hostname LIKE 'feedthemonster.curiouscontent.org%'
-    AND CAST(DATE(TIMESTAMP_MICROS(user_first_touch_timestamp)) AS DATE) BETWEEN '2021-01-01' AND CURRENT_DATE()
+    AND CAST(DATE(TIMESTAMP_MICROS(user_first_touch_timestamp)) AS DATE)
+        BETWEEN '2021-01-01' AND CURRENT_DATE()
     AND (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'cr_user_id') IS NOT NULL
     AND (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'cr_user_id') != ''
 ),
@@ -58,7 +59,8 @@ aggregated AS (
         AND success_or_failure = 'success'
         AND level_number IS NOT NULL
       THEN level_number + 1
-    ELSE 0 END) AS max_user_level,
+      ELSE 0
+    END) AS max_user_level,
     COUNTIF(event_name = 'level_completed' AND success_or_failure = 'success' AND level_number IS NOT NULL) AS level_completed_count,
     COUNTIF(event_name = 'puzzle_completed') AS puzzle_completed_count,
     COUNTIF(event_name = 'selected_level') AS selected_level_count,
@@ -83,6 +85,19 @@ user_level_aggregates AS (
     ARRAY_AGG(app_version ORDER BY SAFE_CAST(REGEXP_EXTRACT(app_version, r'(\d+)$') AS INT64) DESC LIMIT 1)[OFFSET(0)] AS max_app_version
   FROM aggregated
   GROUP BY cr_user_id
+),
+
+-- This CTE finds all users who ever had the started_in_offline_mode event
+offline_mode_users AS (
+  SELECT DISTINCT
+    (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'cr_user_id') AS cr_user_id
+  FROM `ftm-b9d99.analytics_159643920.events_20*`
+  WHERE
+    event_name = 'started_in_offline_mode'
+    AND CAST(DATE(TIMESTAMP_MICROS(user_first_touch_timestamp)) AS DATE)
+        BETWEEN '2021-01-01' AND CURRENT_DATE()
+    AND (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'cr_user_id') IS NOT NULL
+    AND (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'cr_user_id') != ''
 )
 
 SELECT
@@ -103,12 +118,18 @@ SELECT
     WHEN a.download_completed_count > 0 THEN 'download_completed'
     ELSE NULL
   END AS furthest_event,
-  SAFE_DIVIDE(a.max_user_level, a.max_game_level) * 100 AS gpc
+  SAFE_DIVIDE(a.max_user_level, a.max_game_level) * 100 AS gpc,
+  -- Here's your boolean flag!
+  CASE WHEN o.cr_user_id IS NOT NULL THEN TRUE ELSE FALSE END AS started_in_offline_mode
 FROM
   aggregated a
 JOIN
   user_level_aggregates u
 ON
   a.cr_user_id = u.cr_user_id
+LEFT JOIN
+  offline_mode_users o
+ON
+  a.cr_user_id = o.cr_user_id
 ORDER BY
   gpc DESC;

@@ -4,13 +4,7 @@ WITH base_data AS (
     (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'cr_user_id') AS cr_user_id,
     user_pseudo_id,
     geo.country AS country,
-    device.category AS device_category,
-    device.operating_system AS device_operating_system,
-    device.mobile_brand_name AS device_mobile_brand_name,
-    device.mobile_model_name AS device_mobile_model_name,
-    device.mobile_marketing_name AS device_mobile_marketing_name,
-    traffic_source.medium AS traffic_source_medium,
-    traffic_source.source AS traffic_source,
+
     LOWER(REGEXP_EXTRACT(
       (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'web_app_url'),
       '[?&]cr_lang=([^&]+)'
@@ -25,9 +19,8 @@ WITH base_data AS (
     AND (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'cr_user_id') IS NOT NULL
     AND CAST(DATE(TIMESTAMP_MICROS(user_first_touch_timestamp)) AS DATE) BETWEEN '2021-01-01' AND CURRENT_DATE()
   GROUP BY
-    cr_user_id, user_pseudo_id, country, device_category, device_operating_system,
-    device_mobile_brand_name, device_mobile_model_name, device_mobile_marketing_name,
-    traffic_source_medium, traffic_source, app_language, first_open
+    cr_user_id, user_pseudo_id, country, 
+     app_language, first_open
 ),
 
 -- Step 1b: Last event date per user
@@ -42,7 +35,6 @@ last_events AS (
     AND (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'cr_user_id') IS NOT NULL
   GROUP BY cr_user_id
 ),
-
 
 -- Step 2: Ordered Events with Extracted cr_user_id
 ordered_events AS (
@@ -120,35 +112,8 @@ session_stats AS (
     session_durations
   GROUP BY
     cr_user_id
-),
-
--- Step 8b: Firebase-native session and engagement metrics
-firebase_sessions AS (
-  SELECT
-    (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'cr_user_id') AS cr_user_id,
-    COUNTIF(event_name = 'session_start') AS firebase_session_count,
-    ROUND(SUM(
-      (SELECT value.int_value
-       FROM UNNEST(event_params) 
-       WHERE key = 'engagement_time_msec') 
-    ) / 60000.0, 1) AS firebase_total_time_minutes,
-    ROUND(SAFE_DIVIDE(
-      SUM(
-        (SELECT value.int_value
-         FROM UNNEST(event_params) 
-         WHERE key = 'engagement_time_msec') 
-      ), 
-      NULLIF(COUNTIF(event_name = 'session_start'), 0)
-    ) / 60000.0, 1) AS firebase_avg_session_length_minutes
-  FROM
-    `ftm-b9d99.analytics_159643920.events_*`
-  WHERE
-    _TABLE_SUFFIX BETWEEN '20210101' AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())
-    AND (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'cr_user_id') IS NOT NULL
-  GROUP BY cr_user_id
 )
 
--- Step 9: Final Join
 
 SELECT
   b.*,
@@ -157,10 +122,8 @@ SELECT
   s.engagement_event_count,
   s.total_time_minutes,
   s.avg_session_length_minutes,
-  f.firebase_session_count,
-  f.firebase_total_time_minutes,
-  f.firebase_avg_session_length_minutes,
-  COALESCE(p.app_version, 'unknown') AS app_version
+  COALESCE(p.app_version, 'unknown') AS app_version,
+  p.started_in_offline_mode
 FROM
   base_data b
 LEFT JOIN
@@ -172,13 +135,8 @@ LEFT JOIN
 ON
   b.cr_user_id = s.cr_user_id
 LEFT JOIN
-  firebase_sessions f
-ON
-  b.cr_user_id = f.cr_user_id
-LEFT JOIN
   `dataexploration-193817.user_data.cr_user_progress` p
 ON
   b.cr_user_id = p.cr_user_id
 ORDER BY
   total_time_minutes DESC;
-
