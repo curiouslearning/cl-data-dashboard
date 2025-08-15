@@ -197,7 +197,7 @@ SELECT
   MAX(a.max_game_level) AS max_game_level,
   MAX(a.app_version) AS app_version,
   MIN(a.level_success_date) AS la_date,
-
+  NULL AS started_in_offline_mode,
   -- First and last event dates
   MIN(a.event_date_parsed) AS first_event_date,
   MAX(a.event_date_parsed) AS last_event_date,

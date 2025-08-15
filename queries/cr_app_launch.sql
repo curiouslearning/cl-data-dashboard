@@ -1,5 +1,17 @@
+-- Step 0: Users who started in offline mode
+WITH offline_mode_users AS (
+  SELECT DISTINCT
+    (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'cr_user_id') AS cr_user_id
+  FROM
+    `ftm-b9d99.analytics_159643920.events_*`
+  WHERE
+    event_name = 'started_in_offline_mode'
+    AND (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'cr_user_id') IS NOT NULL
+    AND _TABLE_SUFFIX BETWEEN '20210101' AND FORMAT_DATE('%Y%m%d', CURRENT_DATE())
+),
+
 -- Step 1: Base User Metadata
-WITH base_data AS (
+base_data AS (
   SELECT
     (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'cr_user_id') AS cr_user_id,
     user_pseudo_id,
@@ -19,8 +31,7 @@ WITH base_data AS (
     AND (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'cr_user_id') IS NOT NULL
     AND CAST(DATE(TIMESTAMP_MICROS(user_first_touch_timestamp)) AS DATE) BETWEEN '2021-01-01' AND CURRENT_DATE()
   GROUP BY
-    cr_user_id, user_pseudo_id, country, 
-     app_language, first_open
+    cr_user_id, user_pseudo_id, country, app_language, first_open
 ),
 
 -- Step 1b: Last event date per user
@@ -114,7 +125,6 @@ session_stats AS (
     cr_user_id
 )
 
-
 SELECT
   b.*,
   l.last_event_date,
@@ -122,21 +132,19 @@ SELECT
   s.engagement_event_count,
   s.total_time_minutes,
   s.avg_session_length_minutes,
+  COALESCE(p.max_user_level, 0) AS max_user_level,
   COALESCE(p.app_version, 'unknown') AS app_version,
-  p.started_in_offline_mode
+  -- Only use the CTE flag for started_in_offline_mode
+  CASE WHEN o.cr_user_id IS NOT NULL THEN TRUE ELSE FALSE END AS started_in_offline_mode
 FROM
   base_data b
-LEFT JOIN
-  last_events l
-ON
-  b.cr_user_id = l.cr_user_id
-LEFT JOIN
-  session_stats s
-ON
-  b.cr_user_id = s.cr_user_id
-LEFT JOIN
-  `dataexploration-193817.user_data.cr_user_progress` p
-ON
-  b.cr_user_id = p.cr_user_id
+LEFT JOIN last_events l
+  ON b.cr_user_id = l.cr_user_id
+LEFT JOIN session_stats s
+  ON b.cr_user_id = s.cr_user_id
+LEFT JOIN `dataexploration-193817.user_data.cr_user_progress` p
+  ON b.cr_user_id = p.cr_user_id
+LEFT JOIN offline_mode_users o
+  ON b.cr_user_id = o.cr_user_id
 ORDER BY
   total_time_minutes DESC;
