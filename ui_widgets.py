@@ -229,11 +229,11 @@ def year_selector(placement="side", key=""):
     this_year = dt.datetime.now().year
     if placement == "side":
         report_year = st.sidebar.radio(
-            "Year", range(this_year, this_year - 4, -1), horizontal=True, index=0, key=key + "_year"
+            "Year", range(this_year, 2020, -1), horizontal=True, index=0, key=key + "_year"
         )
     else:
         report_year = st.radio(
-            "Year", range(this_year, this_year - 4, -1), horizontal=True, key=key + "_year", index=0
+            "Year", range(this_year, 2020, -1), horizontal=True, key=key + "_year", index=0
         )
 
     # Make sure to return None if report_year is not properly selected

@@ -1,6 +1,7 @@
 WITH all_events AS (
   SELECT
     user_pseudo_id,
+    event_name,
     CAST(DATE(TIMESTAMP_MICROS(user_first_touch_timestamp)) AS DATE) AS first_open,
     geo.country AS country,
     LOWER(REGEXP_EXTRACT(app_info.id, r'(?i)feedthemonster(.*)')) AS app_language,
@@ -10,6 +11,10 @@ WITH all_events AS (
     event_timestamp,
     TIMESTAMP_MICROS(event_timestamp) AS event_ts,
     b.max_level AS max_game_level,
+
+    -- Add these for use in the outer query
+    params.key AS params_key,
+    params.value.string_value AS params_value_string_value,
 
     -- GamePlay Level Success date
     CASE
@@ -41,9 +46,7 @@ WITH all_events AS (
     CASE
       WHEN event_name = 'session_start' THEN 1
       ELSE 0
-    END AS session_start_flag,
-
-
+    END AS session_start_flag
 
   FROM (
     SELECT * FROM `ftm-b9d99.analytics_159643920.events_20*`
@@ -198,6 +201,26 @@ SELECT
   MAX(a.app_version) AS app_version,
   MIN(a.level_success_date) AS la_date,
   NULL AS started_in_offline_mode,
+
+  -- New: ra_date (date Level 25 reached) and days_to_ra
+  MIN(CASE
+        WHEN a.event_name = 'GamePlay'
+          AND a.params_key = 'action'
+          AND a.params_value_string_value = 'LevelSuccess_25'
+        THEN a.event_date_parsed
+      END) AS ra_date,
+
+  DATE_DIFF(
+    MIN(CASE
+          WHEN a.event_name = 'GamePlay'
+            AND a.params_key = 'action'
+            AND a.params_value_string_value = 'LevelSuccess_25'
+          THEN a.event_date_parsed
+        END),
+    MIN(a.first_open),
+    DAY
+  ) AS days_to_ra,
+
   -- First and last event dates
   MIN(a.event_date_parsed) AS first_event_date,
   MAX(a.event_date_parsed) AS last_event_date,
@@ -209,7 +232,6 @@ SELECT
   s.engagement_event_count,
   s.total_time_minutes,
   s.avg_session_length_minutes,
-
 
   -- Event counts
   SUM(a.level_completed_flag) AS level_completed_count,

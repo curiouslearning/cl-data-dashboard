@@ -54,6 +54,13 @@ aggregated AS (
         AND level_number IS NOT NULL
       THEN PARSE_DATE('%Y%m%d', event_date)
     END) AS la_date,
+    -- New ra_date column: date of reaching level 25
+    MIN(CASE
+      WHEN event_name = 'level_completed'
+        AND success_or_failure = 'success'
+        AND level_number = 25
+      THEN PARSE_DATE('%Y%m%d', event_date)
+    END) AS ra_date,
     MAX(CASE
       WHEN event_name = 'level_completed'
         AND success_or_failure = 'success'
@@ -110,6 +117,10 @@ SELECT
   a.max_user_level,
   a.max_game_level,
   u.min_la_date AS la_date,
+  -- New ra_date column
+  a.ra_date,
+  -- New days_to_ra column
+  DATE_DIFF(a.ra_date, a.first_open, DAY) AS days_to_ra,
   CASE
     WHEN a.level_completed_count > 0 THEN 'level_completed'
     WHEN a.puzzle_completed_count > 0 THEN 'puzzle_completed'
@@ -119,7 +130,6 @@ SELECT
     ELSE NULL
   END AS furthest_event,
   SAFE_DIVIDE(a.max_user_level, a.max_game_level) * 100 AS gpc,
-  -- Here's your boolean flag!
   CASE WHEN o.cr_user_id IS NOT NULL THEN TRUE ELSE FALSE END AS started_in_offline_mode
 FROM
   aggregated a
