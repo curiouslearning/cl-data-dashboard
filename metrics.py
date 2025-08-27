@@ -12,7 +12,7 @@ def get_totals_by_metric(
     countries_list=[],
     stat="LR",
     cr_app_versions="All",
-    app="Both",
+    app="CR",
     language="All",
     user_list=None 
 ):
@@ -82,10 +82,12 @@ def filter_user_data(
     countries_list=["All"],
     cr_app_versions=["All"],
     stat="LR",
-    app="Both",
+    app="CR",
     language=["All"],
-    user_list=None
+    user_list=None,
+    offline_filter=None
 ):
+    
     #default column to filter user cohort list
     user_list_key = "cr_user_id"
     # Check if necessary dataframes are available
@@ -96,18 +98,11 @@ def filter_user_data(
     # Select the appropriate dataframe based on app and stat
     if app == "Unity":
         df = st.session_state.df_unity_users #Unity users are in one table only
-
-        user_list_key = "user_pseudo_id"
-    elif app == "Both" and stat == "LR":
-        df1 = st.session_state.df_unity_users
-        df2 = st.session_state.df_cr_app_launch
-        df =  pd.concat([df1, df2], axis=0)
-        user_list_key = "user_pseudo_id"
-       
-    elif app == "Both" and stat != "LR":
-        df1 = st.session_state.df_unity_users
-        df2 = st.session_state.df_cr_users
-        df =  pd.concat([df1, df2], axis=0)
+        user_list_key = "user_pseudo_id"       
+    elif app == "StandAloneHindi":
+        df = st.session_state.df_cr_users
+        df.to_csv("df.csv")
+        df = (df[df["app"] == "StandAloneHindi"])
     elif app == "CR" and stat == "LR":
         df = st.session_state.df_cr_app_launch
     else:
@@ -131,6 +126,13 @@ def filter_user_data(
     # Apply language filter if not "All" 
     if language[0] != "All":
         mask &= df['app_language'].isin(set(language))
+        
+    # Apply started_in_offline_mode filter if not None
+    if offline_filter is not None:
+        if offline_filter is True:
+            mask &= df["started_in_offline_mode"] == True
+        else:  # offline_filter is False
+            mask &= df["started_in_offline_mode"] != True
 
     # Apply stat-specific filters
     if stat == "LA":
@@ -148,27 +150,28 @@ def filter_user_data(
 
     #If user list subset was passed in, filter on that as well
     if user_list is not None:
+
         if len(user_list) == 0:
             return pd.DataFrame()  # No matches — return empty
+
         df = df[df[user_list_key].isin(user_list)]
 
     return df
 
 
 # Average Game Progress Percent
-def get_GPP_avg(daterange, countries_list, app="Both", language="All", user_list=[]):
+def get_GPP_avg(daterange, countries_list, app="CR", language="All", user_list=[]):
     # Use LA as the baseline
     df_user_list = filter_user_data(
         daterange, countries_list, stat="LA", app=app, language=language,user_list=user_list
     )
-
     df_user_list["gpc"] = df_user_list["gpc"].fillna(0)
     
     return 0 if len(df_user_list) == 0 else np.average(df_user_list.gpc)
 
 
 # Average Game Complete
-def get_GC_avg(daterange, countries_list, app="Both", language="All", user_list=[]):
+def get_GC_avg(daterange, countries_list, app="CR", language="All", user_list=[]):
     # Use LA as the baseline
     df_user_list = filter_user_data(
         daterange, countries_list, stat="LA", app=app, language=language,user_list=user_list
@@ -191,12 +194,13 @@ def weeks_since(daterange):
 
 
 # Returns a DataFrame list of counts by language or counts by country
+# Returns a DataFrame list of counts by language or counts by country
 @st.cache_data(ttl="1d", show_spinner=False)
 def get_counts(
     type="app_language",
     daterange=default_daterange,
     countries_list=["All"],
-    app="Both",
+    app="CR",
     language=["All"],
     user_list=None
 ):
@@ -283,7 +287,7 @@ def build_funnel_dataframe(
     index_col="language",
     daterange=default_daterange,
     languages=["All"],
-    app="Both",
+    app="CR",
     countries_list=["All"],
     user_list=None
 ):
@@ -602,7 +606,8 @@ def get_user_cohort_list(
     cr_app_versions="All",
     countries_list=["All"],
     app="CR",
-    as_list=True  # <-- NEW PARAM
+    as_list=True,
+    offline_filter=None
 ):
     """
     Returns a list of user identifiers (default) or a DataFrame of cohort info based on first_open date,
@@ -614,9 +619,10 @@ def get_user_cohort_list(
         app=app,
         language=languages,
         cr_app_versions=cr_app_versions,
+        offline_filter=offline_filter
     )
 
-    if app == "CR":
+    if app in ["CR", "StandAloneHindi"]:
         user_cohort_df = df_user_cohort[["cr_user_id", "first_open","country", "app_language", "app_version"]]
         user_id_col = "cr_user_id"
     else:
@@ -632,6 +638,10 @@ def get_user_cohort_list(
 def calculate_average_metric_per_user(user_cohort_list, app, column_name):
     df_cr_app_launch = st.session_state["df_cr_app_launch"]
     df_unity_users = st.session_state["df_unity_users"]
+      
+    if column_name == "days_to_ra":
+        df_cr_app_launch = df_cr_app_launch[df_cr_app_launch["days_to_ra"].notnull()]
+        df_unity_users = df_unity_users[df_unity_users["days_to_ra"].notnull()]
 
     if len(user_cohort_list) == 0:
         return 0
@@ -647,7 +657,8 @@ def calculate_average_metric_per_user(user_cohort_list, app, column_name):
 
     total = np.sum(df_filtered[column_name].values)
 
-    average = total / len(user_cohort_list)
+    average = total / len(df_filtered) if len(df_filtered) > 0 else 0
+
 
     return average
 

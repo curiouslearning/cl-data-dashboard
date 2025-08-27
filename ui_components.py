@@ -18,7 +18,7 @@ from sklearn.linear_model import LinearRegression
 default_daterange = [dt.datetime(2021, 1, 1).date(), dt.date.today()]
 
 @st.cache_data(ttl="1d", show_spinner=False)
-def stats_by_country_map(daterange, countries_list, app="Both", language="All", option="LR"):
+def stats_by_country_map(daterange, countries_list, app="CR", language="All", option="LR"):
 
     df = metrics.get_counts(type="country",
     daterange=daterange, countries_list=countries_list, app=app, language=language
@@ -158,7 +158,7 @@ def campaign_gantt_chart():
     )  # Display the plotly chart in Streamlit
 
 @st.cache_data(ttl="1d", show_spinner=False)
-def top_gpp_bar_chart(daterange, countries_list, app="Both", language="All",display_category="Country",user_list=None):
+def top_gpp_bar_chart(daterange, countries_list, app="CR", language="All",display_category="Country",user_list=None):
 
     # Group by date and display_type, then count the users
     if display_category == "Country":
@@ -179,7 +179,7 @@ def top_gpp_bar_chart(daterange, countries_list, app="Both", language="All",disp
     return df
 
 @st.cache_data(ttl="1d", show_spinner=False)
-def top_gca_bar_chart(daterange, countries_list, app="Both", language="All",display_category="Country",user_list=None):
+def top_gca_bar_chart(daterange, countries_list, app="CR", language="All",display_category="Country",user_list=None):
 
     # Group by date and display_type, then count the users
     if display_category == "Country":
@@ -204,7 +204,7 @@ def top_gca_bar_chart(daterange, countries_list, app="Both", language="All",disp
     return df
 
 @st.cache_data(ttl="1d", show_spinner=False)
-def top_LR_LC_bar_chart(daterange, countries_list, option, app="Both", language="All",display_category="Country",user_list=None):
+def top_LR_LC_bar_chart(daterange, countries_list, option, app="CR", language="All",display_category="Country",user_list=None):
     # Group by date and display_type, then count the users
     if display_category == "Country":
         display_group = "country"
@@ -252,7 +252,7 @@ def top_LR_LC_bar_chart(daterange, countries_list, option, app="Both", language=
 
 @st.cache_data(ttl="1d", show_spinner=False)
 def LR_LA_line_chart_over_time(
-    daterange, countries_list, option, app="Both", language="All", display_category="Country", aggregate=True,user_list=None
+    daterange, countries_list, option, app="CR", language="All", display_category="Country", aggregate=True,user_list=None
 ):
     df_user_list = metrics.filter_user_data(
         daterange=daterange, countries_list=countries_list, stat=option, app=app, language=language,user_list=user_list
@@ -461,7 +461,7 @@ def create_engagement_figure(funnel_data=[], key=""):
 
 # Show the count of users max level for each level in the game
 @st.cache_data(ttl="1d", show_spinner=False)
-def levels_line_chart(daterange, countries_list, app="Both", language="All"):
+def levels_line_chart(daterange, countries_list, app="CR", language="All"):
     df_user_list = metrics.filter_user_data(
         daterange, countries_list, stat="LA", app=app, language=language
     )
@@ -791,7 +791,7 @@ def funnel_bar_chart(languages, countries_list, daterange,user_cohort_list):
     
 
 @st.cache_data(ttl="1d", show_spinner=False)
-def funnel_line_chart_percent(languages, countries_list, daterange, user_cohort_list, app="Both"):
+def funnel_line_chart_percent(languages, countries_list, daterange, user_cohort_list, app="CR"):
     # Determine levels first, BEFORE using in logic below
     if app == "CR":
         levels = ["LR", "DC", "TS", "SL", "PC", "LA", "RA", "GC"]

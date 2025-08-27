@@ -24,7 +24,7 @@ def load_unity_user_progress_from_gcs():
     return load_parquet_from_gcs("user_data_parquet_cache/unity_user_progress_*.parquet")
 
 def load_cr_user_progress_from_gcs():
-    return load_parquet_from_gcs("user_data_parquet_cache/cr_user_progress_*.parquet")
+    return load_parquet_from_gcs("user_data_parquet_cache/cr_user_progress_a*.parquet")
 
 def load_cr_app_launch_from_gcs():
     return load_parquet_from_gcs("user_data_parquet_cache/cr_app_launch_*.parquet")
