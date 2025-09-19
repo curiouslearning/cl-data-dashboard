@@ -201,6 +201,7 @@ SELECT
   MAX(a.app_version) AS app_version,
   MIN(a.level_success_date) AS la_date,
   NULL AS started_in_offline_mode,
+  "Unity" as app,
 
   -- New: ra_date (date Level 25 reached) and days_to_ra
   MIN(CASE
@@ -245,6 +246,28 @@ SELECT
   END AS furthest_event,
 
   SAFE_DIVIDE(IFNULL(MAX(a.user_level),0), MAX(a.max_game_level)) * 100 AS gpc,
+  -- User reached at least level 1 (Learner Acquired)
+  CASE
+    WHEN IFNULL(MAX(a.user_level), 0) >= 1 THEN 1
+    ELSE 0
+  END AS la_flag,
+
+  -- User reached at least level 25 (Reader Acquired)
+  CASE
+    WHEN IFNULL(MAX(a.user_level), 0) >= 25 THEN 1
+    ELSE 0
+  END AS ra_flag,
+
+  -- User reached at least level 1 AND gpc >= 90 (Game Completed)
+  CASE
+    WHEN IFNULL(MAX(a.user_level), 0) >= 1
+         AND SAFE_DIVIDE(IFNULL(MAX(a.user_level), 0), MAX(a.max_game_level)) * 100 >= 90
+      THEN 1
+    ELSE 0
+  END AS gc_flag,
+
+  -- User was "Learner Reached" (just always 1 for cohort inclusion)
+  1 AS lr_flag,
 
   -- Final skipped_level flag
   IFNULL(ls.skipped_level, FALSE) AS skipped_level
