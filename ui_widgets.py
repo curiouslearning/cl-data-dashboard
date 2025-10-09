@@ -106,37 +106,22 @@ def display_definitions_table(title,def_df):
     expander.table(def_df)
 
 
-def month_selector(placement="side", key=""):
+def month_selector(key=""):
     from calendar import month_abbr
 
     this_year = dt.datetime.now().year
     this_month = dt.datetime.now().month
     month_abbr = month_abbr[1:]
 
-    if placement == "side":
+    report_year = st.selectbox("Year", range(this_year, this_year - 4, -1), key=key)
 
-        report_year = st.sidebar.selectbox(
-            "Year", range(this_year, this_year - 4, -1), key=key
-        )
-
-        report_month_str = st.sidebar.radio(
-            "Month",
-            month_abbr,
-            index=this_month - 1,
-            horizontal=True,
-            key=key + "x",
-        )
-
-    else:
-        report_year = st.selectbox("Year", range(this_year, this_year - 4, -1), key=key)
-
-        report_month_str = st.radio(
-            "Month",
-            month_abbr,
-            index=this_month - 1,
-            horizontal=True,
-            key=key + "x",
-        )
+    report_month_str = st.radio(
+        "Month",
+        month_abbr,
+        index=this_month - 1,
+        horizontal=True,
+        key=key + "x",
+    )
     report_month = month_abbr.index(report_month_str) + 1
     return report_month, report_year
 
@@ -153,7 +138,7 @@ def slider_callback():
     else:
         st.session_state.slider_date = (left_value, right_value)
 
-def custom_date_selection_slider(min_date, max_date, placement="side"):
+def custom_date_selection_slider(min_date, max_date):
     today = dt.date.today()
 
     # Initialize session state for slider and max_date
@@ -162,37 +147,22 @@ def custom_date_selection_slider(min_date, max_date, placement="side"):
     if "max_date" not in st.session_state:
         st.session_state.max_date = max_date
 
-    # Render the slider widget
-    if placement == "side":
-        st.sidebar.slider(
-            label="Select Range:",
-            min_value=dt.date(2023, 10, 1),
-            max_value=today,
-            value=st.session_state.slider_date,  # Use session state for initialization
-            key="slider_value",  # Separate key for the slider widget
-            on_change=slider_callback,  # Callback to sync state
-        )
-    else:
-        st.slider(
-            label="Select Range:",
-            min_value=dt.date(2023, 10, 1),
-            max_value=today,
-            value=st.session_state.slider_date,  # Use session state for initialization
-            key="slider_value",  # Separate key for the slider widget
-            on_change=slider_callback,  # Callback to sync state
-        )
+
+    st.slider(
+        label="Select Range:",
+        min_value=dt.date(2023, 10, 1),
+        max_value=today,
+        value=st.session_state.slider_date,  # Use session state for initialization
+        key="slider_value",  # Separate key for the slider widget
+        on_change=slider_callback,  # Callback to sync state
+    )
 
     return list(st.session_state.slider_date)
 
-def custom_date_selection(placement="side", key=""):
+def custom_date_selection(key=""):
     min_date = dt.datetime.now().date() - dt.timedelta(30)
 
-    if placement == "side":
-        date_range = st.sidebar.date_input(
-            "Pick a date", [min_date, dt.date.today()], key=key
-        )
-    else:
-        date_range = st.date_input("Pick a date", [min_date, dt.date.today()], key=key)
+    date_range = st.date_input("Pick a date", [min_date, dt.date.today()], key=key)
 
     return list(date_range)
 
@@ -225,68 +195,25 @@ def quarter_start(month):
     return (month - 1) // 3 * 3 + 1 if month in quarters else None
 
 
-def year_selector(placement="side", key=""):
+def year_selector(key=""):
     this_year = dt.datetime.now().year
-    if placement == "side":
-        report_year = st.sidebar.radio(
-            "Year", range(this_year, 2020, -1), horizontal=True, index=0, key=key + "_year"
-        )
-    else:
-        report_year = st.radio(
-            "Year", range(this_year, 2020, -1), horizontal=True, key=key + "_year", index=0
-        )
+
+    report_year = st.radio(
+        "Year", range(this_year, 2020, -1), horizontal=True, key=key + "_year", index=0
+    )
 
     # Make sure to return None if report_year is not properly selected
     return report_year if report_year is not None else None
 
-def ads_platform_selector(placement="side"):
-    label="Ads Platform"
-    options=["Facebook", "Google", "Both"]
-    horizontal=True
-    index=2
-    
-    if placement == 'side':
-        platform = st.sidebar.radio(
-            label=label,
-            options=options,
-            horizontal=horizontal,
-            index=index,
-        )
-    else:
-        platform = st.radio(
-            label=label,
-            options=options,
-            horizontal=horizontal,
-            index=index,
+
+def app_selector():
+
+    app = st.radio(
+        label="Application",
+        options=["Unity", "CR"],
+        horizontal=True,
+        index=1,
     )
-
-    return platform
-
-def app_version_selector(placement="side", key=""):
-    cr_versions = st.session_state.cr_app_versions_list
-
-    selected_options = st.multiselect("Select versions:",cr_versions,key=key ,default='All')
-    if 'All' in selected_options:
-        selected_options = ['All']
-
-    return selected_options
-
-def app_selector(placement="side"):
-
-    if placement == "side":
-        app = st.sidebar.radio(
-            label="Application",
-            options=["Unity", "CR"],
-            horizontal=True,
-            index=1,
-        )
-    else:
-        app = st.radio(
-            label="Application",
-            options=["Unity", "CR"],
-            horizontal=True,
-            index=1,
-        )
     return app
 
 
@@ -308,34 +235,28 @@ def colorize_multiselect_options() -> None:
 
 
 # Restricts selection to a single country
-def single_selector(selections, placement="side", title="", key="key"):
-    # first time called for list, add 'All' option
-    if selections[0] != "All":
-        selections.insert(0, "All")
+def single_selector(selections,  title="", key="key", include_All=True,index=0):
+    options = list(selections)  # Defensive copy
 
-    if placement == "side":
-        selection = st.sidebar.selectbox(
-            label=title,
-            options=selections,
-            index=0,
-            key=key,
-        )
-
+    if include_All:
+        if "All" not in options:
+            options = ["All"] + [s for s in options if s != "All"]
     else:
-        selection = st.selectbox(
-            label=title,
-            options=selections,
-            index=0,
-            key=key,
-        )
+        options = [s for s in options if s != "All"]
 
-    selection_list = [selection]
-    return selection_list
+    selection = st.selectbox(
+        index=index,
+        label=title,
+        options=options,
+        key=key,
+    )
+
+    return [selection]
 
 
 # Pass a unique key into the function in order to use this on multiple pages safel
 
-def multi_select_all(available_options, placement="side", title="", key="key"):
+def multi_select_all(available_options,  title="", key="key"):
     available_options.insert(0, "All")
 
     # Ensure each instance has its own session state keys
@@ -353,25 +274,15 @@ def multi_select_all(available_options, placement="side", title="", key="key"):
             else:
                 st.session_state[f"{key}_max_selections"] = len(available_options)  # Allow multiple selections
 
-    if placement == "side":
-        st.sidebar.multiselect(
-            label=title,
-            options=available_options,
-            key=key,
-            max_selections=st.session_state[f"{key}_max_selections"],  # Unique max selection key
-            on_change=options_select,  
-            format_func=lambda x: "All" if x == "All" else f"{x}",
-        )
 
-    else:
-        st.multiselect(
-            label=title,
-            options=available_options,
-            key=key,
-            max_selections=st.session_state[f"{key}_max_selections"],  # Unique max selection key
-            on_change=options_select,  
-            format_func=lambda x: "All" if x == "All" else f"{x}",
-        )
+    st.multiselect(
+        label=title,
+        options=available_options,
+        key=key,
+        max_selections=st.session_state[f"{key}_max_selections"],  # Unique max selection key
+        on_change=options_select,  
+        format_func=lambda x: "All" if x == "All" else f"{x}",
+    )
 
     return (
         available_options[1:]
@@ -386,51 +297,14 @@ def split_frame(input_df, rows):
     return df
 
 
-def paginated_dataframe(df, keys, sort_col="campaign_name"):
-    df = df.sort_values(by=sort_col)
-    top_menu = st.columns(3)
-    with top_menu[0]:
-        sort = st.radio(
-            "Sort Data", options=["Yes", "No"], horizontal=1, index=1, key=keys[0]
-        )
-    if sort == "Yes":
-        with top_menu[1]:
-            sort_field = st.selectbox("Sort By", options=df.columns, key=keys[1])
-        with top_menu[2]:
-            sort_direction = st.radio(
-                "Direction", options=["⬆️", "⬇️"], horizontal=True, key=keys[2]
-            )
-        df = df.sort_values(
-            by=sort_field, ascending=sort_direction == "⬆️", ignore_index=True
-        )
-
-    pagination = st.container()
-    bottom_menu = st.columns((4, 1, 1))
-    with bottom_menu[2]:
-        batch_size = st.selectbox(
-            "Page Size", options=[500, 1000, 1500], key=keys[3], index=0
-        )
-    with bottom_menu[1]:
-        total_pages = int(len(df) / batch_size) if int(len(df) / batch_size) > 0 else 1
-        current_page = st.number_input(
-            "Page", min_value=1, max_value=total_pages, step=1, key=keys[4]
-        )
-    with bottom_menu[0]:
-        st.markdown(f"Page **{current_page}** of **{total_pages}** ")
-
-    pages = split_frame(df, batch_size)
-    pagination.dataframe(
-        hide_index=True, data=pages[current_page - 1], use_container_width=True
-    )
-
 
 def stats_radio_selector():
     radio_markdown = """
-    Learners Reached | Learners Acquired | Game Progress Percent | Game Completion Average 
+    Learners Reached | Learners Acquired | Reader Acquired | Game Completed 
     """.strip()
     option = st.radio(
         "Select a statistic",
-        ("LR", "LA", "GPP", "GCA"),
+        ("LR", "LA", "RA", "GC"),
         index=0,
         horizontal=True,
         help=radio_markdown,
@@ -438,7 +312,7 @@ def stats_radio_selector():
     return option
 
 
-def calendar_selector(placement="side", key="", index=0, title="Date"):
+def calendar_selector(key="", index=0, title="Date"):
     options = (
         "All time",
         "Select year",
@@ -447,27 +321,21 @@ def calendar_selector(placement="side", key="", index=0, title="Date"):
         "Presets",
     )
 
-
-    if placement == "side":
-        option = st.sidebar.radio(
-            label="Select a date range", options=options, index=index, key=key + "1"
-        )
-    else:
-        option = st.radio(
-            label="Select a date range", options=options, index=index, key=key + "1"
-        )
+    option = st.radio(
+        label="Select a date range", options=options, index=index, key=key + "1"
+    )
 
     if option == "Select year":
-        selected_date = year_selector(placement=placement, key=key)
+        selected_date = year_selector(key=key)
     elif option == "All time":
         selected_date = [dt.datetime(2021, 1, 1).date(), dt.date.today()]
     elif option == "Select month":
         key = key + "x"
-        selected_date = month_selector(placement, key=key)
+        selected_date = month_selector(key=key)
     elif option == "Presets":
-        selected_date = presets_selector(placement, key=key, index=3)
+        selected_date = presets_selector( key=key, index=3)
     else:
-        selected_date = custom_date_selection(placement, key=key)
+        selected_date = custom_date_selection(key=key)
 
     return selected_date, option
 
@@ -480,7 +348,7 @@ presets = [
 ]
 
 
-def presets_selector(placement="side", key="", index=1):
+def presets_selector(key="", index=1):
     dates = []
     icons = ["peace", "yin-yang", "sun", "heart"]
     styles = {
@@ -494,29 +362,15 @@ def presets_selector(placement="side", key="", index=1):
         },
         "nav-link-selected": {"background-color": "#394a51"},
     }
-
-    if placement == "side":
-
-        with st.sidebar:
-            preset = option_menu(
-                menu_title="",
-                options=presets,
-                icons=icons,
-                orientation="horizontal",
-                styles=styles,
-                key=key,
-                default_index=index,
-            )
-    else:
-        preset = option_menu(
-            menu_title="",
-            options=presets,
-            icons=["peace", "yin-yang", "sun", "heart"],
-            orientation="horizontal",
-            styles=styles,
-            key=key,
-            default_index=index,
-        )
+    preset = option_menu(
+        menu_title="",
+        options=presets,
+        icons=["peace", "yin-yang", "sun", "heart"],
+        orientation="horizontal",
+        styles=styles,
+        key=key,
+        default_index=index,
+    )
     if preset:
         dates = calculate_preset_dates(preset)
 
@@ -539,57 +393,12 @@ def calculate_preset_dates(preset):
     return [start_date, end_date]
 
 
-def compare_funnel_level_widget(placement="side", key=""):
-    if placement == "side":
-        toggle = st.sidebar.radio(
-            options=[
-                "Compare to Initial",
-                "Compare to Previous",
-            ],
-            label="",
-            horizontal=True,
-            index=0,
-            key=key,
-            
-        )
-    else:
-        toggle = st.radio(
-            options=[
-                "Compare to LR",
-                "Compare to Previous",
-            ],
-            label="Compare",
-            horizontal=False,
-            index=0,
-            key=key,
-        )
-    return toggle
-
-
-def level_comparison_selector(placement="side"):
-    col1, col2 = st.columns(2)
-    levels = ["LR", "DC", "TS", "SL", "PC", "LA", "RA","GC"]
-    upper_level = bottom_level = ""
-    if placement == "side":
-        bottom_level = st.sidebar.selectbox(
-            label="Bottom level", options=levels, key="lcs-1", index=5
-        )
-        index_selected = levels.index(bottom_level)
-        upper_levels = levels[:index_selected]
-        upper_level = st.sidebar.selectbox(
-            label="Upper level", options=upper_levels, key="lcs-2"
-        )
-    else:
-        bottom_level = col1.selectbox(
-            label="Bottom level", options=levels, key="lcs-3", index=5
-        )
-        index_selected = levels.index(bottom_level)
-        upper_levels = levels[:index_selected]
-        upper_level = col2.selectbox(
-            label="Upper level", options=upper_levels, key="lcs-4"
-        )
-    return upper_level, bottom_level
-
 @st.cache_data
 def convert_for_download(df):
     return df.to_csv().encode("utf-8")
+
+def get_apps():
+    distinct_apps = sorted(st.session_state["df_cr_users"]["app"].dropna().unique())
+    distinct_apps.append("Unity")
+    distinct_apps.sort()
+    return distinct_apps

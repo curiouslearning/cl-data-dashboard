@@ -1,0 +1,16 @@
+
+[[pages]]
+name = "Funnel Analysis"
+icon = ":large_brown_circle:"
+is_section = true
+
+[[pages]]
+path = "app_pages/engagement.py"
+name = "Curious Learning Dashboard"
+icon = ":small_orange_diamond:"
+
+[[pages]]
+path = "app_pages/acquisition_funnel.py"
+name = "Engagement Funnel"
+icon = ":small_orange_diamond:"
+

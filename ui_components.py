@@ -14,15 +14,59 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 
 
-
 default_daterange = [dt.datetime(2021, 1, 1).date(), dt.date.today()]
 
 @st.cache_data(ttl="1d", show_spinner=False)
-def stats_by_country_map(daterange, countries_list, app="CR", language="All", option="LR"):
+def stats_by_country_map(
+    user_cohort_df,
+    user_cohort_df_LR=None,
+    app=None,
+    option="LR",
+    min_funnel=True,
+    sort_by="Total",
+):
+    """
+    Draws a choropleth world map showing funnel metrics (LR, LA, RA, etc.)
+    by country using the standardized funnel helper for consistency.
 
-    df = metrics.get_counts(type="country",
-    daterange=daterange, countries_list=countries_list, app=app, language=language
+    Parameters
+    ----------
+    user_cohort_df : pd.DataFrame
+        Main user cohort dataframe
+    user_cohort_df_LR : pd.DataFrame, optional
+        Learners Reached dataframe (for CR app only)
+    app : str or list, optional
+        App name, e.g. "CR" or "Unity"
+    option : str, default "LR"
+        Which funnel metric to color by ("LR", "LA", "RA", "GC", etc.)
+    min_funnel : bool, default True
+        If True, use minimal funnel version (CR only)
+    sort_by : str, default "Total"
+        Sorting behavior ("Total" or "Percent")
+
+    Returns
+    -------
+    df : pd.DataFrame
+        Funnel dataframe by country used to render the map
+    """
+
+    # ✅ Use new helper for consistent funnel data by country
+    df, funnel_steps = metrics.get_sorted_funnel_df(
+        cohort_df=user_cohort_df,
+        cohort_df_LR=user_cohort_df_LR,
+        groupby_col="country",
+        app=app,
+        min_funnel=min_funnel,
+        stat=option,
+        sort_by=sort_by,
+        ascending=False,
+        use_top_ten=False  # include all countries
     )
+
+    # Ensure all required hover columns exist
+    hover_cols = [c for c in ["LR", "PC", "LA", "RA", "GC"] if c in df.columns]
+
+    # Choropleth
     country_fig = px.choropleth(
         df,
         locations="country",
@@ -40,25 +84,18 @@ def stats_by_country_map(daterange, countries_list, app="CR", language="All", op
         height=600,
         projection="natural earth",
         locationmode="country names",
-        hover_data={
-            "LR": ":,",
-            "PC": ":,",
-            "LA": ":,",
-            "GPP": ":,",
-            "GCA": ":,",
-        },
+        hover_data={col: ":," for col in hover_cols},
     )
 
+    # Layout cleanup
     country_fig.update_layout(
         height=500,
         margin=dict(l=10, r=1, b=0, t=10, pad=4),
         geo=dict(bgcolor="rgba(0,0,0,0)"),
-        #       paper_bgcolor="LightSteelBlue",
     )
-
     country_fig.update_geos(fitbounds="locations")
-    st.plotly_chart(country_fig)
-    
+
+    st.plotly_chart(country_fig, use_container_width=True)
     return df
 
 
@@ -1127,3 +1164,222 @@ def engagement_over_time_chart(df_list_with_labels, metric="Avg Total Time (minu
     )
 
     st.plotly_chart(fig, use_container_width=True)
+
+def levels_reached_chart(
+    app_names=None,
+    max_plot_level=35,
+    title="Levels Reached by App"
+):
+    """
+    Plot percent of original cohort reaching each level for multiple apps.
+
+    Parameters
+    ----------
+    app_names : list[str]
+        List of app names, e.g. ["CR", "Unity", "StandAloneHindi"].
+        Defaults to ["CR", "Unity"] if not provided.
+
+    max_plot_level : int
+        Maximum level to include on the x-axis (default 35).
+    title : str
+        Chart title.
+    """
+    if not app_names:
+        app_names = ["CR", "Unity"]
+
+    traces = []
+
+    for app_name in app_names:
+        user_cohort_df, _ = metrics.get_filtered_cohort(app=app_name, language=["All"], countries_list=["All"],daterange=default_daterange)
+
+        if user_cohort_df is None or user_cohort_df.empty:
+            continue
+
+        # Keep only rows with max_user_level >= 1 and not null
+        filtered = user_cohort_df.loc[
+            user_cohort_df["max_user_level"].notnull() 
+            & (user_cohort_df["max_user_level"] >= 1)
+        ]
+
+        # Count users by max_user_level up to the chosen max
+        df = (
+            filtered.query("max_user_level <= @max_plot_level")
+            .groupby("max_user_level", as_index=False)
+            .size()
+            .rename(columns={"size": "count"})
+            .sort_values("max_user_level", ascending=True, ignore_index=True)
+        )
+
+        if df.empty:
+            continue
+
+        first_level_count = df["count"].iloc[0]
+        if first_level_count == 0:
+            continue
+
+        df["percent_reached"] = df["count"] / first_level_count * 100.0
+        df["percent_drop"] = df["percent_reached"].diff().fillna(0.0)
+
+        trace = go.Scatter(
+            x=df["max_user_level"],
+            y=df["percent_reached"],
+            mode="lines+markers",
+            name=app_name,
+            customdata=df["percent_drop"],
+            text=[app_name] * len(df),
+            hovertemplate=(
+                "App: %{text}<br>"
+                "Max Level: %{x}<br>"
+                "Percent reached: %{y:.2f}%<br>"
+                "Change from previous: %{customdata:.2f}%%<extra></extra><br>"
+            ),
+        )
+        traces.append(trace)
+
+    layout = go.Layout(
+        title=title,
+        xaxis=dict(title="Levels"),
+        yaxis=dict(title="Percent of Original Group Reaching Level"),
+        height=500,
+        hovermode="x unified"
+    )
+
+    fig = go.Figure(data=traces, layout=layout)
+    st.plotly_chart(fig, use_container_width=True)
+    return fig
+
+st.cache_data(ttl="1d", show_spinner=False)
+def get_sorted_funnel_df(
+    cohort_df,
+    cohort_df_LR=None,
+    groupby_col="app_language",
+    app=None,
+    min_funnel=True,
+    stat="LA",
+    sort_by="Total",
+    ascending=False,
+    use_top_ten=True
+):
+    """
+    Returns a funnel dataframe (with counts and percentages) sorted by the chosen stat.
+    Decoupled from Streamlit chart UI so it can be reused for tables, CSVs, or other charts.
+
+    Parameters
+    ----------
+    cohort_df : pd.DataFrame
+        Main cohort dataframe (includes all funnel users)
+    cohort_df_LR : pd.DataFrame, optional
+        Learners Reached dataframe (for CR app only)
+    groupby_col : str, default "app_language"
+        Column to group by ("app_language", "country", etc.)
+    app : str or list, optional
+        App name (e.g., "CR", "Unity", etc.)
+    min_funnel : bool, default True
+        If True, uses minimal funnel steps for CR
+    stat : str, default "LA"
+        Funnel metric to sort by ("LR", "LA", "RA", "GC", etc.)
+    sort_by : str, default "Total"
+        Whether to sort by "Total" (raw counts) or "Percent"
+    ascending : bool, default False
+        Sort ascending (lowest first) or descending (highest first)
+    use_top_ten : bool, default True
+        If True, return top 10 rows
+
+    Returns
+    -------
+    df : pd.DataFrame
+        Sorted funnel dataframe
+    funnel_steps : list
+        List of funnel step names in order
+    """
+
+    # Compute funnel summary and funnel step order
+    df, funnel_steps = metrics.funnel_percent_by_group(
+        cohort_df=cohort_df,
+        cohort_df_LR=cohort_df_LR,
+        groupby_col=groupby_col,
+        app=app,
+        min_funnel=min_funnel
+    )
+
+    # Determine sort column
+    if sort_by.lower() == "percent":
+        sort_col = stat if stat == "LR" else f"{stat}_pct"
+    else:
+        sort_col = stat
+
+    # Sort the dataframe
+    df = df.sort_values(by=sort_col, ascending=ascending)
+
+    # Limit to top 10 if requested
+    if use_top_ten:
+        df = df.head(10)
+
+    return df, funnel_steps
+
+@st.cache_data(ttl="1d", show_spinner=False)
+def get_top_and_bottom_funnel_groups(
+    cohort_df,
+    cohort_df_LR=None,
+    groupby_col="app_language",
+    app=None,
+    stat="RA",
+    sort_by="Percent",
+    min_funnel=True,
+):
+    """
+    Returns two sorted DataFrames: top 10 and bottom 10 groups by the given stat.
+
+    Parameters
+    ----------
+    cohort_df : pd.DataFrame
+        Main cohort dataframe
+    cohort_df_LR : pd.DataFrame, optional
+        Learners Reached dataframe (for CR app only)
+    groupby_col : str, default "app_language"
+        Column to group by ("app_language", "country", etc.)
+    app : str or list, optional
+        App name (e.g., "CR", "Unity", etc.)
+    stat : str, default "RA"
+        Funnel metric to sort by ("LR", "LA", "RA", "GC", etc.)
+    sort_by : str, default "Percent"
+        Sort criterion ("Total" or "Percent")
+    min_funnel : bool, default True
+        Use minimal funnel for CR app
+
+    Returns
+    -------
+    top10 : pd.DataFrame
+        Top 10 groups sorted by descending stat value
+    bottom10 : pd.DataFrame
+        Bottom 10 groups sorted by ascending stat value
+    funnel_steps : list
+        Funnel steps returned by funnel_percent_by_group
+    """
+
+    top10, funnel_steps = get_sorted_funnel_df(
+        cohort_df=cohort_df,
+        cohort_df_LR=cohort_df_LR,
+        groupby_col=groupby_col,
+        app=app,
+        min_funnel=min_funnel,
+        stat=stat,
+        sort_by=sort_by,
+        ascending=False,
+        use_top_ten=True
+    )
+
+    bottom10, _ = get_sorted_funnel_df(
+        cohort_df=cohort_df,
+        cohort_df_LR=cohort_df_LR,
+        groupby_col=groupby_col,
+        app=app,
+        min_funnel=min_funnel,
+        stat=stat,
+        sort_by=sort_by,
+        ascending=True,
+        use_top_ten=True
+    )
+
+    return top10, bottom10, funnel_steps
+

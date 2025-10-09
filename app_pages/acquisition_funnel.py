@@ -21,7 +21,7 @@ ui.colorize_multiselect_options()
 
 languages = users.get_language_list()
 language = ui.single_selector(
-    languages, placement="side", title="Select a language", key="af-1"
+    languages, title="Select a language", key="af-1"
 )
 
 countries_list = users.get_country_list()
