@@ -138,26 +138,6 @@ def slider_callback():
     else:
         st.session_state.slider_date = (left_value, right_value)
 
-def custom_date_selection_slider(min_date, max_date):
-    today = dt.date.today()
-
-    # Initialize session state for slider and max_date
-    if "slider_date" not in st.session_state:
-        st.session_state.slider_date = (min_date, max_date)
-    if "max_date" not in st.session_state:
-        st.session_state.max_date = max_date
-
-
-    st.slider(
-        label="Select Range:",
-        min_value=dt.date(2023, 10, 1),
-        max_value=today,
-        value=st.session_state.slider_date,  # Use session state for initialization
-        key="slider_value",  # Separate key for the slider widget
-        on_change=slider_callback,  # Callback to sync state
-    )
-
-    return list(st.session_state.slider_date)
 
 def custom_date_selection(key=""):
     min_date = dt.datetime.now().date() - dt.timedelta(30)
@@ -188,12 +168,9 @@ def convert_date_to_range(selected_date, option, end_date=None):
 
     return [first, last]
 
-
-
 def quarter_start(month):
     quarters = [1, 4, 7, 10]
     return (month - 1) // 3 * 3 + 1 if month in quarters else None
-
 
 def year_selector(key=""):
     this_year = dt.datetime.now().year
@@ -204,17 +181,6 @@ def year_selector(key=""):
 
     # Make sure to return None if report_year is not properly selected
     return report_year if report_year is not None else None
-
-
-def app_selector():
-
-    app = st.radio(
-        label="Application",
-        options=["Unity", "CR"],
-        horizontal=True,
-        index=1,
-    )
-    return app
 
 
 def colorize_multiselect_options() -> None:
@@ -295,7 +261,6 @@ def multi_select_all(available_options,  title="", key="key"):
 def split_frame(input_df, rows):
     df = [input_df.iloc[i : i + rows - 1, :] for i in range(0, len(input_df), rows)]
     return df
-
 
 
 def stats_radio_selector():

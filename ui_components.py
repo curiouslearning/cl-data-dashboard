@@ -3,7 +3,7 @@ import datetime as dt
 from rich import print
 import plotly.express as px
 import plotly.graph_objects as go
-from metrics import get_sorted_funnel_df,get_filtered_cohort
+from metrics import get_sorted_funnel_df,funnel_percent_by_group
 from millify import prettify
 
 
@@ -222,36 +222,135 @@ def top_stats_bar_chart(
     return df_return
 
 
-def create_engagement_figure(funnel_data=[], key=""):
+def create_engagement_figure(funnel_data, key="", funnel_size="large"):
+    percent_2nd = funnel_data.get("PercentOfSecond", [None] * len(funnel_data["Count"]))
+
+    hovertemplate = []
+    for i, (title, count, pct2) in enumerate(zip(funnel_data["Title"], funnel_data["Count"], percent_2nd)):
+        pct2_txt = (
+            f"<br>% of DC: {pct2:.1f}%"
+            if funnel_size == "large" and pct2 is not None else ""
+        )
+        # Use Plotly's built-in variables for percent of previous and initial
+        hovertemplate.append(
+            f"<b>{title}</b><br>"
+            f"Count: {count:,d}"
+            "<br>% of previous: %{percentPrevious:.1%}"
+            "<br>% of first: %{percentInitial:.1%}"
+            f"{pct2_txt}<extra></extra>"
+        )
 
     fig = go.Figure(
         go.Funnel(
             y=funnel_data["Title"],
             x=funnel_data["Count"],
             textposition="auto",
-            #          textinfo="value+percent initial+percent previous",
-            hoverinfo="x+y+text+percent initial+percent previous",
-            #           key=key,
             marker={
                 "color": [
-                    "#4F420A",
-                    "#73600F",
-                    "#947C13",
-                    "#E0BD1D",
-                    "#B59818",
-                    "#D9B61C",
+                    "#4F420A", "#73600F", "#947C13", "#E0BD1D",
+                    "#B59818", "#D9B61C", "#6C5212", "#8B7121"
                 ],
                 "line": {
-                    "width": [4, 3, 2, 2, 2, 1],
-                    "color": ["wheat", "wheat", "wheat", "wheat"],
+                    "width": [4, 3, 2, 2, 2, 1, 1, 1],
+                    "color": ["wheat"] * 8,
                 },
             },
             connector={"line": {"color": "#4F3809", "dash": "dot", "width": 3}},
+            hovertemplate=hovertemplate,
         )
     )
     fig.update_traces(texttemplate="%{value:,d}")
     fig.update_layout(
         margin=dict(l=20, r=20, t=20, b=20),
     )
-
     return fig
+def create_funnels_by_cohort(
+    cohort_df,
+    key_prefix="",
+    funnel_size="medium",
+    cohort_df_LR=None,
+    app=None,
+):
+    """
+    Builds a funnel visualization for the selected cohort and app.
+    Uses cached funnel_percent_by_group to compute all step totals at once.
+    """
+
+    funnel_variants = {
+        "compact": {
+            "stats": ["LR", "PC", "LA", "RA", "GC"],
+            "titles": [
+                "Learner Reached", "Puzzle Completed",
+                "Learners Acquired", "Readers Acquired", "Game Completed"
+            ],
+        },
+        "large": {
+            "stats": ["LR", "DC", "TS", "SL", "PC", "LA", "RA", "GC"],
+            "titles": [
+                "Learner Reached", "Download Completed", "Tapped Start",
+                "Selected Level", "Puzzle Completed",
+                "Learners Acquired", "Readers Acquired", "Game Completed",
+            ],
+        },
+        "medium": {
+            "stats": ["DC", "TS", "SL", "PC", "LA", "RA", "GC"],
+            "titles": [
+                "Download Completed", "Tapped Start", "Selected Level",
+                "Puzzle Completed", "Learners Acquired",
+                "Readers Acquired", "Game Completed",
+            ],
+        },
+    }
+
+    variant = funnel_variants.get(funnel_size, funnel_variants["medium"])
+    stats = variant["stats"]
+    titles = variant["titles"]
+
+    # --- Compute all funnel metrics once (cached) ---
+    funnel_df, funnel_steps = funnel_percent_by_group(
+        cohort_df=cohort_df,
+        cohort_df_LR=cohort_df_LR,
+        groupby_col="app_language",  # not used for global totals
+        app=app,
+        min_funnel=(funnel_size == "compact"),
+    )
+
+    # --- Aggregate totals across all groups ---
+    totals = {s: funnel_df[s].sum() if s in funnel_df.columns else 0 for s in stats}
+
+    funnel_step_counts = [totals.get(stat, 0) for stat in stats]
+
+    # --- Percentages ---
+    percent_of_previous = [None]
+    for i in range(1, len(funnel_step_counts)):
+        prev = funnel_step_counts[i - 1]
+        curr = funnel_step_counts[i]
+        percent = round(100 * curr / prev, 1) if prev and prev > 0 else None
+        percent_of_previous.append(percent)
+
+    percent_of_second = [None, None]
+    if len(funnel_step_counts) >= 2 and funnel_step_counts[1]:
+        for i in range(2, len(funnel_step_counts)):
+            second = funnel_step_counts[1]
+            curr = funnel_step_counts[i]
+            percent = round(100 * curr / second, 1) if second and second > 0 else None
+            percent_of_second.append(percent)
+    else:
+        percent_of_second += [None] * (len(funnel_step_counts) - 2)
+
+    # --- Build funnel data dict ---
+    funnel_data = {
+        "Title": titles,
+        "Count": funnel_step_counts,
+        "PercentOfPrevious": percent_of_previous,
+        "PercentOfSecond": percent_of_second,
+    }
+
+    # --- Render chart ---
+    fig = create_engagement_figure(
+        funnel_data,
+        key=f"{key_prefix}-funnel",
+        funnel_size=funnel_size,
+    )
+
+    st.plotly_chart(fig, use_container_width=True, key=f"{key_prefix}-chart")
