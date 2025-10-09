@@ -6,7 +6,7 @@ from users import ensure_user_data_initialized
 from millify import prettify
 import ui_widgets as ui
 from users import get_language_list,get_country_list
-from ui_components import levels_reached_chart,stats_by_country_map,top_gpp_bar_chart,top_gca_bar_chart,top_LR_LC_bar_chart
+from ui_components import levels_reached_chart,stats_by_country_map,top_stats_bar_chart
 
 st.set_page_config(layout="wide")
 
@@ -46,6 +46,8 @@ if len(daterange) == 2 and len(countries_list) > 0:
     user_cohort_df, user_cohort_df_LR = get_filtered_cohort(app, daterange, language, countries_list)
     if (app == ["CR"] or app == "CR"):
         LR_df = user_cohort_df_LR
+    else:
+        LR_df = user_cohort_df
     
     LR = get_cohort_totals_by_metric(LR_df,stat="LR")
     col1.metric(label="Learners Reached", value=prettify(int(LR)))
@@ -98,26 +100,17 @@ if len(daterange) == 2 and len(countries_list) > 0:
     st.divider()
     st.subheader("Top 10's")
 
-    c1, c2, c3,c4 = st.columns(4)
+    c1, c2, = st.columns(2)
     with c1:
-        option = st.radio("Select a statistic", ("LR", "LA", "RA"), index=0, horizontal=True,key="e-3")
+        option = st.radio("Select a statistic", ("LR", "LA", "RA", "GC" ,"GPP", "GCA"), index=0, horizontal=True,key="e-3")
     with c2:
         display_category = st.radio(
             "Display by", ("Country", "Language"), index=0, horizontal=True, key="e-4"
         )
     
-    df_download = top_LR_LC_bar_chart(
-        daterange, countries_list, option, app=app, language=language,display_category=display_category,user_list=user_cohort_df)
+    if option == "LR" and (app == ["CR"] or app == "CR"):
+        user_cohort_df = LR_df
+    df_download = top_stats_bar_chart(user_cohort_df=user_cohort_df, option=option,display_category=display_category,app=app )
+    
     csv = ui.convert_for_download(df_download)
     st.download_button(label="Download CSV",data=csv,file_name="top_LR_LC_bar_chart.csv",key="e-12",icon=":material/download:",mime="text/csv")
-
-    c1, c2 = st.columns(2)
-    with c1:
-        df_download = top_gpp_bar_chart(daterange, countries_list, app=app, language=language,display_category=display_category,user_list=user_cohort_df)
-        csv = ui.convert_for_download(df_download)
-        st.download_button(label="Download CSV",data=csv,file_name="top_gpp_bar_chart.csv",key="e-13",icon=":material/download:",mime="text/csv")
-
-    with c2:
-        df_download =  top_gca_bar_chart(daterange, countries_list, app=app, language=language,display_category=display_category,user_list=user_cohort_df)
-        csv = ui.convert_for_download(df_download)
-        st.download_button(label="Download CSV",data=csv,file_name="top_gca_bar_chart.csv",key="e-14",icon=":material/download:",mime="text/csv")

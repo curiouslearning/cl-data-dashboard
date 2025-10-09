@@ -850,10 +850,13 @@ def funnel_percent_by_group(
     Returns a single DataFrame with raw counts and percent-normalized columns (suffix '_pct') by group.
     Handles CR (two dfs for LR), all other apps (one df for all steps).
 
+    Adds:
+        • GPP  - average game progress (mean gpc)
+        • GCA  - % of LA users with gpc >= 90
+
     Special handling:
-    -----------------
-    If the dataframe lacks 'furthest_event' (e.g., CR app_launch dataset used for LR),
-    returns only LR counts by group and skips full funnel expansion.
+        If the dataframe lacks 'furthest_event' (e.g., CR app_launch dataset used for LR),
+        returns only LR counts by group and skips full funnel expansion.
     """
 
     app_name = app[0] if isinstance(app, list) and len(app) > 0 else app
@@ -861,54 +864,99 @@ def funnel_percent_by_group(
 
     user_key = "cr_user_id"
     funnel_steps = ["LR", "PC", "LA", "RA", "GC"]
+
     if app_name == "CR" and not min_funnel:
         funnel_steps = ["LR", "DC", "TS", "SL", "PC", "LA", "RA", "GC"]
     elif app_name == "Unity":
         user_key = "user_pseudo_id"
 
-    # ✅ Short-circuit: handle datasets that don't contain furthest_event (e.g., CR app_launch / LR)
+    # ✅ Short-circuit: handle datasets without furthest_event (e.g., CR app_launch / LR)
     if "furthest_event" not in cohort_df.columns:
-        df = cohort_df.groupby(groupby_col, dropna=False).agg({user_key: "nunique"}).reset_index()
-        df = df.rename(columns={user_key: "LR"})
+        df = (
+            cohort_df.groupby(groupby_col, dropna=False)
+            .agg({user_key: "nunique"})
+            .reset_index()
+            .rename(columns={user_key: "LR"})
+        )
         df["LR_pct"] = 100.0
         return df, ["LR"]
 
     # --- Normal funnel logic ---
     group_vals = set(cohort_df[groupby_col].dropna().unique())
     if cohort_df_LR is not None:
-        group_vals = group_vals | set(cohort_df_LR[groupby_col].dropna().unique())
+        group_vals |= set(cohort_df_LR[groupby_col].dropna().unique())
 
     records = []
     for group in sorted(group_vals):
+        # LR count (special handling for CR with separate LR df)
         if app_name == "CR" and cohort_df_LR is not None:
             group_LR = cohort_df_LR[cohort_df_LR[groupby_col] == group]
-            count_LR = group_LR[user_key].nunique() if user_key in group_LR else len(group_LR)
+            count_LR = (
+                group_LR[user_key].nunique() if user_key in group_LR else len(group_LR)
+            )
         else:
             group_LR = cohort_df[cohort_df[groupby_col] == group]
-            count_LR = group_LR[user_key].nunique() if user_key in group_LR else len(group_LR)
+            count_LR = (
+                group_LR[user_key].nunique() if user_key in group_LR else len(group_LR)
+            )
 
         row = {groupby_col: group, "LR": count_LR}
         group_df = cohort_df[cohort_df[groupby_col] == group]
+
         for step in funnel_steps[1:]:
             row[step] = get_cohort_totals_by_metric(group_df, stat=step)
+
         records.append(row)
 
     df = pd.DataFrame(records)
 
-    # Add percent-normalized columns with _pct suffix
+    # --- Percent-normalized columns ---
     norm_steps = [s for s in funnel_steps if s != "LR"]
     for step in funnel_steps:
         if step == "LR":
-            df[f"{step}_pct"] = 100.0  # baseline
+            df[f"{step}_pct"] = 100.0
         else:
             df[f"{step}_pct"] = df[step] / df["LR"] * 100
 
-    # Drop rows where all post-LR steps are zero (optional)
+    # --- Drop rows where all post-LR steps are zero (optional) ---
     all_zero = (df[norm_steps].fillna(0).astype(float) == 0).all(axis=1)
     df = df[~all_zero].reset_index(drop=True)
 
-    return df, funnel_steps
+    # --- Add GPP and GCA if gpc exists ---
+    if "gpc" in cohort_df.columns:
+        la_df = cohort_df[cohort_df["max_user_level"] >= 1].copy()
 
+        # GPP = average gpc among LA users
+        gpp = (
+            la_df.groupby(groupby_col)["gpc"]
+            .mean()
+            .reset_index(name="GPP")
+            .fillna(0)
+        )
+        df = df.merge(gpp, on=groupby_col, how="left")
+        df["GPP_pct"] = df["GPP"]  # maintain consistent suffix pattern
+
+        # GCA = % of LA users with gpc >= 90
+        total_counts = (
+            la_df.groupby(groupby_col)[user_key]
+            .nunique()
+            .reset_index(name="LA_total")
+        )
+        gc_counts = (
+            la_df[la_df["gpc"] >= 90]
+            .groupby(groupby_col)[user_key]
+            .nunique()
+            .reset_index(name="GC_count")
+        )
+        gca = total_counts.merge(gc_counts, on=groupby_col, how="left").fillna(0)
+        gca["GCA"] = (gca["GC_count"] / gca["LA_total"] * 100).round(2)
+        df = df.merge(gca[[groupby_col, "GCA"]], on=groupby_col, how="left")
+        df["GCA_pct"] = df["GCA"]
+
+        # Extend funnel_steps for downstream charts/tables
+        funnel_steps = funnel_steps + ["GPP", "GCA"]
+
+    return df, funnel_steps
 
 @st.cache_data(ttl="1d", show_spinner=False)
 def get_sorted_funnel_df(
@@ -924,7 +972,7 @@ def get_sorted_funnel_df(
 ):
     """
     Returns a funnel dataframe (with counts and percentages) sorted by the chosen stat.
-    Decoupled from Streamlit chart UI so it can be reused for tables, CSVs, or other charts.
+    Works for both funnel metrics (LR→GC) and performance metrics (GPP, GCA).
 
     Parameters
     ----------
@@ -939,7 +987,7 @@ def get_sorted_funnel_df(
     min_funnel : bool, default True
         If True, uses minimal funnel steps for CR
     stat : str, default "LA"
-        Funnel metric to sort by ("LR", "LA", "RA", "GC", etc.)
+        Funnel metric to sort by ("LR", "LA", "RA", "GC", "GPP", "GCA", etc.)
     sort_by : str, default "Total"
         Whether to sort by "Total" (raw counts) or "Percent"
     ascending : bool, default False
@@ -950,12 +998,12 @@ def get_sorted_funnel_df(
     Returns
     -------
     df : pd.DataFrame
-        Sorted funnel dataframe
+        Sorted funnel dataframe with all steps and derived metrics
     funnel_steps : list
-        List of funnel step names in order
+        Ordered list of funnel step names
     """
 
-    # Compute funnel summary and funnel step order
+    # --- Compute the funnel + percentages ---
     df, funnel_steps = funnel_percent_by_group(
         cohort_df=cohort_df,
         cohort_df_LR=cohort_df_LR,
@@ -964,16 +1012,30 @@ def get_sorted_funnel_df(
         min_funnel=min_funnel
     )
 
-    # Determine sort column
-    if sort_by.lower() == "percent":
-        sort_col = stat if stat == "LR" else f"{stat}_pct"
-    else:
+    # --- Normalize the metric name (case-insensitive) ---
+    stat = stat.upper().strip()
+
+    # --- Special handling for derived metrics ---
+    derived_metrics = ["GPP", "GCA"]
+    if stat in derived_metrics:
+        # These are already in percentage units and do not have raw count variants
         sort_col = stat
+    else:
+        # Pick between raw count or percent column
+        if sort_by.lower() == "percent":
+            sort_col = stat if stat == "LR" else f"{stat}_pct"
+        else:
+            sort_col = stat
 
-    # Sort the dataframe
+    # --- Validate column existence ---
+    if sort_col not in df.columns:
+        raise KeyError(
+            f"Column '{sort_col}' not found in funnel dataframe. "
+            f"Available columns: {list(df.columns)}"
+        )
+
+    # --- Sort and optionally limit to top 10 ---
     df = df.sort_values(by=sort_col, ascending=ascending)
-
-    # Limit to top 10 if requested
     if use_top_ten:
         df = df.head(10)
 
