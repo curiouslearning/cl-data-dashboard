@@ -1,12 +1,12 @@
 import streamlit as st
 from settings import initialize
-from metrics import get_cohort_totals_by_metric,get_cohort_GPP_avg,get_filtered_cohort,get_cohort_GC_avg
+from metrics import funnel_percent_by_group,get_filtered_cohort
 from settings import initialize
 from users import ensure_user_data_initialized
 from millify import prettify
 import ui_widgets as ui
 from users import get_language_list,get_country_list
-from ui_components import levels_reached_chart,stats_by_country_map,top_stats_bar_chart
+from ui_components import stats_by_country_map,top_stats_bar_chart
 
 st.set_page_config(layout="wide")
 
@@ -49,31 +49,38 @@ if len(daterange) == 2 and len(countries_list) > 0:
     else:
         LR_df = user_cohort_df
     
-    LR = get_cohort_totals_by_metric(LR_df,stat="LR")
+    # --- Unified funnel summary ---
+    funnel_df, funnel_steps = funnel_percent_by_group(
+        cohort_df=user_cohort_df,
+        cohort_df_LR=LR_df,
+        app=app,
+    )
+
+    # --- Aggregate totals across all groups ---
+    LR = funnel_df["LR"].sum() if "LR" in funnel_df else 0
+    LA = funnel_df["LA"].sum() if "LA" in funnel_df else 0
+    RA = funnel_df["RA"].sum() if "RA" in funnel_df else 0
+    GC = funnel_df["GC"].sum() if "GC" in funnel_df else 0
+
+    # --- Weighted performance averages ---
+    GPP = (
+        (funnel_df["GPP"] * funnel_df["LR"]).sum() / funnel_df["LR"].sum()
+        if "GPP" in funnel_df and funnel_df["LR"].sum() > 0
+        else 0
+    )
+    GCA = (
+        (funnel_df["GCA"] * funnel_df["LR"]).sum() / funnel_df["LR"].sum()
+        if "GCA" in funnel_df and funnel_df["LR"].sum() > 0
+        else 0
+    )
+
+    # --- Display metrics ---
     col1.metric(label="Learners Reached", value=prettify(int(LR)))
-
-    LA = get_cohort_totals_by_metric(user_cohort_df,stat="LA")
-    col2.metric(label="Learners Acquired", value=prettify(int(LA)))   
-     
-    RA = get_cohort_totals_by_metric(user_cohort_df,stat="RA")
+    col2.metric(label="Learners Acquired", value=prettify(int(LA)))
     col3.metric(label="Readers Acquired", value=prettify(int(RA)))
-    
-    GC = get_cohort_totals_by_metric(user_cohort_df,stat="GC")
     col1.metric(label="Games Completed", value=prettify(int(GC)))
-
-    GPP = get_cohort_GPP_avg(user_cohort_df)
     col2.metric(label="Game Progress Percent", value=f"{GPP:.2f}%")
-
-    GC_AVG = get_cohort_GC_avg(user_cohort_df)
-    col3.metric(label="Game Completion Avg", value=f"{GC_AVG:.2f}%")
-
-    st.divider()
-    st.subheader("Levels reached per language")
-    levels_reached_chart(apps)
-
-    csv = ui.convert_for_download(user_cohort_df)
-    st.download_button(label="Download CSV",data=csv,file_name="user_cohort_df.csv",key="e-10",icon=":material/download:",mime="text/csv")
-
+    col3.metric(label="Game Completion Avg", value=f"{GCA:.2f}%")
 
     st.divider()
     st.subheader("Engagement across the world")
@@ -114,3 +121,4 @@ if len(daterange) == 2 and len(countries_list) > 0:
     
     csv = ui.convert_for_download(df_download)
     st.download_button(label="Download CSV",data=csv,file_name="top_LR_LC_bar_chart.csv",key="e-12",icon=":material/download:",mime="text/csv")
+
