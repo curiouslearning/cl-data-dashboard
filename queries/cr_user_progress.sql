@@ -18,13 +18,13 @@ WITH
       KEY = 'version_number' ) AS app_version,
     CAST(DATE(TIMESTAMP_MICROS(user_first_touch_timestamp)) AS DATE) AS first_open,
     geo.country AS country,
-    LOWER(REGEXP_EXTRACT( (
+    LOWER(REGEXP_EXTRACT((
         SELECT
           value.string_value
         FROM
           UNNEST(event_params)
         WHERE
-          KEY = 'page_location'), r'[?&]cr_lang=([^&]+)' )) AS app_language,
+          KEY = 'page_location' ), r'[?&]cr_lang=([^&]+)' )) AS app_language,
     SAFE_CAST((
       SELECT
         value.int_value
@@ -47,18 +47,30 @@ WITH
     WHERE
       KEY = 'success_or_failure' ) AS success_or_failure,
     event_name,
+    -- Funnel Stage Mapping
+    CASE event_name
+      WHEN 'session_start' THEN 0
+      WHEN 'download_completed' THEN 1
+      WHEN 'tapped_start' THEN 2
+      WHEN 'selected_level' THEN 3
+      WHEN 'puzzle_completed' THEN 4
+      WHEN 'level_completed' THEN 5
+      ELSE -1
+  END
+    AS funnel_stage,
     event_date,
     device.web_info.hostname AS hostname,
     event_timestamp
   FROM
     `ftm-b9d99.analytics_159643920.events_20*`
   WHERE
-    event_name IN ( 'download_completed',
+    event_name IN ( 'session_start',
+      'download_completed',
       'tapped_start',
       'selected_level',
       'puzzle_completed',
       'level_completed' )
-    AND ( ( device.web_info.hostname LIKE 'feedthemonster.curiouscontent.org%'
+    AND (( device.web_info.hostname LIKE 'feedthemonster.curiouscontent.org%'
         AND (
         SELECT
           value.string_value
@@ -66,8 +78,8 @@ WITH
           UNNEST(event_params)
         WHERE
           KEY = 'page_location' ) LIKE '%https://feedthemonster.curiouscontent.org%' )
-      OR REGEXP_CONTAINS(device.web_info.hostname, r'^[a-z]+-ftm-standalone\.androidplatform\.net$')
-      OR device.web_info.hostname = 'appassets.androidplatform.net' )
+      OR REGEXP_CONTAINS(device.web_info.hostname, r'^[a-z-]+-ftm-standalone\.androidplatform\.net$')
+      OR device.web_info.hostname = 'appassets.androidplatform.net')
     AND CAST(DATE(TIMESTAMP_MICROS(user_first_touch_timestamp)) AS DATE) BETWEEN '2021-01-01'
     AND CURRENT_DATE()
     AND (
@@ -115,7 +127,7 @@ WITH
     (0)] AS user_pseudo_id,
     ARRAY_AGG(app_version
     ORDER BY
-      SAFE_CAST(REGEXP_EXTRACT(app_version, r'(\d+)$') AS INT64) DESC
+      SAFE_CAST(REGEXP_EXTRACT(app_version, r'(\\d+)$') AS INT64) DESC
     LIMIT
       1)[
   OFFSET
@@ -148,7 +160,16 @@ WITH
     COUNTIF(event_name = 'puzzle_completed') AS puzzle_completed_count,
     COUNTIF(event_name = 'selected_level') AS selected_level_count,
     COUNTIF(event_name = 'tapped_start') AS tapped_start_count,
-    COUNTIF(event_name = 'download_completed') AS download_completed_count
+    COUNTIF(event_name = 'download_completed') AS download_completed_count,
+    -- Furthest Funnel Stage & Event
+    MAX(funnel_stage) AS furthest_stage,
+    ARRAY_AGG(event_name
+    ORDER BY
+      funnel_stage DESC
+    LIMIT
+      1)[
+  OFFSET
+    (0)] AS furthest_event
   FROM
     joined_events
   WHERE
@@ -166,7 +187,7 @@ WITH
     MIN(la_date) AS min_la_date,
     ARRAY_AGG(app_version
     ORDER BY
-      SAFE_CAST(REGEXP_EXTRACT(app_version, r'(\d+)$') AS INT64) DESC
+      SAFE_CAST(REGEXP_EXTRACT(app_version, r'(\\d+)$') AS INT64) DESC
     LIMIT
       1)[
   OFFSET
@@ -188,7 +209,7 @@ WITH
     AND cr_user_id != ''
   GROUP BY
     cr_user_id ),
-  -- SESSIONIZATION SECTION
+  -- Sessionization logic as before
   ordered_events AS (
   SELECT
     cr_user_id,
@@ -255,10 +276,9 @@ SELECT
   a.country,
   a.app_language,
   a.hostname,
-  -- APP LOGIC UPDATED HERE
   CASE
     WHEN a.hostname = 'appassets.androidplatform.net' THEN 'WBS-standalone'
-    WHEN REGEXP_CONTAINS(a.hostname, r'^([a-z]+)-ftm-standalone\.androidplatform\.net$') THEN REGEXP_EXTRACT(a.hostname, r'^([a-z]+)-ftm-standalone\.androidplatform\.net$') || '-standalone'
+    WHEN REGEXP_CONTAINS(a.hostname, r'^([a-z-]+)-ftm-standalone\.androidplatform\.net$') THEN REGEXP_EXTRACT(a.hostname, r'^([a-z-]+)-ftm-standalone\.androidplatform\.net$') || '-standalone'
     ELSE 'CR'
 END
   AS app,
@@ -272,42 +292,29 @@ END
     ELSE NULL
 END
   AS days_to_ra,
-  CASE
-    WHEN a.level_completed_count > 0 THEN 'level_completed'
-    WHEN a.puzzle_completed_count > 0 THEN 'puzzle_completed'
-    WHEN a.selected_level_count > 0 THEN 'selected_level'
-    WHEN a.tapped_start_count > 0 THEN 'tapped_start'
-    WHEN a.download_completed_count > 0 THEN 'download_completed'
-    ELSE NULL
-END
-  AS furthest_event,
+  a.furthest_event AS furthest_event,
   SAFE_DIVIDE(a.max_user_level, a.max_game_level) * 100 AS gpc,
   COALESCE(s.engagement_event_count, 0) AS engagement_event_count,
   COALESCE(s.total_time_minutes, 0) AS total_time_minutes,
   COALESCE(s.avg_session_length_minutes, 0) AS avg_session_length_minutes,
   le.last_event_date,
   DATE_DIFF(le.last_event_date, a.first_open, DAY) AS active_span,
-
-  -- User reached at least level 1 (Learner Acquired)
   CASE
     WHEN a.max_user_level >= 1 THEN 1
     ELSE 0
 END
   AS la_flag,
-  -- User reached at least level 25 (Reader Acquired)
   CASE
     WHEN a.max_user_level >= 25 THEN 1
     ELSE 0
 END
   AS ra_flag,
-  -- User reached at least level 1 AND gpc >= 90 (Game Completed)
   CASE
     WHEN a.max_user_level >= 1 AND SAFE_DIVIDE(a.max_user_level, a.max_game_level) * 100 >= 90 THEN 1
     ELSE 0
 END
   AS gc_flag,
-  -- User was "Learner Reached" (just always 1 for cohort inclusion, but can be used for completeness)
-  1 AS lr_flag,
+  1 AS lr_flag
 FROM
   aggregated a
 JOIN
@@ -325,4 +332,4 @@ LEFT JOIN
 ON
   a.cr_user_id = le.cr_user_id
 ORDER BY
-  engagement_event_count DESC ;
+  engagement_event_count DESC
