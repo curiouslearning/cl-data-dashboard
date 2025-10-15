@@ -122,3 +122,5 @@ if len(daterange) == 2 and len(countries_list) > 0:
     csv = ui.convert_for_download(df_download)
     st.download_button(label="Download CSV",data=csv,file_name="top_LR_LC_bar_chart.csv",key="e-12",icon=":material/download:",mime="text/csv")
 
+import sys
+st.write("Python version:", sys.version.split()[0])
