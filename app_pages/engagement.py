@@ -8,8 +8,6 @@ import ui_widgets as ui
 from users import get_language_list,get_country_list
 from ui_components import stats_by_country_map,top_stats_bar_chart
 
-st.set_page_config(layout="wide")
-
 ui.display_definitions_table("Definitions",ui.level_definitions)
 ui.display_definitions_table("Data Notes",ui.data_notes)
 
