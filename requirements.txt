@@ -7,7 +7,7 @@ plotly==6.3.1
 ibis-framework==9.2.0
 rich==13.9.2
 scipy==1.14.1
-st-pages
+st-pages>=1.0.0
 
 # --- Google Cloud ecosystem ---
 google-api-core==2.15.0        # Was 2.11.1, must be >=2.15.0 for storage
