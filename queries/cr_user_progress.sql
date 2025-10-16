@@ -9,13 +9,6 @@ WITH
       UNNEST(event_params)
     WHERE
       KEY = 'cr_user_id' ) AS cr_user_id,
-    (
-    SELECT
-      value.string_value
-    FROM
-      UNNEST(event_params)
-    WHERE
-      KEY = 'version_number' ) AS app_version,
     CAST(DATE(TIMESTAMP_MICROS(user_first_touch_timestamp)) AS DATE) AS first_open,
     geo.country AS country,
     LOWER(REGEXP_EXTRACT((
@@ -64,13 +57,13 @@ WITH
   FROM
     `ftm-b9d99.analytics_159643920.events_20*`
   WHERE
-    event_name IN ( 'session_start',
+    event_name IN ('session_start',
       'download_completed',
       'tapped_start',
       'selected_level',
       'puzzle_completed',
-      'level_completed' )
-    AND (( device.web_info.hostname LIKE 'feedthemonster.curiouscontent.org%'
+      'level_completed')
+    AND ( (device.web_info.hostname LIKE 'feedthemonster.curiouscontent.org%'
         AND (
         SELECT
           value.string_value
@@ -79,7 +72,7 @@ WITH
         WHERE
           KEY = 'page_location' ) LIKE '%https://feedthemonster.curiouscontent.org%' )
       OR REGEXP_CONTAINS(device.web_info.hostname, r'^[a-z-]+-ftm-standalone\.androidplatform\.net$')
-      OR device.web_info.hostname = 'appassets.androidplatform.net')
+      OR device.web_info.hostname = 'appassets.androidplatform.net' )
     AND CAST(DATE(TIMESTAMP_MICROS(user_first_touch_timestamp)) AS DATE) BETWEEN '2021-01-01'
     AND CURRENT_DATE()
     AND (
@@ -125,13 +118,6 @@ WITH
       1)[
   OFFSET
     (0)] AS user_pseudo_id,
-    ARRAY_AGG(app_version
-    ORDER BY
-      SAFE_CAST(REGEXP_EXTRACT(app_version, r'(\\d+)$') AS INT64) DESC
-    LIMIT
-      1)[
-  OFFSET
-    (0)] AS app_version,
     MIN(first_open) AS first_open,
     ARRAY_AGG(hostname
     ORDER BY
@@ -161,7 +147,6 @@ WITH
     COUNTIF(event_name = 'selected_level') AS selected_level_count,
     COUNTIF(event_name = 'tapped_start') AS tapped_start_count,
     COUNTIF(event_name = 'download_completed') AS download_completed_count,
-    -- Furthest Funnel Stage & Event
     MAX(funnel_stage) AS furthest_stage,
     ARRAY_AGG(event_name
     ORDER BY
@@ -184,14 +169,7 @@ WITH
     cr_user_id,
     country,
     app_language,
-    MIN(la_date) AS min_la_date,
-    ARRAY_AGG(app_version
-    ORDER BY
-      SAFE_CAST(REGEXP_EXTRACT(app_version, r'(\\d+)$') AS INT64) DESC
-    LIMIT
-      1)[
-  OFFSET
-    (0)] AS max_app_version
+    MIN(la_date) AS min_la_date
   FROM
     aggregated
   GROUP BY
@@ -209,7 +187,6 @@ WITH
     AND cr_user_id != ''
   GROUP BY
     cr_user_id ),
-  -- Sessionization logic as before
   ordered_events AS (
   SELECT
     cr_user_id,
@@ -275,14 +252,12 @@ SELECT
   a.first_open,
   a.country,
   a.app_language,
-  a.hostname,
   CASE
     WHEN a.hostname = 'appassets.androidplatform.net' THEN 'WBS-standalone'
     WHEN REGEXP_CONTAINS(a.hostname, r'^([a-z-]+)-ftm-standalone\.androidplatform\.net$') THEN REGEXP_EXTRACT(a.hostname, r'^([a-z-]+)-ftm-standalone\.androidplatform\.net$') || '-standalone'
     ELSE 'CR'
 END
   AS app,
-  u.max_app_version AS app_version,
   a.max_user_level,
   a.max_game_level,
   u.min_la_date AS la_date,
@@ -292,7 +267,7 @@ END
     ELSE NULL
 END
   AS days_to_ra,
-  a.furthest_event AS furthest_event,
+  a.furthest_event,
   SAFE_DIVIDE(a.max_user_level, a.max_game_level) * 100 AS gpc,
   COALESCE(s.engagement_event_count, 0) AS engagement_event_count,
   COALESCE(s.total_time_minutes, 0) AS total_time_minutes,
@@ -332,4 +307,4 @@ LEFT JOIN
 ON
   a.cr_user_id = le.cr_user_id
 ORDER BY
-  engagement_event_count DESC
+  engagement_event_count DESC;
