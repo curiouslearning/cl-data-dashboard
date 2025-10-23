@@ -1,4 +1,7 @@
 WITH
+  -- -------------------------------
+  -- 1. Extract raw events
+  -- -------------------------------
   all_events AS (
   SELECT
     user_pseudo_id,
@@ -17,7 +20,7 @@ WITH
         FROM
           UNNEST(event_params)
         WHERE
-          KEY = 'page_location' ), r'[?&]cr_lang=([^&]+)' )) AS app_language,
+          KEY = 'page_location' ), r'[?&]cr_lang=([^&]+)')) AS app_language,
     SAFE_CAST((
       SELECT
         value.int_value
@@ -40,7 +43,6 @@ WITH
     WHERE
       KEY = 'success_or_failure' ) AS success_or_failure,
     event_name,
-    -- Funnel Stage Mapping
     CASE event_name
       WHEN 'session_start' THEN 0
       WHEN 'download_completed' THEN 1
@@ -70,7 +72,7 @@ WITH
         FROM
           UNNEST(event_params)
         WHERE
-          KEY = 'page_location' ) LIKE '%https://feedthemonster.curiouscontent.org%' )
+          KEY = 'page_location' ) LIKE '%https://feedthemonster.curiouscontent.org%')
       OR REGEXP_CONTAINS(device.web_info.hostname, r'^[a-z-]+-ftm-standalone\.androidplatform\.net$')
       OR device.web_info.hostname = 'appassets.androidplatform.net' )
     AND CAST(DATE(TIMESTAMP_MICROS(user_first_touch_timestamp)) AS DATE) BETWEEN '2021-01-01'
@@ -89,6 +91,9 @@ WITH
       UNNEST(event_params)
     WHERE
       KEY = 'cr_user_id' ) != '' ),
+  -- -------------------------------
+  -- 2. Join with language max level
+  -- -------------------------------
   joined_events AS (
   SELECT
     a.*,
@@ -106,6 +111,9 @@ WITH
       max_level ) b
   ON
     a.app_language = b.app_language ),
+  -- -------------------------------
+  -- 3. Aggregate user-level metrics
+  -- -------------------------------
   aggregated AS (
   SELECT
     cr_user_id,
@@ -164,6 +172,22 @@ WITH
     cr_user_id,
     country,
     app_language ),
+  -- -------------------------------
+  -- 4. Cohort tagging join
+  -- -------------------------------
+  tagged_cohorts AS (
+  SELECT
+    a.*,
+    cg.cohort_group
+  FROM
+    aggregated a
+  LEFT JOIN
+    `dataexploration-193817.user_data.cohort_groups` cg
+  ON
+    a.cr_user_id = cg.cr_user_id ),
+  -- -------------------------------
+  -- 5. Supporting aggregates
+  -- -------------------------------
   user_level_aggregates AS (
   SELECT
     cr_user_id,
@@ -187,6 +211,9 @@ WITH
     AND cr_user_id != ''
   GROUP BY
     cr_user_id ),
+  -- -------------------------------
+  -- 6. Sessionization (fixed analytics)
+  -- -------------------------------
   ordered_events AS (
   SELECT
     cr_user_id,
@@ -197,19 +224,13 @@ WITH
   WHERE
     cr_user_id IS NOT NULL
     AND cr_user_id != '' ),
-  numbered_events AS (
-  SELECT
-    *,
-    ROW_NUMBER() OVER (PARTITION BY cr_user_id ORDER BY event_timestamp) AS rn
-  FROM
-    ordered_events ),
   with_deltas AS (
   SELECT
     *,
-    LAG(event_ts) OVER (PARTITION BY cr_user_id ORDER BY rn) AS prev_event_ts,
-    TIMESTAMP_DIFF(event_ts, LAG(event_ts) OVER (PARTITION BY cr_user_id ORDER BY rn), SECOND) AS seconds_since_last
+    LAG(event_ts) OVER (PARTITION BY cr_user_id ORDER BY event_ts) AS prev_event_ts,
+    TIMESTAMP_DIFF(event_ts, LAG(event_ts) OVER (PARTITION BY cr_user_id ORDER BY event_ts), SECOND) AS seconds_since_last
   FROM
-    numbered_events ),
+    ordered_events ),
   marked_sessions AS (
   SELECT
     *,
@@ -223,7 +244,7 @@ WITH
   sessionized AS (
   SELECT
     *,
-    SUM(is_new_session) OVER (PARTITION BY cr_user_id ORDER BY rn) AS session_id
+    SUM(is_new_session) OVER (PARTITION BY cr_user_id ORDER BY event_ts) AS session_id
   FROM
     marked_sessions ),
   session_durations AS (
@@ -246,12 +267,17 @@ WITH
     session_durations
   GROUP BY
     cr_user_id )
+  -- -------------------------------
+  -- 7. Final output
+  -- -------------------------------
 SELECT
   a.user_pseudo_id,
   a.cr_user_id,
   a.first_open,
   a.country,
   a.app_language,
+  a.cohort_group,
+  -- ✅ new column
   CASE
     WHEN a.hostname = 'appassets.androidplatform.net' THEN 'WBS-standalone'
     WHEN REGEXP_CONTAINS(a.hostname, r'^([a-z-]+)-ftm-standalone\.androidplatform\.net$') THEN REGEXP_EXTRACT(a.hostname, r'^([a-z-]+)-ftm-standalone\.androidplatform\.net$') || '-standalone'
@@ -291,7 +317,7 @@ END
   AS gc_flag,
   1 AS lr_flag
 FROM
-  aggregated a
+  tagged_cohorts a
 JOIN
   user_level_aggregates u
 ON
