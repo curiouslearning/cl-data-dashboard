@@ -1,223 +1,9 @@
 import streamlit as st
 from rich import print
 import pandas as pd
-import numpy as np
 import datetime as dt
-import users
 
 default_daterange = [dt.datetime(2021, 1, 1).date(), dt.date.today()]
-
-def get_totals_by_metric(
-    daterange=default_daterange,
-    countries_list=[],
-    stat="LR",
-    cr_app_versions="All",
-    app="CR",
-    language="All",
-    user_list=None 
-):
-
-    # if no list passed in then get the full list
-    if len(countries_list) == 0:
-        countries_list = users.get_country_list()
-
-    df_user_list = filter_user_data(
-        daterange=daterange, countries_list=countries_list, stat=stat, app=app, cr_app_versions=cr_app_versions, language=language,user_list=user_list
-    )
-    
-    if (len(df_user_list) > 0):
-
-        if stat not in ["DC", "TS", "SL", "PC", "LA"]:
-            return len(df_user_list) #All LR 
-        else:
-            download_completed_count = len(
-                df_user_list[df_user_list["furthest_event"] == "download_completed"]
-            )
-
-            tapped_start_count = len(
-                df_user_list[df_user_list["furthest_event"] == "tapped_start"]
-            )
-            selected_level_count = len(
-                df_user_list[df_user_list["furthest_event"] == "selected_level"]
-            )
-            puzzle_completed_count = len(
-                df_user_list[df_user_list["furthest_event"] == "puzzle_completed"]
-            )
-            level_completed_count = len(
-                df_user_list[df_user_list["furthest_event"] == "level_completed"]
-            )
-
-            if stat == "DC":
-                return (
-                    download_completed_count
-                    + tapped_start_count
-                    + selected_level_count
-                    + puzzle_completed_count
-                    + level_completed_count
-                )
-
-            if stat == "TS":
-                return (
-                    tapped_start_count
-                    + selected_level_count
-                    + puzzle_completed_count
-                    + level_completed_count
-                )
-
-            if stat == "SL":  # all PC and SL users implicitly imply those events
-                return selected_level_count + puzzle_completed_count + level_completed_count
-
-            if stat == "PC":
-                return puzzle_completed_count + level_completed_count
-
-            if stat == "LA":
-                return level_completed_count
-    else:
-        return 0
-
-# Takes the complete user lists (cr_user_id) and filters based on input data, and returns
-# a new filtered dataset
-def filter_user_data(
-    daterange=default_daterange,
-    countries_list=["All"],
-    cr_app_versions=["All"],
-    stat="LR",
-    app="CR",
-    language=["All"],
-    user_list=None,
-    offline_filter=None
-):
-    
-    #default column to filter user cohort list
-    user_list_key = "cr_user_id"
-    # Check if necessary dataframes are available
-    if not all(key in st.session_state for key in ["df_cr_users", "df_unity_users",  "df_cr_app_launch"]):
-        print("PROBLEM!")
-        return pd.DataFrame()
-
-    # Select the appropriate dataframe based on app and stat
-    if app == "Unity":
-        df = st.session_state.df_unity_users #Unity users are in one table only
-        user_list_key = "user_pseudo_id"       
-    elif app == "StandAloneHindi":
-        df = st.session_state.df_cr_users
-        df.to_csv("df.csv")
-        df = (df[df["app"] == "StandAloneHindi"])
-    elif app == "CR" and stat == "LR":
-        df = st.session_state.df_cr_app_launch
-    else:
-        df = st.session_state.df_cr_users
-
-
-    # Initialize a boolean mask
-    mask = (
-        df["first_open"] >= pd.to_datetime(daterange[0])
-    ) & (
-        df["first_open"] <= pd.to_datetime(daterange[1])
-    )
-
-
-    if "All" not in cr_app_versions and app == "CR":
-        mask &= df["app_version"].isin(cr_app_versions)
-    # Apply country filter if not "All"
-    if countries_list[0] != "All":
-        mask &= df['country'].isin(set(countries_list))
-
-    # Apply language filter if not "All" 
-    if language[0] != "All":
-        mask &= df['app_language'].isin(set(language))
-        
-    # Apply started_in_offline_mode filter if not None
-    if offline_filter is not None:
-        if offline_filter is True:
-            mask &= df["started_in_offline_mode"] == True
-        else:  # offline_filter is False
-            mask &= df["started_in_offline_mode"] != True
-
-    # Apply stat-specific filters
-    if stat == "LA":
-        mask &= (df['max_user_level'] >= 1)
-    elif stat == "RA":
-        mask &= (df['max_user_level'] >= 25)
-    elif stat == "GC":  # Game completed
-        mask &= (df['max_user_level'] >= 1) & (df['gpc'] >= 90)
-    elif stat == "LR":
-        # No additional filters for these stats beyond daterange and optional countries/language
-        pass
-    
-    # Filter the dataframe with the combined mask
-    df = df.loc[mask]
-
-    #If user list subset was passed in, filter on that as well
-    if user_list is not None:
-
-        if len(user_list) == 0:
-            return pd.DataFrame()  # No matches — return empty
-
-        df = df[df[user_list_key].isin(user_list)]
-
-    return df
-
-
-@st.cache_data(ttl="1d", show_spinner=False)
-def get_date_cohort_dataframe(
-    daterange=default_daterange,
-    languages=["All"],
-    countries_list=["All"],
-    app="CR"):
-    
-    """
-    Returns a DataFrame of activity for all users who first opened the app in the selected cohort.
-    Useful for tracking how cohorts evolve over time.
-    """
-
-    # Get all of the users in the user selected window - this is the cohort
-    df_user_cohort = filter_user_data(daterange=daterange,countries_list=countries_list,app="CR",language=languages)
-
-    # All we need is their cr_user_id
-    user_cohort_list = df_user_cohort["cr_user_id"]
-
-    # Get superset of  the users up through today
-    daterange = [daterange[0],dt.date.today()]
-    df = filter_user_data(daterange=daterange,countries_list=countries_list,app=app,language=languages,user_list=user_cohort_list)
-    
-    return df
-
-#@st.cache_data(ttl="1d", show_spinner=False)
-def get_user_cohort_list(
-    daterange=default_daterange,
-    languages=["All"],
-    cr_app_versions="All",
-    countries_list=["All"],
-    app="CR",
-    as_list=True,
-    offline_filter=None
-):
-    """
-    Returns a list of user identifiers (default) or a DataFrame of cohort info based on first_open date,
-    country, language, and app type. Use as_list=False to return full DataFrame.
-    """
-    df_user_cohort = filter_user_data(
-        daterange=daterange,
-        countries_list=countries_list,
-        app=app,
-        language=languages,
-        cr_app_versions=cr_app_versions,
-        offline_filter=offline_filter
-    )
-
-    if app in ["CR", "StandAloneHindi"]:
-        user_cohort_df = df_user_cohort[["cr_user_id", "first_open","country", "app_language", "app_version"]]
-        user_id_col = "cr_user_id"
-    else:
-        user_cohort_df = df_user_cohort[["user_pseudo_id"]]
-        user_id_col = "user_pseudo_id"
-
-    if as_list:
-        return user_cohort_df[user_id_col].dropna().tolist()
-    else:
-        return user_cohort_df
-
 
 def get_filtered_cohort(app, daterange, language, countries_list):
     """Returns (user_cohort_df, user_cohort_df_LR) for app selection."""
@@ -567,3 +353,67 @@ def get_sorted_funnel_df(
         df = df.head(10)
 
     return df, funnel_steps
+
+
+@st.cache_data(ttl="1d", show_spinner=False)
+def get_funnel_step_counts_for_app(
+    app,
+    daterange,
+    language,
+    countries_list,
+    cohort=None,
+    funnel_size="compact",
+):
+    """
+    Return funnel step counts for a single app, using the SAME logic
+    as the existing single-app funnel.
+
+    Returns: (stats_list, counts_dict)
+      - stats_list: ordered list of funnel step codes
+      - counts_dict: {stat: count}
+    """
+
+    # Normalize app the same way your page does (["CR"], ["Unity"], etc.)
+    apps = [app] if isinstance(app, str) else app
+
+    # Which steps to use?  For "All" we want the compact funnel anyway.
+    if funnel_size == "large":
+        stats = ["LR", "DC", "TS", "SL", "PC", "LA", "RA", "GC"]
+    else:
+        stats = ["LR", "PC", "LA", "RA", "GC"]
+
+    # Use the existing helper that the page already uses
+    user_cohort_df, user_cohort_df_LR = get_filtered_cohort(
+        app=apps,
+        daterange=daterange,
+        language=language,
+        countries_list=countries_list,
+    )
+
+    # Same LR key logic as your funnel
+    if apps == ["Unity"] or "Unity" in apps:
+        user_key = "user_pseudo_id"
+    else:
+        user_key = "cr_user_id"
+
+    counts = {}
+    for stat in stats:
+        if stat == "LR":
+            # CR uses the app_launch table for LR when available
+            if (
+                user_cohort_df_LR is not None
+                and user_key in user_cohort_df_LR.columns
+            ):
+                count = user_cohort_df_LR[user_key].nunique()
+            else:
+                count = (
+                    user_cohort_df[user_key].nunique()
+                    if user_key in user_cohort_df.columns
+                    else len(user_cohort_df)
+                )
+        else:
+            count = get_cohort_totals_by_metric(user_cohort_df, stat=stat)
+
+        counts[stat] = int(count)
+
+    return stats, counts

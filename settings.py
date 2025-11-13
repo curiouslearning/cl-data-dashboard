@@ -62,12 +62,6 @@ def initialize():
     pd.options.mode.copy_on_write = True
     pd.set_option("display.max_columns", 20)            
 
-        
- 
-def init_cr_app_version_list():
-    cr_app_versions_list = users.get_app_version_list()
-    if "cr_app_versions_list" not in st.session_state:
-        st.session_state.cr_app_versions_list = cr_app_versions_list
 
 
 # Get the campaign data from BigQuery, roll it up per campaign

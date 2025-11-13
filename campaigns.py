@@ -150,7 +150,6 @@ def rollup_campaign_data(df):
     return df
 
 
-
 @st.cache_data(ttl="1d", show_spinner=False)
 def get_campaigns_by_date(daterange):
     df_campaigns_all = st.session_state.df_campaigns_all

@@ -29,7 +29,7 @@ with st.sidebar:
     daterange = ui.convert_date_to_range(selected_date, option)
 
     apps = ui.get_apps()
-    app = ui.single_selector(apps, title="Select an App", key="sf-10",include_All=False)
+    app = ui.single_selector(apps, title="Select an App", key="sf-10",include_All=True)
 
 # In the case of datepicker, don't do anything until both start and end dates are picked
 if len(daterange) == 2 and len(countries_list) > 0:

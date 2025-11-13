@@ -5,7 +5,7 @@ name = "Curious Learning Dashboard"
 icon = ":small_orange_diamond:"
 
 [[pages]]
-path = "app_pages/acquisition_funnel.py"
-name = "Engagement Funnel"
+path = "app_pages/single_funnel.py"
+name = "App Funnel"
 icon = ":small_orange_diamond:"
 

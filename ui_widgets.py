@@ -367,3 +367,23 @@ def get_apps():
     distinct_apps.append("Unity")
     distinct_apps.sort()
     return distinct_apps
+
+def is_compact(apps):
+    # Handles string or list
+    if isinstance(apps, list):
+        return any(
+            (
+                a == "Unity"
+                or a == "All"
+                or (isinstance(a, str) and "standalone" in a.lower())
+            )
+            for a in apps
+            if a
+        )
+    else:
+        a = apps
+        return (
+            a == "Unity"
+            or a == "All"
+            or (isinstance(a, str) and "standalone" in a.lower())
+        )
