@@ -354,35 +354,45 @@ def get_sorted_funnel_df(
 
     return df, funnel_steps
 
-
 @st.cache_data(ttl="1d", show_spinner=False)
 def get_funnel_step_counts_for_app(
     app,
     daterange,
     language,
     countries_list,
-    cohort=None,
     funnel_size="compact",
 ):
     """
-    Return funnel step counts for a single app, using the SAME logic
-    as the existing single-app funnel.
+    Returns funnel step counts for a **single app**, using the EXACT same logic
+    used in your single-app funnel page.
 
-    Returns: (stats_list, counts_dict)
-      - stats_list: ordered list of funnel step codes
-      - counts_dict: {stat: count}
+    Output:
+        stats_list = ordered list of funnel steps
+        counts = {
+            "LR": int,
+            "PC": int,
+            "LA": int,
+            "RA": int,
+            "GC": int,
+            "GPP": float,
+            "GCA": float
+        }
+
+    This function is the backbone of the COMBINED “All apps” calculations.
     """
 
-    # Normalize app the same way your page does (["CR"], ["Unity"], etc.)
+    # Normalize app – always work with a list
     apps = [app] if isinstance(app, str) else app
 
-    # Which steps to use?  For "All" we want the compact funnel anyway.
+    # Funnel steps
     if funnel_size == "large":
         stats = ["LR", "DC", "TS", "SL", "PC", "LA", "RA", "GC"]
     else:
         stats = ["LR", "PC", "LA", "RA", "GC"]
 
-    # Use the existing helper that the page already uses
+    # -----------------------------------------
+    # Load this app's cohort (same as funnel page)
+    # -----------------------------------------
     user_cohort_df, user_cohort_df_LR = get_filtered_cohort(
         app=apps,
         daterange=daterange,
@@ -390,30 +400,107 @@ def get_funnel_step_counts_for_app(
         countries_list=countries_list,
     )
 
-    # Same LR key logic as your funnel
+    # -----------------------------------------
+    # Determine the user key
+    # -----------------------------------------
     if apps == ["Unity"] or "Unity" in apps:
         user_key = "user_pseudo_id"
     else:
         user_key = "cr_user_id"
 
     counts = {}
-    for stat in stats:
-        if stat == "LR":
-            # CR uses the app_launch table for LR when available
-            if (
-                user_cohort_df_LR is not None
-                and user_key in user_cohort_df_LR.columns
-            ):
-                count = user_cohort_df_LR[user_key].nunique()
+
+    # -----------------------------------------
+    # Compute LR
+    # CR: LR uses app_launch df (user_cohort_df_LR)
+    # Unity/standalones: LR uses main df    
+    # -----------------------------------------
+    if "LR" in stats:
+        if apps == ["CR"] or "CR" in apps:
+            # CR uses app_launch table for LR when available
+            if user_cohort_df_LR is not None and user_key in user_cohort_df_LR.columns:
+                counts["LR"] = user_cohort_df_LR[user_key].nunique()
             else:
-                count = (
+                # Fallback
+                counts["LR"] = (
                     user_cohort_df[user_key].nunique()
                     if user_key in user_cohort_df.columns
                     else len(user_cohort_df)
                 )
         else:
-            count = get_cohort_totals_by_metric(user_cohort_df, stat=stat)
+            # Unity + standalones
+            counts["LR"] = (
+                user_cohort_df[user_key].nunique()
+                if user_key in user_cohort_df.columns
+                else len(user_cohort_df)
+            )
 
-        counts[stat] = int(count)
+    # -----------------------------------------
+    # Compute PC / LA / RA / GC using same logic as funnel
+    # -----------------------------------------
+    for stat in stats:
+        if stat == "LR":
+            continue  # computed above
+
+        c = get_cohort_totals_by_metric(user_cohort_df, stat=stat)
+        counts[stat] = int(c)
+
+    # -----------------------------------------
+    # Compute GPP and GCA like funnel_percent_by_group does
+    # -----------------------------------------
+    GPP = 0.0
+    GCA = 0.0
+
+    if "gpc" in user_cohort_df.columns:
+
+        # LA users = max_user_level >= 1 (same definition as your funnel)
+        la_df = user_cohort_df[user_cohort_df["max_user_level"] >= 1]
+
+        if len(la_df) > 0:
+
+            # ---- GPP = mean gpc among LA users ----
+            GPP = float(la_df["gpc"].mean())
+
+            # ---- GCA = % of LA users with gpc >= 90 ----
+            GCA = float((la_df["gpc"] >= 90).mean() * 100)
+
+    counts["GPP"] = GPP
+    counts["GCA"] = GCA
 
     return stats, counts
+
+
+def compute_global_metrics(df):
+    """
+    Compute global LR/LA/RA/GC totals and weighted GPP/GCA from funnel_df.
+    funnel_df is already an aggregated table:
+      - one row per language or segment
+      - columns: LR, LA, RA, GC, GPP, GCA, etc.
+    """
+
+    # Raw totals (simple sums)
+    LR = df["LR"].sum() if "LR" in df else 0
+    LA = df["LA"].sum() if "LA" in df else 0
+    RA = df["RA"].sum() if "RA" in df else 0
+    GC = df["GC"].sum() if "GC" in df else 0
+
+    # Weighted averages
+    # Multiply each segment's GPP by its LR weight
+    if "GPP" in df and LR > 0:
+        GPP = (df["GPP"] * df["LR"]).sum() / LR
+    else:
+        GPP = 0
+
+    if "GCA" in df and LR > 0:
+        GCA = (df["GCA"] * df["LR"]).sum() / LR
+    else:
+        GCA = 0
+
+    return {
+        "LR": int(LR),
+        "LA": int(LA),
+        "RA": int(RA),
+        "GC": int(GC),
+        "GPP": float(GPP),
+        "GCA": float(GCA),
+    }

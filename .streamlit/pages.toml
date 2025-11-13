@@ -1,7 +1,7 @@
 
 [[pages]]
 path = "app_pages/engagement.py"
-name = "Curious Learning Dashboard"
+name = "Engagement"
 icon = ":small_orange_diamond:"
 
 [[pages]]
