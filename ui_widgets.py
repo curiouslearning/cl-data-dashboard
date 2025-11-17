@@ -387,3 +387,47 @@ def is_compact(apps):
             or a == "All"
             or (isinstance(a, str) and "standalone" in a.lower())
         )
+
+def metric_tile(label, value, color="#DCEAFB", size="large"):
+    """
+    Render a unified metric tile.
+
+    Parameters
+    ----------
+    label : str
+        The title displayed above the value.
+    value : str or number
+        The formatted metric value.
+    color : str
+        Background color of the tile.
+    size : str
+        "large" or "small" tile preset.
+    """
+
+    # Sizing presets
+    if size == "large":
+        padding = "18px"
+        value_font = "28px"
+        label_font = "15px"
+    else:  # small
+        padding = "12px"
+        value_font = "20px"
+        label_font = "13px"
+
+    st.markdown(
+        f"""
+        <div style="
+            padding:{padding};
+            border-radius:16px;
+            background-color:{color};
+            text-align:center;
+            margin-bottom:16px;
+        ">
+            <div style="font-size:{label_font}; color:#555;">{label}</div>
+            <div style="font-size:{value_font}; font-weight:700; margin-top:6px;">
+                {value}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )

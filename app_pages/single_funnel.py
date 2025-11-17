@@ -68,10 +68,17 @@ if (len(countries_list) and len(daterange) == 2 ):
         RA_total = totals.get("RA", 0)
         GC_total = totals.get("GC", 0)
 
-        col1.metric("Learners Reached", prettify(LR_total))
-        col2.metric("Learners Acquired", prettify(LA_total))
-        col3.metric("Readers Acquired", prettify(RA_total))
-        col4.metric("Game Completed", prettify(GC_total))
+        cols = st.columns(4)
+        labels_values = [
+            ("Learners Reached", prettify(LR_total)),
+            ("Learners Acquired", prettify(LA_total)),
+            ("Readers Acquired", prettify(RA_total)),
+            ("Game Completed", prettify(GC_total)),
+    ]
+        tile_colors = ["#DCEAFB", "#E6F4EA", "#FFF5E6", "#FDE7E7"]
+        for i, (label, value) in enumerate(labels_values):
+            with cols[i]:
+                ui.metric_tile(label, value, color=tile_colors[i])
         
         # --- Percentages (same logic as create_funnels_by_cohort) ---
         percent_of_previous = [None]

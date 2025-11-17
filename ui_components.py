@@ -354,3 +354,5 @@ def create_funnels_by_cohort(
     )
 
     st.plotly_chart(fig, use_container_width=True, key=f"{key_prefix}-chart")
+    
+    
