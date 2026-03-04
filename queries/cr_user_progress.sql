@@ -4,14 +4,13 @@ CR_USER_PROGRESS
 Unified per-user progress table for Feed the Monster gameplay.
 
 This table aggregates GA4 event data to a single row per user and provides:
-
 • Normalized level progression (1-based levels)
 • LA (Level Achieved) and RA (Reader Acquired) milestone dates
 • Stable days_to_ra calculation
 • Game completion metrics
-• Engagement session metrics
+• Engagement session metrics (sessions, event count, time)
 • Cohort tagging
-• Attribution flags
+• Attribution flags (from upstream cr_app_launch)
 • App labeling (CR vs <prefix>-standalone builds)
 
 App labeling logic:
@@ -36,9 +35,7 @@ days_to_ra:
 
 ================================================================================ */
 
-
 CREATE OR REPLACE TABLE `dataexploration-193817.user_data.cr_user_progress` AS
-
 WITH
 
 -- ----------------------------------------------------------------------
@@ -52,10 +49,12 @@ all_events AS (
      FROM UNNEST(event_params)
      WHERE key = 'cr_user_id') AS cr_user_id,
 
+    -- First touch date from GA4 user_first_touch_timestamp
     CAST(DATE(TIMESTAMP_MICROS(user_first_touch_timestamp)) AS DATE) AS first_open,
 
     geo.country AS country,
 
+    -- Language extracted from page_location param
     LOWER(REGEXP_EXTRACT(
       (SELECT value.string_value
        FROM UNNEST(event_params)
@@ -63,6 +62,7 @@ all_events AS (
       r'[?&]cr_lang=([^&]+)'
     )) AS app_language,
 
+    -- Raw level_number from event params (FTM quirk: 0 = first level)
     SAFE_CAST(
       (SELECT value.int_value
        FROM UNNEST(event_params)
@@ -70,6 +70,7 @@ all_events AS (
       AS INT64
     ) AS level_number_raw,
 
+    -- Normalized 1-based level number used everywhere downstream
     CASE
       WHEN SAFE_CAST(
              (SELECT value.int_value
@@ -90,8 +91,13 @@ all_events AS (
       AS INT64
     ) AS number_of_successful_puzzles,
 
+    (SELECT value.string_value
+     FROM UNNEST(event_params)
+     WHERE key = 'success_or_failure') AS success_or_failure,
+
     event_name,
 
+    -- Funnel stage ordering
     CASE event_name
       WHEN 'session_start' THEN 0
       WHEN 'download_completed' THEN 1
@@ -102,10 +108,14 @@ all_events AS (
       ELSE -1
     END AS funnel_stage,
 
+    -- GA4 event_date is yyyymmdd string; parse once and use as DATE everywhere
     PARSE_DATE('%Y%m%d', event_date) AS event_dt,
-    event_timestamp,
 
-    device.web_info.hostname AS hostname
+    -- Keep raw event_date string too if you still want it
+    event_date,
+
+    device.web_info.hostname AS hostname,
+    event_timestamp
 
   FROM `ftm-b9d99.analytics_159643920.events_20*`
 
@@ -171,6 +181,7 @@ aggregated AS (
 
     MAX(max_game_level) AS max_game_level,
 
+    -- LA: first qualifying level_completed anywhere (>= 3 successful puzzles)
     MIN(CASE
           WHEN event_name = 'level_completed'
            AND number_of_successful_puzzles >= 3
@@ -178,6 +189,7 @@ aggregated AS (
           THEN event_dt
         END) AS la_date,
 
+    -- RA exact: first qualifying completion at level 25 (1-based)
     MIN(CASE
           WHEN event_name = 'level_completed'
            AND number_of_successful_puzzles >= 3
@@ -185,6 +197,7 @@ aggregated AS (
           THEN event_dt
         END) AS ra_date_exact,
 
+    -- RA fallback: first qualifying completion AFTER level 25 => level >= 26 (1-based)
     MIN(CASE
           WHEN event_name = 'level_completed'
            AND number_of_successful_puzzles >= 3
@@ -192,6 +205,7 @@ aggregated AS (
           THEN event_dt
         END) AS ra_date_fallback,
 
+    -- Max completed level (1-based) from qualifying level_completed events
     MAX(CASE
           WHEN event_name = 'level_completed'
            AND number_of_successful_puzzles >= 3
@@ -203,6 +217,11 @@ aggregated AS (
     COUNTIF(event_name = 'level_completed'
             AND number_of_successful_puzzles >= 3
             AND level_number_1b IS NOT NULL) AS level_completed_count,
+
+    COUNTIF(event_name = 'puzzle_completed') AS puzzle_completed_count,
+    COUNTIF(event_name = 'selected_level') AS selected_level_count,
+    COUNTIF(event_name = 'tapped_start') AS tapped_start_count,
+    COUNTIF(event_name = 'download_completed') AS download_completed_count,
 
     MAX(funnel_stage) AS furthest_stage,
     ARRAY_AGG(event_name ORDER BY funnel_stage DESC LIMIT 1)[OFFSET(0)] AS furthest_event
@@ -238,7 +257,7 @@ tagged_cohorts AS (
 ),
 
 -- ----------------------------------------------------------------------
--- 6) Last event date
+-- 6) Last observed event date per user
 -- ----------------------------------------------------------------------
 last_events AS (
   SELECT
@@ -246,6 +265,82 @@ last_events AS (
     MAX(event_dt) AS last_event_date
   FROM all_events
   GROUP BY cr_user_id
+),
+
+-- ----------------------------------------------------------------------
+-- 7) Sessionization for engagement metrics
+--    Session boundary rule: new session if > 120 seconds since prior event
+-- ----------------------------------------------------------------------
+ordered_events AS (
+  SELECT
+    cr_user_id,
+    TIMESTAMP_MICROS(event_timestamp) AS event_ts
+  FROM all_events
+  WHERE cr_user_id IS NOT NULL AND cr_user_id != ''
+),
+
+with_deltas AS (
+  SELECT
+    cr_user_id,
+    event_ts,
+    LAG(event_ts) OVER (PARTITION BY cr_user_id ORDER BY event_ts) AS prev_event_ts,
+    TIMESTAMP_DIFF(
+      event_ts,
+      LAG(event_ts) OVER (PARTITION BY cr_user_id ORDER BY event_ts),
+      SECOND
+    ) AS seconds_since_last
+  FROM ordered_events
+),
+
+marked_sessions AS (
+  SELECT
+    *,
+    CASE
+      WHEN seconds_since_last IS NULL OR seconds_since_last > 120 THEN 1
+      ELSE 0
+    END AS is_new_session
+  FROM with_deltas
+),
+
+sessionized AS (
+  SELECT
+    *,
+    SUM(is_new_session) OVER (PARTITION BY cr_user_id ORDER BY event_ts) AS session_id
+  FROM marked_sessions
+),
+
+session_durations AS (
+  SELECT
+    cr_user_id,
+    session_id,
+    TIMESTAMP_DIFF(MAX(event_ts), MIN(event_ts), SECOND) AS session_duration_sec
+  FROM sessionized
+  GROUP BY cr_user_id, session_id
+),
+
+session_stats AS (
+  SELECT
+    sd.cr_user_id,
+    COUNT(*) AS session_count,
+    (SELECT COUNT(*) FROM ordered_events oe WHERE oe.cr_user_id = sd.cr_user_id) AS engagement_event_count,
+    ROUND(SUM(session_duration_sec) / 60.0, 1) AS total_time_minutes,
+    ROUND(AVG(session_duration_sec) / 60.0, 1) AS avg_session_length_minutes
+  FROM session_durations sd
+  GROUP BY sd.cr_user_id
+),
+
+-- ----------------------------------------------------------------------
+-- 8) Attribution flags from upstream table
+-- ----------------------------------------------------------------------
+attribution_flags AS (
+  SELECT
+    cr_user_id,
+    country,
+    app_language,
+    is_attributed,
+    attribution_source,
+    attribution_campaign_id
+  FROM `dataexploration-193817.user_data.cr_app_launch`
 )
 
 -- ----------------------------------------------------------------------
@@ -260,6 +355,7 @@ SELECT
   a.app_language,
   a.cohort_name,
 
+  -- App labeling based on hostname
   CASE
     WHEN REGEXP_CONTAINS(a.hostname,
          r'^(.+)_cr-ftm-standalone\.androidplatform\.net$')
@@ -274,23 +370,27 @@ SELECT
   a.la_date,
   a.ra_date,
 
+  -- Use the earlier of first_open and first_event_date to avoid 0/negative artifacts
   CASE
     WHEN a.ra_date IS NOT NULL
-      THEN DATE_DIFF(a.ra_date,
-                     LEAST(a.first_open, a.first_event_date),
-                     DAY) + 1
+      THEN DATE_DIFF(a.ra_date, LEAST(a.first_open, a.first_event_date), DAY) + 1
     ELSE NULL
   END AS days_to_ra,
 
   a.furthest_event,
 
+  -- Game progress completion percentage
   SAFE_DIVIDE(a.max_user_level, a.max_game_level) * 100 AS gpc,
 
-  le.last_event_date,
-  DATE_DIFF(le.last_event_date,
-            LEAST(a.first_open, a.first_event_date),
-            DAY) AS active_span,
+  COALESCE(s.session_count, 0) AS session_count,
+  COALESCE(s.engagement_event_count, 0) AS engagement_event_count,
+  COALESCE(s.total_time_minutes, 0) AS total_time_minutes,
+  COALESCE(s.avg_session_length_minutes, 0) AS avg_session_length_minutes,
 
+  le.last_event_date,
+  DATE_DIFF(le.last_event_date, LEAST(a.first_open, a.first_event_date), DAY) AS active_span,
+
+  -- Flags
   CASE WHEN a.max_user_level >= 1 THEN 1 ELSE 0 END AS la_flag,
   CASE WHEN a.max_user_level >= 25 THEN 1 ELSE 0 END AS ra_flag,
 
@@ -300,10 +400,20 @@ SELECT
     THEN 1 ELSE 0
   END AS gc_flag,
 
+  af.is_attributed,
+  af.attribution_source,
+  af.attribution_campaign_id,
+
   1 AS lr_flag
 
 FROM tagged_cohorts a
 LEFT JOIN last_events le
   ON a.cr_user_id = le.cr_user_id
+LEFT JOIN session_stats s
+  ON a.cr_user_id = s.cr_user_id
+LEFT JOIN attribution_flags af
+  ON  a.cr_user_id = af.cr_user_id
+  AND a.country = af.country
+  AND a.app_language = af.app_language
 
-ORDER BY max_user_level DESC;
+ORDER BY engagement_event_count DESC;

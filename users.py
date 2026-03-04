@@ -4,29 +4,48 @@ from rich import print as print
 import numpy as np
 import gcsfs
 import settings
+import re
 
+
+
+RUN_DATE_RE = re.compile(r"/run_date=\d{4}-\d{2}-\d{2}/")
 
 @st.cache_data(ttl="1d", show_spinner=False)
 def load_parquet_from_gcs(file_pattern: str) -> pd.DataFrame:
     credentials, _ = settings.get_gcp_credentials()
     fs = gcsfs.GCSFileSystem(project="dataexploration-193817", token=credentials)
-    files = fs.glob(file_pattern)
 
+    files = fs.glob(file_pattern)
     if not files:
         raise FileNotFoundError(f"No files matching pattern: {file_pattern}")
-    df = pd.read_parquet(files, filesystem=fs).copy()
 
+    if "run_date=*" in file_pattern:
+        run_dirs = [m.group(0) for f in files if (m := RUN_DATE_RE.search(f))]
+        if not run_dirs:
+            raise FileNotFoundError(f"Pattern included run_date=* but no run_date folders found: {file_pattern}")
+
+        latest_run_dir = max(set(run_dirs))  # YYYY-MM-DD sorts correctly
+        files = [f for f in files if latest_run_dir in f]
+
+    df = pd.read_parquet(files, filesystem=fs).copy()
     return df
 
-
 def load_unity_user_progress_from_gcs():
-    return load_parquet_from_gcs("user_data_parquet_cache/unity_user_progress_*.parquet")
+    return load_parquet_from_gcs(
+        "user_data_parquet_cache/unity_user_progress/run_date=*/unity_user_progress_*.parquet"
+    )
 
 def load_cr_user_progress_from_gcs():
-    return load_parquet_from_gcs("user_data_parquet_cache/cr_user_progress_a*.parquet")
+    return load_parquet_from_gcs(
+        "user_data_parquet_cache/cr_user_progress/run_date=*/cr_user_progress_*.parquet"
+    )
 
 def load_cr_app_launch_from_gcs():
-    return load_parquet_from_gcs("user_data_parquet_cache/cr_app_launch_*.parquet")
+    return load_parquet_from_gcs(
+        "user_data_parquet_cache/cr_app_launch/run_date=*/cr_app_launch_*.parquet"
+    )
+
+
 
 
 def ensure_user_data_initialized():
