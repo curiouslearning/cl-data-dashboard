@@ -9,17 +9,13 @@ This table aggregates GA4 event data to a single row per user and provides:
 • Stable days_to_ra calculation
 • Game completion metrics
 • Engagement session metrics (sessions, event count, time)
-• Cohort tagging
 • Attribution flags (from upstream cr_app_launch)
-• App labeling (CR vs <prefix>-standalone builds)
+• App labeling (CR vs standalone builds)
 
 App labeling logic:
-- Hostnames matching:
-    <prefix>_cr-ftm-standalone.androidplatform.net
-  are labeled:
-    <prefix>-standalone
-- All other supported hostnames are labeled:
-    CR
+- appassets.androidplatform.net  -> WBS-standalone
+- <prefix>_cr-ftm-standalone.androidplatform.net -> <prefix>-standalone
+- all other supported hostnames -> CR
 
 Level normalization:
 - FTM events store first level as 0
@@ -139,6 +135,8 @@ all_events AS (
          device.web_info.hostname,
          r'^(.+)_cr-ftm-standalone\.androidplatform\.net$'
        )
+
+    OR device.web_info.hostname = 'appassets.androidplatform.net'
   )
 
   AND CAST(DATE(TIMESTAMP_MICROS(user_first_touch_timestamp)) AS DATE)
@@ -245,19 +243,7 @@ aggregated_with_ra AS (
 ),
 
 -- ----------------------------------------------------------------------
--- 5) Cohort tagging
--- ----------------------------------------------------------------------
-tagged_cohorts AS (
-  SELECT
-    a.*,
-    cg.cohort_name
-  FROM aggregated_with_ra a
-  LEFT JOIN `dataexploration-193817.user_data.cr_cohorts` cg
-    ON a.cr_user_id = cg.cr_user_id
-),
-
--- ----------------------------------------------------------------------
--- 6) Last observed event date per user
+-- 5) Last observed event date per user
 -- ----------------------------------------------------------------------
 last_events AS (
   SELECT
@@ -268,7 +254,7 @@ last_events AS (
 ),
 
 -- ----------------------------------------------------------------------
--- 7) Sessionization for engagement metrics
+-- 6) Sessionization for engagement metrics
 --    Session boundary rule: new session if > 120 seconds since prior event
 -- ----------------------------------------------------------------------
 ordered_events AS (
@@ -330,7 +316,7 @@ session_stats AS (
 ),
 
 -- ----------------------------------------------------------------------
--- 8) Attribution flags from upstream table
+-- 7) Attribution flags from upstream table
 -- ----------------------------------------------------------------------
 attribution_flags AS (
   SELECT
@@ -353,15 +339,12 @@ SELECT
   a.first_event_date,
   a.country,
   a.app_language,
-  a.cohort_name,
 
   -- App labeling based on hostname
   CASE
-    WHEN REGEXP_CONTAINS(a.hostname,
-         r'^(.+)_cr-ftm-standalone\.androidplatform\.net$')
-      THEN REGEXP_EXTRACT(a.hostname,
-           r'^(.+)_cr-ftm-standalone\.androidplatform\.net$')
-           || '-standalone'
+    WHEN a.hostname = 'appassets.androidplatform.net' THEN 'WBS-standalone'
+    WHEN REGEXP_CONTAINS(a.hostname, r'^(.+)_cr-ftm-standalone\.androidplatform\.net$')
+      THEN REGEXP_EXTRACT(a.hostname, r'^(.+)_cr-ftm-standalone\.androidplatform\.net$') || '-standalone'
     ELSE 'CR'
   END AS app,
 
@@ -406,7 +389,7 @@ SELECT
 
   1 AS lr_flag
 
-FROM tagged_cohorts a
+FROM aggregated_with_ra a
 LEFT JOIN last_events le
   ON a.cr_user_id = le.cr_user_id
 LEFT JOIN session_stats s
