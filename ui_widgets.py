@@ -363,10 +363,7 @@ def convert_for_download(df):
     return df.to_csv().encode("utf-8")
 
 def get_apps():
-    distinct_apps = sorted(st.session_state["df_cr_users"]["app"].dropna().unique())
-    distinct_apps.append("Unity")
-    distinct_apps.sort()
-    return distinct_apps
+    return ["All", "CR", "Unity"]
 
 def is_compact(apps):
     # Handles string or list
