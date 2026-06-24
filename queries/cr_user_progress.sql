@@ -3,13 +3,22 @@ CR_USER_PROGRESS
 
 Unified per-user progress table for Feed the Monster gameplay.
 
+PATCH (2026-06-23): Removed is_attributed, attribution_source, and
+attribution_campaign_id entirely. These columns were sourced upstream
+from marketing tables that have since been removed, which broke the
+nightly job with:
+  "Unrecognized name: is_attributed at [326:5]"
+Table is fully recreated each night and nothing downstream depends on
+these columns, so they've been dropped rather than nulled out. If a
+replacement attribution source is built later, re-add a join + columns
+at that point.
+
 This table aggregates GA4 event data to a single row per user and provides:
 • Normalized level progression (1-based levels)
 • LA (Level Achieved) and RA (Reader Acquired) milestone dates
 • Stable days_to_ra calculation
 • Game completion metrics
 • Engagement session metrics (sessions, event count, time)
-• Attribution flags (from upstream cr_app_launch)
 • App labeling (CR vs standalone builds)
 
 App labeling logic:
@@ -313,21 +322,19 @@ session_stats AS (
     ROUND(AVG(session_duration_sec) / 60.0, 1) AS avg_session_length_minutes
   FROM session_durations sd
   GROUP BY sd.cr_user_id
-),
+)
 
 -- ----------------------------------------------------------------------
--- 7) Attribution flags from upstream table
+-- 7) Attribution flags — REMOVED (patch 2026-06-23)
 -- ----------------------------------------------------------------------
-attribution_flags AS (
-  SELECT
-    cr_user_id,
-    country,
-    app_language,
-    is_attributed,
-    attribution_source,
-    attribution_campaign_id
-  FROM `dataexploration-193817.user_data.cr_app_launch`
-)
+-- The previous CTE here pulled is_attributed, attribution_source, and
+-- attribution_campaign_id from cr_app_launch. Those columns were fed by
+-- marketing tables that have since been removed, and referencing them
+-- threw: "Unrecognized name: is_attributed at [326:5]"
+--
+-- Table is fully recreated nightly and nothing downstream depends on
+-- these columns, so they've been dropped entirely rather than nulled.
+-- ----------------------------------------------------------------------
 
 -- ----------------------------------------------------------------------
 -- Final output
@@ -383,10 +390,6 @@ SELECT
     THEN 1 ELSE 0
   END AS gc_flag,
 
-  af.is_attributed,
-  af.attribution_source,
-  af.attribution_campaign_id,
-
   1 AS lr_flag
 
 FROM aggregated_with_ra a
@@ -394,9 +397,5 @@ LEFT JOIN last_events le
   ON a.cr_user_id = le.cr_user_id
 LEFT JOIN session_stats s
   ON a.cr_user_id = s.cr_user_id
-LEFT JOIN attribution_flags af
-  ON  a.cr_user_id = af.cr_user_id
-  AND a.country = af.country
-  AND a.app_language = af.app_language
 
 ORDER BY engagement_event_count DESC;
