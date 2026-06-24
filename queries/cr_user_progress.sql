@@ -148,8 +148,10 @@ all_events AS (
     OR device.web_info.hostname = 'appassets.androidplatform.net'
   )
 
-  AND CAST(DATE(TIMESTAMP_MICROS(user_first_touch_timestamp)) AS DATE)
-      BETWEEN '2021-01-01' AND CURRENT_DATE()
+AND COALESCE(
+      CAST(DATE(TIMESTAMP_MICROS(user_first_touch_timestamp)) AS DATE),
+      PARSE_DATE('%Y%m%d', event_date)
+    ) BETWEEN '2021-01-01' AND CURRENT_DATE()
 
   AND (SELECT value.string_value
        FROM UNNEST(event_params)
