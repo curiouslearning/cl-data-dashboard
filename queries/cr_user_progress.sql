@@ -383,6 +383,7 @@ SELECT
   DATE_DIFF(le.last_event_date, LEAST(a.first_open, a.first_event_date), DAY) AS active_span,
 
   -- Flags
+  CASE WHEN a.furthest_stage >= 4 THEN 1 ELSE 0 END AS pc_flag,
   CASE WHEN a.max_user_level >= 1 THEN 1 ELSE 0 END AS la_flag,
   CASE WHEN a.max_user_level >= 25 THEN 1 ELSE 0 END AS ra_flag,
 
