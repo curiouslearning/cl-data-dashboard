@@ -12,3 +12,18 @@ Curious Learning External Dashboard
 OR 
 docker build --no-cache --platform linux/amd64  -t gcr.io/dataexploration-193817/cl-data-dashboard:latest .
 docker push gcr.io/dataexploration-193817/cl-data-dashboard:latest
+
+**Queries**
+
+`queries/` is the single home for dashboard SQL across all the Curious Learning
+dashboard repos (`cl-dashboard-internal`, `cl-dashboard-cohorts`,
+`cl-dashboard-engagement`, …). Do not keep per-repo copies — a divergent copy of
+`cr_cohorts_nightly.sql` in `cl-dashboard-cohorts` is what silently kept the
+`study:World Bank Nigeria June 2026` cohort out of the nightly MERGE.
+
+Files here are the source of truth for the BigQuery **scheduled queries**; editing
+one does not deploy it. Push a change with:
+
+    bq update --transfer_config --params='{"query":"<file contents>"}' <config_id>
+
+`queries/adhoc/` holds one-time and destructive scripts that are not scheduled.
