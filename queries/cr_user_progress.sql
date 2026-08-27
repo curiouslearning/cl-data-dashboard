@@ -38,6 +38,23 @@ days_to_ra:
 - Uses the earlier of first_open and first_event_date
   to avoid negative or zero artifacts.
 
+source / campaign_id (restored 2026-08-26):
+- Also sourced from cr_app_launch, parsed there from the raw_referrer_url event
+  param. This replaces the pre-2026-06 attribution_source / attribution_campaign_id
+  columns, which came from the marketing tables that were removed.
+- is_attributed is NOT restored: it was a marketing-table concept. Use
+  `source IS NOT NULL` if an equivalent flag is needed.
+- Sparse -- only ~0.3% of users arrive with attribution, so expect mostly NULL.
+
+study_user_id (added 2026-08-26):
+- Sourced from cr_app_launch, which must therefore be rebuilt BEFORE this
+  table in the nightly run. This re-introduces a build-order dependency on
+  cr_app_launch that the 2026-06-23 patch above had removed.
+- cr_app_launch is collapsed to one row per cr_user_id before joining; see
+  the study_ids CTE for why a direct join would inflate this table.
+- NULL for users with no container app_launch row -- notably the standalone
+  builds, which never launch through the container.
+
 ================================================================================ */
 
 CREATE OR REPLACE TABLE `dataexploration-193817.user_data.cr_user_progress` AS
@@ -324,6 +341,27 @@ session_stats AS (
     ROUND(AVG(session_duration_sec) / 60.0, 1) AS avg_session_length_minutes
   FROM session_durations sd
   GROUP BY sd.cr_user_id
+),
+
+-- ----------------------------------------------------------------------
+-- 6b) study_user_id + attribution from cr_app_launch
+--     cr_app_launch is NOT one row per cr_user_id (its grain also includes
+--     user_pseudo_id / country / app_language / first_open), so joining it
+--     directly would fan out this table -- measured at +61% rows. Collapse to
+--     one row per cr_user_id FIRST so the join below is strictly row-preserving.
+--     MAX() ignores NULLs, so a user picks up each value from whichever launch
+--     row carries it; it is also deterministic in the event a user ever did
+--     carry two distinct values (none do today, for any of the three).
+-- ----------------------------------------------------------------------
+launch_attrs AS (
+  SELECT
+    cr_user_id,
+    MAX(study_user_id) AS study_user_id,
+    MAX(source)        AS source,
+    MAX(campaign_id)   AS campaign_id
+  FROM `dataexploration-193817.user_data.cr_app_launch`
+  WHERE cr_user_id IS NOT NULL
+  GROUP BY cr_user_id
 )
 
 -- ----------------------------------------------------------------------
@@ -344,6 +382,9 @@ session_stats AS (
 SELECT
   a.user_pseudo_id,
   a.cr_user_id,
+  st.study_user_id,
+  st.source,
+  st.campaign_id,
   a.first_open,
   a.first_event_date,
   a.country,
@@ -400,5 +441,7 @@ LEFT JOIN last_events le
   ON a.cr_user_id = le.cr_user_id
 LEFT JOIN session_stats s
   ON a.cr_user_id = s.cr_user_id
+LEFT JOIN launch_attrs st
+  ON a.cr_user_id = st.cr_user_id
 
 ORDER BY engagement_event_count DESC;
