@@ -10,11 +10,23 @@
 -- - Program cohorts: add/edit definitions in cohort_rules below (prefixed "program:")
 -- - App cohorts: for any user with app != 'CR', inserts cohort_name = CONCAT('app:', app)
 -- - Study cohorts: explicit ID lists from cr_study_cohort (prefixed "study:")   <-- ADDED 2026-08-26
+-- - Study mode sub-cohorts: study cohort x partner roster mode                  <-- ADDED 2026-09-01
 -- - MERGE prevents duplicates for (cr_user_id, cohort_name)
 --
 -- DEPENDENCY (added 2026-08-26): the study branch reads
 -- `user_data.cr_study_cohort`, so queries/cr_study_cohort.sql must run BEFORE this.
 -- If that table is missing this query fails loudly rather than silently skipping.
+--
+-- DEPENDENCY (added 2026-09-01): the study mode branch also reads
+-- `user_data.cr_study_user_modes`, a static partner roster loaded once by
+-- queries/adhoc/load_cr_study_user_modes.sql. It is not rebuilt nightly, but it must
+-- EXIST or this query fails. Run order: cr_study_cohort.sql, then this.
+--
+-- NOTE: study participants now carry two cohort rows (parent + mode arm). cr_app_launch
+-- LEFT JOINs cr_cohorts on cr_user_id without pre-aggregating, so those users fan out
+-- one extra row there. Multi-cohort membership is already the norm (985 users at 2
+-- cohorts, 62 at 3 as of 2026-09-01), so this changes the degree, not the kind -- but
+-- do not COUNT(*) cr_app_launch and call it users.
 -- =====================================================================================
 
 MERGE `dataexploration-193817.user_data.cr_cohorts` AS tgt
@@ -124,6 +136,48 @@ USING (
       AND confirmed_via_joined_study     -- drop this predicate to admit backup-only rows
   ),
 
+  -- -------------------------------------------------------------------------------
+  -- Study MODE sub-cohorts                                      ADDED 2026-09-01
+  --
+  -- Splits 'study:World Bank Nigeria June 2026' into three arms by the partner's
+  -- recruitment/delivery mode:
+  --   study:World Bank Nigeria June 2026 - In-person
+  --   study:World Bank Nigeria June 2026 - Online
+  --   study:World Bank Nigeria June 2026 - Phone
+  --
+  -- Mode is not in Firebase -- it exists only in the partner roster, loaded once into
+  -- user_data.cr_study_user_modes (see queries/adhoc/load_cr_study_user_modes.sql).
+  -- Only the roster is static; the study_user_id -> cr_user_id resolution happens here
+  -- every night, so a participant whose events arrive late from an offline sync lands
+  -- in their mode sub-cohort whenever the data shows up. That is the whole reason this
+  -- is a nightly join and not a one-time INSERT.
+  --
+  -- Predicates deliberately mirror study_memberships above (confirmed_via_joined_study,
+  -- cr_user_id IS NOT NULL) so an arm can never contain a user the parent cohort lacks.
+  -- Like the parent, this is NOT gated on base_users -- see the note above for why.
+  --
+  -- ⚠ THE ARMS DO NOT SUM TO THE PARENT. As of 2026-09-01 the parent holds 307
+  -- cr_user_ids (258 study ids) but the roster only names 164 participants, of whom
+  -- 101 ever produced an enrollment event -> 108 cr_user_ids get a mode. The other
+  -- 199 parent users have no roster entry and stay in the parent cohort only.
+  -- Per-arm resolution is also very uneven -- In-person 45/50 and Phone 40/50 resolved,
+  -- but Online only 16/64. The 63 unresolved ids are not a formatting problem (a
+  -- last-9-digit fuzzy match recovers exactly zero of them); those participants simply
+  -- never fired joined_study or app_launch. Treat cross-arm comparisons of raw counts
+  -- as unsafe until that Online gap is explained.
+  -- -------------------------------------------------------------------------------
+  study_mode_memberships AS (
+    SELECT DISTINCT
+      s.cr_user_id,
+      CONCAT('study:World Bank Nigeria June 2026 - ', m.mode) AS cohort_name
+    FROM `dataexploration-193817.user_data.cr_study_cohort` s
+    JOIN `dataexploration-193817.user_data.cr_study_user_modes` m
+      ON s.study_user_id = m.study_user_id
+    WHERE s.cr_user_id IS NOT NULL
+      AND s.confirmed_via_joined_study
+      AND m.mode IS NOT NULL
+  ),
+
   -- Final source set
   src AS (
     SELECT DISTINCT cr_user_id, cohort_name
@@ -133,6 +187,8 @@ USING (
       SELECT cr_user_id, cohort_name FROM app_memberships
       UNION ALL
       SELECT cr_user_id, cohort_name FROM study_memberships
+      UNION ALL
+      SELECT cr_user_id, cohort_name FROM study_mode_memberships
     )
   )
 
